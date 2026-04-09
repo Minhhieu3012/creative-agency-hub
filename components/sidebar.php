@@ -1,6 +1,6 @@
 <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
 
-    <!-- Brand -->
+    
     <a class="sidebar-brand d-flex align-items-center justify-content-center" href="index.php">
         <div class="sidebar-brand-icon">
             <i class="fas fa-building"></i>
@@ -8,10 +8,10 @@
         <div class="sidebar-brand-text mx-3">Creative Agency</div>
     </a>
 
-    <!-- Divider -->
+    
     <hr class="sidebar-divider my-0">
 
-    <!-- Dashboard -->
+    
     <li class="nav-item active">
         <a class="nav-link" href="index.php">
             <i class="fas fa-fw fa-tachometer-alt"></i>
@@ -21,7 +21,7 @@
 
     <hr class="sidebar-divider">
 
-    <!-- Nhân sự -->
+    
     <div class="sidebar-heading">Nhân Sự</div>
     <li class="nav-item">
         <a class="nav-link" href="pages/employees.php">
@@ -32,7 +32,7 @@
 
     <hr class="sidebar-divider">
 
-    <!-- Công việc -->
+    
     <div class="sidebar-heading">Công Việc</div>
     <li class="nav-item">
         <a class="nav-link" href="pages/tasks.php">
@@ -43,7 +43,7 @@
 
     <hr class="sidebar-divider">
 
-    <!-- Chấm công -->
+    
     <div class="sidebar-heading">Chấm Công</div>
     <li class="nav-item">
         <a class="nav-link" href="pages/attendance.php">
@@ -54,7 +54,7 @@
 
     <hr class="sidebar-divider d-none d-md-block">
 
-    <!-- Toggle Sidebar -->
+    
     <div class="text-center d-none d-md-inline">
         <button class="rounded-circle border-0" id="sidebarToggle"></button>
     </div>
