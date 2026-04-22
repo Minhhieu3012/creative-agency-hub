@@ -1,0 +1,52 @@
+-- 1. Bảng Nhân viên (Lưu trữ lương cơ bản và quỹ phép)
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    role ENUM('Admin', 'Manager', 'Employee') NOT NULL,
+    base_salary DECIMAL(15,2) NOT NULL DEFAULT 0 COMMENT 'Lương cơ bản/tháng',
+    leave_balance INT DEFAULT 12 COMMENT 'Quỹ phép năm (ngày)',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Bảng Chấm công (Phục vụ cho trang attendance.php)
+CREATE TABLE attendance (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    check_date DATE NOT NULL,
+    check_in TIME DEFAULT NULL,
+    check_out TIME DEFAULT NULL,
+    is_late BOOLEAN DEFAULT FALSE COMMENT 'Đi muộn',
+    is_early_leave BOOLEAN DEFAULT FALSE COMMENT 'Về sớm',
+    work_hours DECIMAL(4,2) DEFAULT 0 COMMENT 'Số giờ làm việc thực tế',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- 3. Bảng Đơn nghỉ phép (Leave Requests)
+CREATE TABLE leave_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    total_days DECIMAL(4,1) NOT NULL COMMENT 'Số ngày nghỉ',
+    reason TEXT,
+    status ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Pending',
+    approved_by INT NULL COMMENT 'ID của Manager duyệt',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- 4. Bảng Bảng lương & KPI (Lưu trữ lịch sử lương hàng tháng)
+CREATE TABLE payroll (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    month TINYINT NOT NULL,
+    year YEAR NOT NULL,
+    standard_days INT DEFAULT 22 COMMENT 'Số ngày công chuẩn của tháng',
+    actual_work_days DECIMAL(4,2) NOT NULL COMMENT 'Ngày công thực tế',
+    kpi_score INT DEFAULT 100 COMMENT 'Điểm KPI (%)',
+    bonus DECIMAL(15,2) DEFAULT 0 COMMENT 'Tiền thưởng',
+    penalty DECIMAL(15,2) DEFAULT 0 COMMENT 'Tiền phạt',
+    net_salary DECIMAL(15,2) NOT NULL COMMENT 'Thực lãnh',
+    status ENUM('Draft', 'Paid') DEFAULT 'Draft',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
