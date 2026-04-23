@@ -1,34 +1,94 @@
 <?php
-// Bắt đầu session và kết nối DB (Giả định)
-// session_start();
-// include '../includes/db_connect.php'; 
+session_start();
+require_once '../config/db_connect.php';
 
-// Giả lập dữ liệu user đăng nhập
-$user_id = 1; 
+$_SESSION['user_id'] = 1; 
+$user_id = $_SESSION['user_id'];
 $today = date('Y-m-d');
 $now = date('H:i:s');
-$message = "";
+$month = date('m');
 
-// 1. Xử lý Logic Check-in / Check-out & Gửi đơn phép (Mô phỏng POST)
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['action'])) {
-        if ($_POST['action'] == 'checkin') {
-            $status = ($now > "08:15:00") ? 'Đi muộn' : 'Đúng giờ';
-            // SQL: INSERT INTO attendance...
-            $message = "<div class='alert alert-success'>Check-in thành công lúc $now ($status)</div>";
-        } elseif ($_POST['action'] == 'checkout') {
-            $status_update = ($now < "17:00:00") ? 'Về sớm' : 'Đúng giờ';
-            // SQL: UPDATE attendance SET check_out...
-            $message = "<div class='alert alert-warning'>Check-out thành công lúc $now ($status_update)</div>";
+// --- CẬP NHẬT LOGIC XỬ LÝ CHECK-IN / CHECK-OUT & RESET ---
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    
+    // 0. Logic Reset Dữ liệu (Dành cho Test)
+    if (isset($_POST['reset_test'])) {
+        $pdo->prepare("DELETE FROM attendance WHERE user_id = ? AND check_date = ?")->execute([$user_id, $today]);
+        
+        $_SESSION['flash_msg'] = "Đã xóa toàn bộ dữ liệu chấm công hôm nay. Bạn có thể test lại từ đầu!";
+        $_SESSION['flash_type'] = "success";
+        
+        header("Location: attendance.php");
+        exit();
+    }
+
+    // 1. Logic Check-in: Tính thời gian đi trễ
+    if (isset($_POST['check_in'])) {
+        $start_time_str = '08:30:00';
+        $is_late = ($now > $start_time_str) ? 1 : 0;
+        
+        $msg = "Check-in thành công lúc $now.";
+        $alert_type = "success";
+
+        if ($is_late) {
+            // Tính số giây trễ
+            $late_seconds = strtotime($now) - strtotime($start_time_str);
+            $late_hours = floor($late_seconds / 3600);
+            $late_minutes = floor(($late_seconds % 3600) / 60);
+            
+            $msg .= " Bạn đã vào ca trễ ";
+            if ($late_hours > 0) $msg .= "<strong>$late_hours giờ</strong> ";
+            $msg .= "<strong>$late_minutes phút</strong> so với quy định.";
+            $alert_type = "warning"; // Đổi màu thông báo thành vàng cảnh báo
         }
-    } elseif (isset($_POST['submit_leave'])) {
-        $start = $_POST['start_date'];
-        $end = $_POST['end_date'];
-        $reason = $_POST['reason'];
-        // SQL: INSERT INTO leave_requests...
-        $message = "<div class='alert alert-info'>Đã gửi đơn xin nghỉ từ $start đến $end. Trạng thái: Pending.</div>";
+
+        $pdo->prepare("INSERT INTO attendance (user_id, check_date, check_in, is_late) VALUES (?, ?, ?, ?)")->execute([$user_id, $today, $now, $is_late]);
+        
+        // Lưu thông báo vào session để hiển thị
+        $_SESSION['flash_msg'] = $msg;
+        $_SESSION['flash_type'] = $alert_type;
+        
+        header("Location: attendance.php");
+        exit();
+    }
+
+    // 2. Logic Check-out: Thông báo tổng số giờ làm
+    if (isset($_POST['check_out'])) {
+        $is_early = ($now < '17:30:00') ? 1 : 0;
+        $stmt = $pdo->prepare("SELECT check_in FROM attendance WHERE user_id = ? AND check_date = ?");
+        $stmt->execute([$user_id, $today]);
+        $record = $stmt->fetch();
+        
+        $work_hours = 0;
+        if ($record && $record['check_in']) {
+            $in_time = strtotime($record['check_in']);
+            $out_time = strtotime($now);
+            // Trừ 1.5 tiếng nghỉ trưa (5400 giây)
+            $work_hours = max(0, round(($out_time - $in_time - 5400) / 3600, 2));
+        }
+
+        $pdo->prepare("UPDATE attendance SET check_out = ?, is_early_leave = ?, work_hours = ? WHERE user_id = ? AND check_date = ?")->execute([$now, $is_early, $work_hours, $user_id, $today]);
+        
+        // Lưu thông báo tổng giờ làm
+        $_SESSION['flash_msg'] = "Check-out thành công! Bạn đã làm việc tổng cộng <strong>$work_hours giờ</strong> trong hôm nay.";
+        $_SESSION['flash_type'] = "info";
+
+        header("Location: attendance.php");
+        exit();
     }
 }
+
+// Lấy trạng thái hôm nay
+$stmt = $pdo->prepare("SELECT check_in, check_out FROM attendance WHERE user_id = ? AND check_date = ?");
+$stmt->execute([$user_id, $today]);
+$attendance_today = $stmt->fetch();
+$has_checked_in = !empty($attendance_today['check_in']);
+$has_checked_out = !empty($attendance_today['check_out']);
+
+// Lấy dữ liệu báo cáo
+$stmt = $pdo->prepare("SELECT COUNT(id) as total_days, SUM(is_late) as total_late, SUM(is_early_leave) as total_early, SUM(work_hours) as total_hours FROM attendance WHERE user_id = ? AND MONTH(check_date) = ?");
+$stmt->execute([$user_id, $month]);
+$report = $stmt->fetch();
 ?>
 
 <!DOCTYPE html>
@@ -36,140 +96,152 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <head>
   <meta charset="UTF-8">
-  <title>Chấm công & Tiền lương - Creative Agency Hub</title>
+  <title>Chấm Công - Creative Agency Hub</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+  body {
+    background-color: #f4f7f6;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  .card-custom {
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease;
+  }
+
+  .card-custom:hover {
+    transform: translateY(-5px);
+  }
+
+  .btn-checkin {
+    border-radius: 50px;
+    padding: 12px 30px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .stat-icon {
+    font-size: 2.5rem;
+    opacity: 0.8;
+  }
+
+  .text-gradient {
+    background: -webkit-linear-gradient(45deg, #007bff, #6610f2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  </style>
 </head>
 
-<body class="bg-light">
+<body class="py-5">
 
-  <div class="container-fluid py-4">
-    <h2 class="mb-4 fw-bold text-primary">Hệ thống Chấm công & Tiền lương</h2>
-    <?= $message ?>
+  <div class="container">
+    <div class="row mb-4">
+      <div class="col-12 text-center">
+        <h2 class="fw-bold text-gradient">Creative Agency Hub</h2>
+        <p class="text-muted">Cổng thông tin nội bộ - Quản lý nhân sự</p>
+      </div>
+    </div>
 
     <div class="row g-4">
-      <div class="col-md-4">
-        <div class="card shadow-sm mb-4 border-0">
-          <div class="card-header bg-dark text-white fw-bold">Điểm danh ngày: <?= date('d/m/Y') ?></div>
-          <div class="card-body text-center py-4">
-            <h3 id="realtime-clock" class="display-5 fw-bold text-secondary mb-4">00:00:00</h3>
-            <form method="POST">
-              <div class="d-grid gap-2">
-                <button type="submit" name="action" value="checkin" class="btn btn-success btn-lg">VÀO CA
-                  (Check-in)</button>
-                <button type="submit" name="action" value="checkout" class="btn btn-danger btn-lg">TAN CA
-                  (Check-out)</button>
-              </div>
-            </form>
-          </div>
-        </div>
+      <div class="col-lg-5">
+        <div class="card card-custom h-100">
+          <div class="card-body p-4 text-center d-flex flex-column justify-content-center">
+            <i class="bi bi-clock-history display-1 text-primary mb-3"></i>
+            <h4 class="fw-bold mb-1">Ghi nhận thời gian</h4>
+            <p class="text-muted mb-3">Hôm nay: <?= date('d/m/Y') ?></p>
 
-        <div class="card shadow-sm border-0">
-          <div class="card-header bg-warning text-dark fw-bold">Tạo đơn nghỉ phép</div>
-          <div class="card-body">
-            <form method="POST">
-              <div class="mb-2">
-                <label class="form-label text-muted small">Từ ngày</label>
-                <input type="date" name="start_date" class="form-control" required>
-              </div>
-              <div class="mb-2">
-                <label class="form-label text-muted small">Đến ngày</label>
-                <input type="date" name="end_date" class="form-control" required>
-              </div>
-              <div class="mb-3">
-                <label class="form-label text-muted small">Lý do</label>
-                <textarea name="reason" class="form-control" rows="2" required></textarea>
-              </div>
-              <button type="submit" name="submit_leave" class="btn btn-primary w-100">Gửi chờ duyệt</button>
+            <?php if (isset($_SESSION['flash_msg'])): ?>
+            <div class="alert alert-<?= $_SESSION['flash_type'] ?> alert-dismissible fade show text-start rounded-4"
+              role="alert">
+              <i class="bi bi-info-circle-fill me-2"></i> <?= $_SESSION['flash_msg'] ?>
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <?php 
+                // Xóa session sau khi hiển thị để không báo lại khi F5
+                unset($_SESSION['flash_msg']); 
+                unset($_SESSION['flash_type']); 
+            ?>
+            <?php endif; ?>
+
+            <form method="POST" class="d-grid gap-3 mt-2">
+              <button type="submit" name="check_in" class="btn btn-primary btn-checkin"
+                <?= $has_checked_in ? 'disabled' : '' ?>>
+                <i class="bi bi-box-arrow-in-right me-2"></i> BẮT ĐẦU CA LÀM
+              </button>
+
+              <button type="submit" name="check_out" class="btn btn-outline-danger btn-checkin"
+                <?= (!$has_checked_in || $has_checked_out) ? 'disabled' : '' ?>>
+                <i class="bi bi-box-arrow-right me-2"></i> KẾT THÚC CA LÀM
+              </button>
+
+              <hr class="my-3 text-muted">
+              <button type="submit" name="reset_test" class="btn btn-dark btn-sm rounded-pill py-2"
+                onclick="return confirm('Bạn có chắc chắn muốn xóa dữ liệu chấm công hôm nay để test lại?');">
+                <i class="bi bi-arrow-clockwise me-1"></i> RESET DỮ LIỆU BẢN NHÁP
+              </button>
             </form>
+
+            <?php if ($has_checked_in): ?>
+            <div class="alert alert-success mt-4 rounded-pill" role="alert">
+              <i class="bi bi-check-circle-fill me-2"></i> Giờ vào ca:
+              <strong><?= $attendance_today['check_in'] ?></strong>
+            </div>
+            <?php endif; ?>
           </div>
         </div>
       </div>
 
-      <div class="col-md-8">
-        <div class="card shadow-sm mb-4 border-0">
-          <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <span class="fw-bold text-primary">Lịch sử chấm công tháng <?= date('m/Y') ?></span>
-            <button onclick="exportToExcel()" class="btn btn-sm btn-outline-success">Xuất Excel</button>
-          </div>
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-hover table-striped mb-0" id="attendanceTable">
-                <thead class="table-light">
-                  <tr>
-                    <th>Ngày</th>
-                    <th>Giờ vào</th>
-                    <th>Giờ ra</th>
-                    <th>Trạng thái</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>20/04/2026</td>
-                    <td>08:05:00</td>
-                    <td>17:05:00</td>
-                    <td><span class="badge bg-success">Đúng giờ</span></td>
-                  </tr>
-                  <tr>
-                    <td>21/04/2026</td>
-                    <td>08:20:00</td>
-                    <td>17:00:00</td>
-                    <td><span class="badge bg-warning text-dark">Đi muộn</span></td>
-                  </tr>
-                  <tr>
-                    <td>22/04/2026</td>
-                    <td>08:00:00</td>
-                    <td>16:30:00</td>
-                    <td><span class="badge bg-danger">Về sớm</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+      <div class="col-lg-7">
+        <div class="card card-custom h-100">
+          <div class="card-body p-4">
+            <h4 class="fw-bold mb-4 border-bottom pb-2">
+              <i class="bi bi-bar-chart-line text-success me-2"></i> Thống kê Tháng <?= $month ?>
+            </h4>
 
-        <div class="card shadow-sm border-0 border-start border-primary border-4">
-          <div class="card-header bg-white fw-bold">Mô phỏng tính lương & KPI (Interactive)</div>
-          <div class="card-body">
-            <div class="row mb-3">
-              <div class="col-md-6 mb-2">
-                <label class="form-label small">Lương cơ bản (VNĐ)</label>
-                <input type="number" id="calc_basic" class="form-control" value="15000000" oninput="calculateSalary()">
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <div class="p-3 bg-light rounded-4 border d-flex align-items-center">
+                  <i class="bi bi-calendar-check text-primary stat-icon me-3"></i>
+                  <div>
+                    <h6 class="mb-0 text-muted">Tổng ngày làm</h6>
+                    <h3 class="mb-0 fw-bold"><?= $report['total_days'] ?? 0 ?> <span
+                        class="fs-6 fw-normal text-muted">ngày</span></h3>
+                  </div>
+                </div>
               </div>
-              <div class="col-md-6 mb-2">
-                <label class="form-label small">Số lần đi muộn (50k/lần)</label>
-                <input type="number" id="calc_late" class="form-control" value="2" oninput="calculateSalary()">
+              <div class="col-sm-6">
+                <div class="p-3 bg-light rounded-4 border d-flex align-items-center">
+                  <i class="bi bi-stopwatch text-info stat-icon me-3"></i>
+                  <div>
+                    <h6 class="mb-0 text-muted">Tổng giờ làm</h6>
+                    <h3 class="mb-0 fw-bold"><?= $report['total_hours'] ?? 0 ?> <span
+                        class="fs-6 fw-normal text-muted">giờ</span></h3>
+                  </div>
+                </div>
               </div>
-              <div class="col-md-6 mb-2">
-                <label class="form-label small">Ngày công thực tế / 26</label>
-                <input type="number" id="calc_days" class="form-control" value="24" step="0.5"
-                  oninput="calculateSalary()">
+              <div class="col-sm-6">
+                <div class="p-3 bg-light rounded-4 border border-warning d-flex align-items-center">
+                  <i class="bi bi-exclamation-triangle text-warning stat-icon me-3"></i>
+                  <div>
+                    <h6 class="mb-0 text-muted">Số lần đi muộn</h6>
+                    <h3 class="mb-0 fw-bold text-warning"><?= $report['total_late'] ?? 0 ?> <span
+                        class="fs-6 fw-normal text-muted">lần</span></h3>
+                  </div>
+                </div>
               </div>
-              <div class="col-md-6 mb-2">
-                <label class="form-label small">Điểm KPI (0 - 100)</label>
-                <input type="range" id="calc_kpi" class="form-range" min="0" max="100" value="85"
-                  oninput="updateKpiLabel(); calculateSalary()">
-                <div class="text-center fw-bold text-primary" id="kpi_label">85 điểm</div>
-              </div>
-            </div>
-
-            <div class="bg-light p-3 rounded">
-              <div class="d-flex justify-content-between mb-2">
-                <span>Lương theo ngày công:</span>
-                <strong id="res_work_salary">0 VNĐ</strong>
-              </div>
-              <div class="d-flex justify-content-between mb-2">
-                <span>Thưởng/Phạt KPI:</span>
-                <strong id="res_kpi_adj" class="text-secondary">0 VNĐ</strong>
-              </div>
-              <div class="d-flex justify-content-between mb-2">
-                <span>Phạt đi muộn:</span>
-                <strong id="res_late_penalty" class="text-danger">0 VNĐ</strong>
-              </div>
-              <hr>
-              <div class="d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Thực nhận:</h5>
-                <h4 class="mb-0 text-success fw-bold" id="res_total">0 VNĐ</h4>
+              <div class="col-sm-6">
+                <div class="p-3 bg-light rounded-4 border border-danger d-flex align-items-center">
+                  <i class="bi bi-door-open text-danger stat-icon me-3"></i>
+                  <div>
+                    <h6 class="mb-0 text-muted">Số lần về sớm</h6>
+                    <h3 class="mb-0 fw-bold text-danger"><?= $report['total_early'] ?? 0 ?> <span
+                        class="fs-6 fw-normal text-muted">lần</span></h3>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -178,75 +250,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
   </div>
 
-  <script>
-  // 1. Đồng hồ thời gian thực
-  setInterval(() => {
-    const now = new Date();
-    document.getElementById('realtime-clock').innerText = now.toLocaleTimeString('vi-VN', {
-      hour12: false
-    });
-  }, 1000);
-
-  // 2. Hàm xuất bảng ra Excel sử dụng SheetJS
-  function exportToExcel() {
-    let table = document.getElementById("attendanceTable");
-    let workbook = XLSX.utils.table_to_book(table, {
-      sheet: "ChamCong"
-    });
-    XLSX.writeFile(workbook, "BangChamCong_Thang" + (new Date().getMonth() + 1) + ".xlsx");
-  }
-
-  // 3. Logic Công cụ tính lương (Bộ mô phỏng)
-  function updateKpiLabel() {
-    document.getElementById('kpi_label').innerText = document.getElementById('calc_kpi').value + " điểm";
-  }
-
-  function calculateSalary() {
-    const basicSalary = parseFloat(document.getElementById('calc_basic').value) || 0;
-    const workDays = parseFloat(document.getElementById('calc_days').value) || 0;
-    const kpi = parseInt(document.getElementById('calc_kpi').value) || 0;
-    const lateCount = parseInt(document.getElementById('calc_late').value) || 0;
-
-    // Tính lương theo ngày
-    const workSalary = (basicSalary / 26) * workDays;
-
-    // Tính KPI
-    let kpiAdjustment = 0;
-    let kpiTextClass = "text-secondary";
-    let kpiSign = "";
-
-    if (kpi >= 90) {
-      kpiAdjustment = basicSalary * 0.10; // Thưởng 10%
-      kpiTextClass = "text-success";
-      kpiSign = "+";
-    } else if (kpi < 70) {
-      kpiAdjustment = -(basicSalary * 0.05); // Phạt 5%
-      kpiTextClass = "text-danger";
-    }
-
-    // Phạt đi muộn
-    const latePenalty = lateCount * 50000;
-
-    // Tổng lương
-    const totalSalary = workSalary + kpiAdjustment - latePenalty;
-
-    // Format tiền tệ
-    const formatVND = (num) => Math.round(num).toLocaleString('vi-VN') + " VNĐ";
-
-    // Cập nhật DOM
-    document.getElementById('res_work_salary').innerText = formatVND(workSalary);
-
-    const kpiEl = document.getElementById('res_kpi_adj');
-    kpiEl.innerText = kpiSign + formatVND(kpiAdjustment);
-    kpiEl.className = kpiTextClass;
-
-    document.getElementById('res_late_penalty').innerText = "-" + formatVND(latePenalty);
-    document.getElementById('res_total').innerText = formatVND(totalSalary > 0 ? totalSalary : 0);
-  }
-
-  // Chạy tính toán lần đầu khi load trang
-  calculateSalary();
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>
