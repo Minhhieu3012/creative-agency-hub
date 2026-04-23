@@ -190,9 +190,14 @@ $details = $stmtDetails->fetchAll();
       <div class="col-lg-7">
         <div class="card card-custom h-100">
           <div class="card-body p-4">
-            <h4 class="fw-bold mb-4 border-bottom pb-2">
-              <i class="bi bi-bar-chart-line text-success me-2"></i> Thống kê Tháng <?= $month ?>
-            </h4>
+            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
+              <h4 class="fw-bold mb-0">
+                <i class="bi bi-bar-chart-line text-success me-2"></i> Thống kê Tháng <?= $month ?>
+              </h4>
+              <a href="payroll_summary.php" class="btn btn-sm btn-outline-primary rounded-pill fw-bold shadow-sm">
+                <i class="bi bi-receipt me-1"></i> XEM BẢNG LƯƠNG
+              </a>
+            </div>
 
             <div class="row g-3">
               <div class="col-sm-6">
