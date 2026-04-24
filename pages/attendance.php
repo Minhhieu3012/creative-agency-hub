@@ -2,7 +2,7 @@
 session_start();
 require_once '../config/db_connect.php';
 
-
+// Thiết lập múi giờ
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
 $_SESSION['user_id'] = 1; 
@@ -120,7 +120,7 @@ $details = $stmtDetails->fetchAll();
     -webkit-text-fill-color: transparent;
   }
 
-  /* Hiệu ứng hover cho thẻ thống kê (MỚI) */
+  /* Hiệu ứng hover cho thẻ thống kê */
   .stat-card {
     transition: all 0.2s ease;
     cursor: pointer;
@@ -138,7 +138,19 @@ $details = $stmtDetails->fetchAll();
     <div class="row mb-4">
       <div class="col-12 text-center">
         <h2 class="fw-bold text-gradient">Creative Agency Hub</h2>
-        <p class="text-muted">Cổng thông tin nội bộ - Quản lý nhân sự</p>
+        <p class="text-muted mb-3">Cổng thông tin nội bộ - Quản lý nhân sự</p>
+
+        <div class="d-flex justify-content-center gap-3">
+          <a href="attendance.php" class="btn btn-primary rounded-pill shadow-sm">
+            <i class="bi bi-clock-history me-1"></i> Chấm công
+          </a>
+          <a href="leave_request.php" class="btn btn-outline-primary rounded-pill shadow-sm bg-white">
+            <i class="bi bi-envelope-paper me-1"></i> Xin nghỉ phép
+          </a>
+          <a href="payroll_summary.php" class="btn btn-outline-primary rounded-pill shadow-sm bg-white">
+            <i class="bi bi-receipt me-1"></i> Bảng lương
+          </a>
+        </div>
       </div>
     </div>
 
@@ -194,9 +206,6 @@ $details = $stmtDetails->fetchAll();
               <h4 class="fw-bold mb-0">
                 <i class="bi bi-bar-chart-line text-success me-2"></i> Thống kê Tháng <?= $month ?>
               </h4>
-              <a href="payroll_summary.php" class="btn btn-sm btn-outline-primary rounded-pill fw-bold shadow-sm">
-                <i class="bi bi-receipt me-1"></i> XEM BẢNG LƯƠNG
-              </a>
             </div>
 
             <div class="row g-3">
