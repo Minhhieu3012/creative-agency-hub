@@ -140,7 +140,12 @@ $details = $stmtDetails->fetchAll();
         <h2 class="fw-bold text-gradient">Creative Agency Hub</h2>
         <p class="text-muted mb-3">Cổng thông tin nội bộ - Quản lý nhân sự</p>
 
-        <div class="d-flex justify-content-center gap-3">
+        <div class="d-flex justify-content-center gap-3 flex-wrap">
+
+          <a href="http://localhost/LTW/creative-agency-hub" class="btn btn-dark rounded-pill shadow-sm">
+            <i class="bi bi-house-door me-1"></i> Trang chủ
+          </a>
+
           <a href="attendance.php" class="btn btn-primary rounded-pill shadow-sm">
             <i class="bi bi-clock-history me-1"></i> Chấm công
           </a>
@@ -150,6 +155,7 @@ $details = $stmtDetails->fetchAll();
           <a href="payroll_summary.php" class="btn btn-outline-primary rounded-pill shadow-sm bg-white">
             <i class="bi bi-receipt me-1"></i> Bảng lương
           </a>
+
         </div>
       </div>
     </div>
