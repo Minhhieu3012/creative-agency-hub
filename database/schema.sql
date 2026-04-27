@@ -64,6 +64,7 @@ CREATE TABLE employees (
     
     CONSTRAINT chk_emp_dates CHECK (resigned_date IS NULL OR resigned_date >= hire_date),
     
+    -- Ràng buộc đồng nhất trạng thái vòng đời (Lifecycle State Inconsistency)
     CONSTRAINT chk_employee_status_resigned CHECK (
         (status = 'resigned' AND resigned_date IS NOT NULL) OR (status <> 'resigned')
     ),
