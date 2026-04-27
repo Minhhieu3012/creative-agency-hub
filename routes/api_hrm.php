@@ -2,20 +2,37 @@
 // Bắt buộc trả về định dạng JSON cho API
 header('Content-Type: application/json; charset=utf-8');
 
-// 1. NẠP FILE THỦ CÔNG (Bỏ qua Autoload để tránh lỗi môi trường)
-// Module Phòng ban
+/**
+ * --- BẮT ĐẦU: LỚP BẢO MẬT (TOKEN CHECK) ---
+ * Chặn đứng các yêu cầu không có quyền truy cập vào các thao tác nhạy cảm.
+ */
+function checkAuth() {
+    $headers = getallheaders();
+    // Kiểm tra Header Authorization có dạng 'Bearer <token>' không
+    if (!isset($headers['Authorization']) || !preg_match('/Bearer\s(\S+)/', $headers['Authorization'], $matches)) {
+        http_response_code(401);
+        echo json_encode([
+            'status' => 401, 
+            'error' => 'Unauthorized: Thiếu Token bảo mật. Ae hãy dùng Postman gắn Bearer Token vào Header.'
+        ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        exit;
+    }
+    // Ghi chú: Sau khi pull code mới, bạn có thể gọi hàm Verify của Hiếu tại đây:
+    // $is_valid = Auth::verifyToken($matches[1]);
+}
+/** --- KẾT THÚC: LỚP BẢO MẬT --- */
+
+
+// 1. NẠP FILE THỦ CÔNG (Module HRM hoàn chỉnh)
 require_once __DIR__ . '/../app/Models/HRM/Department.php';
 require_once __DIR__ . '/../app/Controllers/HRM/DepartmentController.php';
 
-// Module Chức vụ
 require_once __DIR__ . '/../app/Models/HRM/Position.php';
 require_once __DIR__ . '/../app/Controllers/HRM/PositionController.php';
 
-// Module Hợp đồng
 require_once __DIR__ . '/../app/Models/HRM/EmployeeContract.php';
 require_once __DIR__ . '/../app/Controllers/HRM/EmployeeContractController.php';
 
-// Module Nhân viên
 require_once __DIR__ . '/../app/Models/HRM/Employee.php';
 require_once __DIR__ . '/../app/Controllers/HRM/EmployeeController.php';
 
@@ -23,6 +40,7 @@ use App\Controllers\HRM\DepartmentController;
 use App\Controllers\HRM\PositionController;
 use App\Controllers\HRM\EmployeeContractController;
 use App\Controllers\HRM\EmployeeController;
+
 
 // 2. KHỞI TẠO KẾT NỐI CSDL (PDO)
 try {
@@ -33,18 +51,31 @@ try {
     die(json_encode(['status' => 500, 'error' => 'Lỗi kết nối CSDL: ' . $e->getMessage()]));
 }
 
+
 // 3. KHỞI TẠO CONTROLLERS
 $departmentController = new DepartmentController($db);
 $positionController = new PositionController($db);
 $contractController = new EmployeeContractController($db);
 $employeeController = new EmployeeController($db);
 
+
 // 4. ĐỊNH TUYẾN (ROUTING)
 $module = $_GET['module'] ?? 'departments'; 
 $action = $_GET['action'] ?? 'index'; 
 $id = $_GET['id'] ?? null;
 
-// Luồng dữ liệu (Data Flow) - Điều hướng và bắt lỗi Action theo từng Module
+/**
+ * --- LỚP KIỂM TRA QUYỀN TRUY CẬP ---
+ * Root Cause: Ngăn chặn việc thực hiện các hành động thay đổi dữ liệu mà không có Token.
+ */
+$secureActions = ['update', 'delete', 'adjust_leave', 'upload_avatar'];
+
+if (in_array($action, $secureActions)) {
+    checkAuth();
+}
+
+
+// 5. ĐIỀU HƯỚNG DỮ LIỆU (DATA FLOW)
 if ($module === 'departments') {
     if ($action === 'index') {
         $departmentController->index();
@@ -76,21 +107,21 @@ elseif ($module === 'contracts') {
     }
 } 
 elseif ($module === 'employees') {
-    // Luồng xử lý cho Module Nhân viên (Giai đoạn 3)
     if ($action === 'index') {
         $employeeController->index();
     } elseif ($action === 'update' && $id) {
         $employeeController->update($id);
     } elseif ($action === 'upload_avatar' && $id) {
-        // Xử lý Upload file (Thường qua POST)
         $employeeController->uploadAvatar($id);
+    } elseif ($action === 'adjust_leave' && $id) {
+        // Hỗ trợ Action của Giai đoạn 4
+        $employeeController->adjustLeave($id);
     } else {
         http_response_code(404);
         echo json_encode(['status' => 404, 'error' => 'Action không tồn tại trong module Employees']);
     }
 }
 else {
-    // Xử lý Edge Case: Nhập sai tên module
     http_response_code(404);
     echo json_encode(['status' => 404, 'error' => 'Module hoặc Endpoint không tồn tại']);
 }
