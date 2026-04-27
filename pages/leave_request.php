@@ -4,21 +4,33 @@ require_once '../config/db_connect.php';
 
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-$_SESSION['user_id'] = 1; // LUÔN ĐÓNG VAI TRÒ LÀ NHÂN VIÊN 1
-$user_id = $_SESSION['user_id'];
+// GIẢ LẬP ĐĂNG NHẬP: Lấy ID 2 (Nguyễn Văn A - Role: Employee)
+if (!isset($_SESSION['employee_id'])) {
+    $_SESSION['employee_id'] = 1; 
+    $_SESSION['role'] = 'employee';
+}
 
-// 1. LẤY THÔNG TIN QUỸ PHÉP
-$stmtUser = $pdo->prepare("SELECT full_name, leave_balance FROM users WHERE id = ?");
-$stmtUser->execute([$user_id]);
+$emp_id = $_SESSION['employee_id'];
+
+// ==========================================
+// 1. LẤY THÔNG TIN QUỸ PHÉP TỪ BẢNG EMPLOYEES
+// ==========================================
+$stmtUser = $pdo->prepare("SELECT full_name, remaining_leave_days FROM employees WHERE id = ?");
+$stmtUser->execute([$emp_id]);
 $user = $stmtUser->fetch();
-$leave_balance = $user['leave_balance'] ?? 0;
 
-// 2. XỬ LÝ NHÂN VIÊN GỬI ĐƠN
+// DÙNG floatval() ĐỂ XÓA ĐUÔI .00 (Ví dụ: 12.00 -> 12)
+$leave_balance = isset($user['remaining_leave_days']) ? floatval($user['remaining_leave_days']) : 0;
+
+// ==========================================
+// 2. XỬ LÝ NHÂN VIÊN GỬI ĐƠN MỚI
+// ==========================================
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_leave'])) {
     $start_date = $_POST['start_date'];
     $end_date = $_POST['end_date'];
     $reason = $_POST['reason'];
 
+    // Tính số ngày nghỉ
     $days_requested = (strtotime($end_date) - strtotime($start_date)) / 86400 + 1;
 
     if ($days_requested <= 0) {
@@ -28,8 +40,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_leave'])) {
         $_SESSION['flash_msg'] = "Bạn chỉ còn $leave_balance ngày phép. Không thể xin nghỉ $days_requested ngày!";
         $_SESSION['flash_type'] = "warning";
     } else {
-        $stmt = $pdo->prepare("INSERT INTO leave_requests (user_id, start_date, end_date, reason) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$user_id, $start_date, $end_date, $reason]);
+        // Lưu vào bảng leave_requests
+        $stmt = $pdo->prepare("INSERT INTO leave_requests (employee_id, start_date, end_date, reason, status) VALUES (?, ?, ?, ?, 'Pending')");
+        $stmt->execute([$emp_id, $start_date, $end_date, $reason]);
         
         $_SESSION['flash_msg'] = "Gửi đơn thành công. Vui lòng chờ Quản lý duyệt!";
         $_SESSION['flash_type'] = "success";
@@ -38,9 +51,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_leave'])) {
     exit();
 }
 
-// 3. LẤY LỊCH SỬ ĐƠN CỦA CHÍNH NHÂN VIÊN NÀY
-$stmtRequests = $pdo->prepare("SELECT * FROM leave_requests WHERE user_id = ? ORDER BY created_at DESC");
-$stmtRequests->execute([$user_id]);
+// ==========================================
+// 3. XỬ LÝ NHÂN VIÊN HỦY ĐƠN (KHI CÒN PENDING)
+// ==========================================
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['cancel_leave'])) {
+    $req_id = $_POST['request_id'];
+    
+    // Đảm bảo chỉ được xóa đơn của chính mình và đơn đó đang chờ duyệt
+    $stmtCancel = $pdo->prepare("DELETE FROM leave_requests WHERE id = ? AND employee_id = ? AND status = 'Pending'");
+    $stmtCancel->execute([$req_id, $emp_id]);
+    
+    if ($stmtCancel->rowCount() > 0) {
+        $_SESSION['flash_msg'] = "Đã hủy đơn xin nghỉ phép thành công!";
+        $_SESSION['flash_type'] = "success";
+    } else {
+        $_SESSION['flash_msg'] = "Không thể hủy! Đơn này đã được xử lý hoặc không tồn tại.";
+        $_SESSION['flash_type'] = "danger";
+    }
+    header("Location: leave_request.php");
+    exit();
+}
+
+// ==========================================
+// 4. LẤY LỊCH SỬ ĐƠN CỦA CHÍNH NHÂN VIÊN NÀY
+// ==========================================
+$stmtRequests = $pdo->prepare("SELECT * FROM leave_requests WHERE employee_id = ? ORDER BY created_at DESC");
+$stmtRequests->execute([$emp_id]);
 $requests = $stmtRequests->fetchAll();
 ?>
 
@@ -170,7 +206,7 @@ $requests = $stmtRequests->fetchAll();
                           <th class="pl-4 py-3">Thời gian nghỉ</th>
                           <th>Lý do</th>
                           <th class="text-center">Số ngày</th>
-                          <th class="text-center pr-4">Trạng thái</th>
+                          <th class="text-center pr-4">Trạng thái / Tác vụ</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -178,7 +214,9 @@ $requests = $stmtRequests->fetchAll();
                         <tr>
                           <td colspan="4" class="text-center text-muted py-5">Chưa có dữ liệu nghỉ phép.</td>
                         </tr>
-                        <?php else: foreach($requests as $req): $d = (strtotime($req['end_date']) - strtotime($req['start_date'])) / 86400 + 1; ?>
+                        <?php else: foreach($requests as $req): 
+                            $d = (strtotime($req['end_date']) - strtotime($req['start_date'])) / 86400 + 1; 
+                        ?>
                         <tr>
                           <td class="pl-4 py-3">
                             <strong class="text-dark"><?= date('d/m/Y', strtotime($req['start_date'])) ?></strong> <br>
@@ -195,8 +233,16 @@ $requests = $stmtRequests->fetchAll();
                           </td>
                           <td class="text-center pr-4">
                             <?php if($req['status'] == 'Pending'): ?>
-                            <span class="badge badge-warning text-dark px-2 py-1"><i class="bi bi-hourglass-split"></i>
-                              Chờ duyệt</span>
+                            <span class="badge badge-warning text-dark px-2 py-1 mb-1 d-block"><i
+                                class="bi bi-hourglass-split"></i> Chờ duyệt</span>
+                            <form method="POST" class="d-inline"
+                              onsubmit="return confirm('Bạn có chắc chắn muốn hủy đơn này không?');">
+                              <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
+                              <button type="submit" name="cancel_leave" class="btn btn-outline-danger btn-sm"
+                                style="font-size: 0.75rem; padding: 2px 8px;">
+                                <i class="bi bi-trash"></i> Hủy
+                              </button>
+                            </form>
                             <?php elseif($req['status'] == 'Approved'): ?>
                             <span class="badge badge-success px-2 py-1"><i class="bi bi-check-circle"></i> Đã
                               duyệt</span>
