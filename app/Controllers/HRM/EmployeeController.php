@@ -3,6 +3,7 @@ namespace App\Controllers\HRM;
 
 use App\Models\HRM\Employee;
 use PDO;
+use Exception;
 
 class EmployeeController {
     private $employeeModel;
@@ -140,6 +141,41 @@ class EmployeeController {
             echo json_encode([
                 'status' => 500, 
                 'error'  => 'Không thể lưu file vào máy chủ'
+            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        }
+        exit;
+    }
+
+    /**
+     * API Điều chỉnh quỹ phép (Atomic Update) - Giai đoạn 4
+     */
+    public function adjustLeave($id) {
+        header('Content-Type: application/json');
+
+        $input = json_decode(file_get_contents("php://input"), true) ?? $_POST;
+        $adjustDays = (float)($input['adjust_days'] ?? 0);
+        $reason = $input['reason'] ?? 'Điều chỉnh thủ công';
+
+        if ($adjustDays == 0) {
+            http_response_code(400);
+            echo json_encode([
+                'status' => 400, 
+                'error'  => 'Số ngày điều chỉnh phải khác 0'
+            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            exit;
+        }
+
+        try {
+            $this->employeeModel->adjustLeaveBalance($id, $adjustDays, $reason);
+            echo json_encode([
+                'status'  => 200, 
+                'message' => 'Cập nhật quỹ phép và ghi log thành công'
+            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        } catch (Exception $e) {
+            http_response_code(400);
+            echo json_encode([
+                'status' => 400, 
+                'error'  => $e->getMessage()
             ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
         }
         exit;

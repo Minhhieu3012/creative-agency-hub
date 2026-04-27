@@ -129,4 +129,56 @@ class Employee {
         $stmt = $this->db->prepare("UPDATE employees SET avatar = :avatar WHERE id = :id");
         return $stmt->execute([':avatar' => $filename, ':id' => $id]);
     }
+
+    /**
+     * Điều chỉnh quỹ phép (Atomic Update) - Giai đoạn 4
+     */
+    public function adjustLeaveBalance($employeeId, $adjustDays, $reason) {
+        try {
+            $this->db->beginTransaction();
+
+            // 1. Cập nhật số dư phép trực tiếp trong SQL (Ngăn lỗi lost update và số âm)
+            $sqlAdjust = "UPDATE employees 
+                          SET remaining_leave_days = remaining_leave_days + :adjust 
+                          WHERE id = :id 
+                          AND (remaining_leave_days + :adjust2) >= 0";
+            
+            $stmtAdjust = $this->db->prepare($sqlAdjust);
+            $stmtAdjust->execute([
+                ':id' => $employeeId,
+                ':adjust' => $adjustDays,
+                ':adjust2' => $adjustDays
+            ]);
+
+            if ($stmtAdjust->rowCount() === 0) {
+                throw new Exception("Số dư phép không đủ hoặc nhân viên không tồn tại");
+            }
+
+            // 2. Lấy số dư mới để ghi log (Audit Trail)
+            $stmtNew = $this->db->prepare("SELECT remaining_leave_days FROM employees WHERE id = :id");
+            $stmtNew->execute([':id' => $employeeId]);
+            $newDays = $stmtNew->fetchColumn();
+
+            // 3. Ghi lịch sử điều chỉnh
+            $sqlLog = "INSERT INTO employee_leave_adjustments 
+                       (employee_id, adjustment_days, old_remaining_days, new_remaining_days, reason, created_by) 
+                       VALUES (:id, :adjust, :old, :new, :reason, :by)";
+            
+            $stmtLog = $this->db->prepare($sqlLog);
+            $stmtLog->execute([
+                ':id' => $employeeId,
+                ':adjust' => $adjustDays,
+                ':old' => $newDays - $adjustDays,
+                ':new' => $newDays,
+                ':reason' => $reason,
+                ':by' => 1 // Mặc định ID Admin là 1 để test
+            ]);
+
+            $this->db->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
 }
