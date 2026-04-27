@@ -51,6 +51,6 @@ try {
     http_response_code(500);
     echo json_encode([
         "status" => "error",
-        "message" => "Internal Server Error"
+        "message" => "Lỗi hệ thống, vui lòng thử lại sau."
     ]);
 }

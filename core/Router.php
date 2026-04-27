@@ -54,9 +54,13 @@ class Router {
 
             [$controller, $method] = explode('@', $action);
 
-            require_once __DIR__ . "/../app/controllers/$controller.php";
+            $controllerClass = "App\\Controllers\\$controller";
 
-            $controller = new $controller();
+            if (!class_exists($controllerClass)) {
+                throw new Exception("Controller $controllerClass not found");
+            }
+
+            $controller = new $controllerClass();
 
             return call_user_func_array([$controller, $method], $params);
         }
