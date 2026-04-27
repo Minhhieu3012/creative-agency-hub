@@ -1,10 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     const taskLists = document.querySelectorAll('.task-list');
     
-    // 1. Tải dữ liệu ban đầu từ API
     loadTasks();
 
-    // 2. Thiết lập Drag & Drop
     taskLists.forEach(list => {
         list.addEventListener('dragover', e => {
             e.preventDefault();
@@ -26,7 +24,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Xử lý triệt để lỗi dính chuột: Lắng nghe sự kiện dragend trên toàn cục
 document.addEventListener('dragend', e => {
     if (e.target.classList.contains('task-card')) {
         e.target.classList.remove('dragging');
@@ -35,31 +32,33 @@ document.addEventListener('dragend', e => {
 
 async function loadTasks() {
     try {
-        const response = await fetch('/api/tasks');
-        const tasks = await response.json();
-        renderTasks(tasks);
+        const response = await fetch('/creative-agency-hub/public/api/tasks');
+        const json = await response.json();
+        
+        if (json.status === 'success') {
+            renderTasks(json.data);
+        }
     } catch (err) {
-        console.error("Không thể tải task:", err);
+        console.error("Lỗi mạng:", err);
     }
 }
 
 function renderTasks(tasks) {
-    // Xóa list cũ
     document.querySelectorAll('.task-list').forEach(l => l.innerHTML = '');
     
     tasks.forEach(task => {
         const card = document.createElement('div');
-        card.className = `task-card priority-${task.priority.toLowerCase()}`;
+        card.className = `task-card priority-${task.priority ? task.priority.toLowerCase() : 'medium'}`;
         card.draggable = true;
         card.dataset.id = task.id;
         card.innerHTML = `
             <span class="task-title">${task.title}</span>
-            <div class="task-meta">Deadline: ${task.deadline}</div>
+            <div class="task-meta">Deadline: ${task.deadline || 'Chưa thiết lập'}</div>
         `;
 
         card.addEventListener('dragstart', () => card.classList.add('dragging'));
         
-        // Gán vào đúng cột
+        // Map 3 trạng thái
         const listId = task.status.toLowerCase().replace(' ', '') + '-list';
         const list = document.getElementById(listId);
         if (list) list.appendChild(card);
@@ -68,12 +67,24 @@ function renderTasks(tasks) {
 }
 
 async function updateTaskStatus(id, status) {
-    await fetch('/api/tasks/update', {
-        method: 'POST',
-        body: JSON.stringify({ id, status }),
-        headers: { 'Content-Type': 'application/json' }
-    });
-    updateCounts();
+    try {
+        const response = await fetch(`/creative-agency-hub/public/api/tasks/${id}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: status }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+        
+        if(result.status === 'success') {
+            updateCounts();
+        } else {
+            alert('Lỗi: ' + result.message);
+            // Reload lại nếu thả lỗi
+            loadTasks(); 
+        }
+    } catch(err) {
+        console.error(err);
+    }
 }
 
 function updateCounts() {
