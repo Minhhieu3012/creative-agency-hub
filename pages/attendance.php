@@ -5,15 +5,21 @@ require_once '../config/db_connect.php';
 // Thiết lập múi giờ
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-$_SESSION['user_id'] = 1; 
-$user_id = $_SESSION['user_id'];
-$today = date('Y-m-d');
-$now = date('H:i:s');
-$month = date('m');
+$_SESSION['employee_id'] = 1; 
+$emp_id = $_SESSION['employee_id'];
 
+$today = date('Y-m-d');
+$now_time = date('H:i:s');
+$now_datetime = date('Y-m-d H:i:s');
+$month = date('m');
+$year = date('Y');
+
+// ==========================================
+// 1. XỬ LÝ FORM CHẤM CÔNG
+// ==========================================
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_POST['reset_test'])) {
-        $pdo->prepare("DELETE FROM attendance WHERE user_id = ? AND check_date = ?")->execute([$user_id, $today]);
+        $pdo->prepare("DELETE FROM attendances WHERE employee_id = ? AND work_date = ?")->execute([$emp_id, $today]);
         $_SESSION['flash_msg'] = "Đã xóa toàn bộ dữ liệu chấm công hôm nay.";
         $_SESSION['flash_type'] = "success";
         header("Location: attendance.php");
@@ -21,13 +27,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     if (isset($_POST['check_in'])) {
-        $start_time_str = '08:30:00';
-        $is_late = ($now > $start_time_str) ? 1 : 0;
-        $msg = "Check-in thành công lúc $now.";
+        $start_time_limit = date('Y-m-d 08:30:00');
+        $status = ($now_datetime > $start_time_limit) ? 'Late' : 'Present';
+        $msg = "Check-in thành công lúc $now_time.";
         $alert_type = "success";
 
-        if ($is_late) {
-            $late_seconds = strtotime($now) - strtotime($start_time_str);
+        if ($status == 'Late') {
+            $late_seconds = strtotime($now_datetime) - strtotime($start_time_limit);
             $late_hours = floor($late_seconds / 3600);
             $late_minutes = floor(($late_seconds % 3600) / 60);
             $msg .= " Bạn đã vào ca trễ ";
@@ -36,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $alert_type = "warning";
         }
 
-        $pdo->prepare("INSERT INTO attendance (user_id, check_date, check_in, is_late) VALUES (?, ?, ?, ?)")->execute([$user_id, $today, $now, $is_late]);
+        $pdo->prepare("INSERT INTO attendances (employee_id, work_date, check_in_time, status) VALUES (?, ?, ?, ?)")->execute([$emp_id, $today, $now_datetime, $status]);
         $_SESSION['flash_msg'] = $msg;
         $_SESSION['flash_type'] = $alert_type;
         header("Location: attendance.php");
@@ -44,19 +50,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     if (isset($_POST['check_out'])) {
-        $is_early = ($now < '17:30:00') ? 1 : 0;
-        $stmt = $pdo->prepare("SELECT check_in FROM attendance WHERE user_id = ? AND check_date = ?");
-        $stmt->execute([$user_id, $today]);
+        $stmt = $pdo->prepare("SELECT check_in_time FROM attendances WHERE employee_id = ? AND work_date = ?");
+        $stmt->execute([$emp_id, $today]);
         $record = $stmt->fetch();
         
         $work_hours = 0;
-        if ($record && $record['check_in']) {
-            $in_time = strtotime($record['check_in']);
-            $out_time = strtotime($now);
-            $work_hours = max(0, round(($out_time - $in_time - 5400) / 3600, 2));
+        if ($record && $record['check_in_time']) {
+            $in_time = strtotime($record['check_in_time']);
+            $out_time = strtotime($now_datetime);
+            $work_hours = max(0, round(($out_time - $in_time - 5400) / 3600, 2)); // Trừ 1.5h nghỉ trưa
         }
 
-        $pdo->prepare("UPDATE attendance SET check_out = ?, is_early_leave = ?, work_hours = ? WHERE user_id = ? AND check_date = ?")->execute([$now, $is_early, $work_hours, $user_id, $today]);
+        $pdo->prepare("UPDATE attendances SET check_out_time = ? WHERE employee_id = ? AND work_date = ?")->execute([$now_datetime, $emp_id, $today]);
         $_SESSION['flash_msg'] = "Check-out thành công! Tổng làm: <strong>$work_hours giờ</strong>.";
         $_SESSION['flash_type'] = "info";
         header("Location: attendance.php");
@@ -64,22 +69,63 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Lấy trạng thái nút bấm hôm nay
-$stmt = $pdo->prepare("SELECT check_in, check_out FROM attendance WHERE user_id = ? AND check_date = ?");
-$stmt->execute([$user_id, $today]);
+// ==========================================
+// 2. LẤY DỮ LIỆU HIỂN THỊ
+// ==========================================
+// Trạng thái nút bấm hôm nay
+$stmt = $pdo->prepare("SELECT check_in_time, check_out_time FROM attendances WHERE employee_id = ? AND work_date = ?");
+$stmt->execute([$emp_id, $today]);
 $attendance_today = $stmt->fetch();
-$has_checked_in = !empty($attendance_today['check_in']);
-$has_checked_out = !empty($attendance_today['check_out']);
+$has_checked_in = !empty($attendance_today['check_in_time']);
+$has_checked_out = !empty($attendance_today['check_out_time']);
 
-// Lấy dữ liệu báo cáo tổng quát
-$stmt = $pdo->prepare("SELECT COUNT(id) as total_days, SUM(is_late) as total_late, SUM(is_early_leave) as total_early, SUM(work_hours) as total_hours FROM attendance WHERE user_id = ? AND MONTH(check_date) = ?");
-$stmt->execute([$user_id, $month]);
-$report = $stmt->fetch();
+// Lấy dữ liệu nguyên tháng
+$stmtDetails = $pdo->prepare("SELECT * FROM attendances WHERE employee_id = ? AND MONTH(work_date) = ? AND YEAR(work_date) = ? ORDER BY work_date DESC");
+$stmtDetails->execute([$emp_id, $month, $year]);
+$raw_details = $stmtDetails->fetchAll();
 
-// LẤY DỮ LIỆU CHI TIẾT CHO CÁC MODAL
-$stmtDetails = $pdo->prepare("SELECT * FROM attendance WHERE user_id = ? AND MONTH(check_date) = ? ORDER BY check_date DESC");
-$stmtDetails->execute([$user_id, $month]);
-$details = $stmtDetails->fetchAll();
+// Tính toán thống kê báo cáo
+$report = [
+    'total_days' => count($raw_details),
+    'total_late' => 0,
+    'total_early' => 0,
+    'total_hours' => 0
+];
+
+$details = []; // Mảng chứa dữ liệu đã format để dùng cho UI bên dưới
+
+foreach ($raw_details as $row) {
+    $is_late = ($row['status'] == 'Late');
+    $is_early_leave = false;
+    $work_hours = 0;
+
+    if ($is_late) {
+        $report['total_late']++;
+    }
+
+    if (!empty($row['check_out_time'])) {
+        $out_time_limit = date('Y-m-d 17:30:00', strtotime($row['work_date']));
+        if ($row['check_out_time'] < $out_time_limit) {
+            $is_early_leave = true;
+            $report['total_early']++;
+        }
+
+        $in_sec = strtotime($row['check_in_time']);
+        $out_sec = strtotime($row['check_out_time']);
+        $work_hours = max(0, round(($out_sec - $in_sec - 5400) / 3600, 2));
+        $report['total_hours'] += $work_hours;
+    }
+
+    // Đẩy dữ liệu vào mảng details giống hệt format file cũ của bạn
+    $details[] = [
+        'check_date' => $row['work_date'],
+        'check_in' => $row['check_in_time'] ? date('H:i:s', strtotime($row['check_in_time'])) : null,
+        'check_out' => $row['check_out_time'] ? date('H:i:s', strtotime($row['check_out_time'])) : null,
+        'is_late' => $is_late,
+        'is_early_leave' => $is_early_leave,
+        'work_hours' => $work_hours
+    ];
+}
 ?>
 
 <!DOCTYPE html>
@@ -255,7 +301,7 @@ $details = $stmtDetails->fetchAll();
                   <?php if ($has_checked_in): ?>
                   <div class="alert alert-success mt-3 mb-0 rounded-pill small py-2" role="alert">
                     <i class="bi bi-check-circle-fill me-1"></i> Giờ vào ca:
-                    <strong><?= $attendance_today['check_in'] ?></strong>
+                    <strong><?= date('H:i:s', strtotime($attendance_today['check_in_time'])) ?></strong>
                   </div>
                   <?php endif; ?>
                 </div>
