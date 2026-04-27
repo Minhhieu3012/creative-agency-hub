@@ -17,7 +17,11 @@ class TaskCommentController extends BaseController {
         }
 
         // sau này lấy từ JWT
-        $userId = 1;
+        $headers = getallheaders();
+
+        // TODO: Replace with JWT authentication later
+        $userId = $headers['user_id'] ?? 4;
+        // $userId = $decodedToken->id;
 
         $result = TaskCommentService::create($taskId, $userId, $data);
 

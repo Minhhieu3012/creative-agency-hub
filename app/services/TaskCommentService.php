@@ -14,9 +14,7 @@ class TaskCommentService {
 
         $stmt->execute([
             $taskId,
-            // TODO: Replace with JWT authentication later
-            $userId = $headers['user_id'] ?? 3,
-            // $userId = $decodedToken->id;
+            $userId,
             trim($data['content']) 
         ]);
 
