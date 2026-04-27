@@ -32,6 +32,29 @@ class TaskCommentService {
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+    public static function getById($commentId) {
+
+        $conn = Database::getConnection();
+
+        $stmt = $conn->prepare("
+            SELECT 
+                tc.id,
+                tc.task_id,
+                tc.comment_text,
+                tc.created_at,
+                tc.updated_at,
+                tc.user_id,
+                e.full_name
+            FROM task_comments tc
+            JOIN employees e ON tc.user_id = e.id
+            WHERE tc.id = ?
+            LIMIT 1
+        ");
+
+        $stmt->execute([$commentId]);
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
     public static function create($taskId, $userId, $data) {
         $conn = Database::getConnection();
 

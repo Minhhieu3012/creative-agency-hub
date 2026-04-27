@@ -12,13 +12,18 @@ $router->get('/api/test', 'HealthController@index');
 
 
 // business API 
-    // comments
+// comments
+    //get all comments 
 $router->get('/api/tasks/comments', 'TaskCommentController@getAll');
+    // get comment detail
+$router->get('/api/tasks/comments/{id}', 'TaskCommentController@getById');
+    // get by task 
 $router->get('/api/tasks/{id}/comments', 'TaskCommentController@getByTask');
+    // create task comment
 $router->post('/api/tasks/{id}/comments', 'TaskCommentController@store');
-// update comment
+    // update comment
 $router->put('/api/tasks/comments/{id}', 'TaskCommentController@update');
-// delete comment
+    // delete comment
 $router->delete('/api/tasks/comments/{id}', 'TaskCommentController@delete');
 
 // 

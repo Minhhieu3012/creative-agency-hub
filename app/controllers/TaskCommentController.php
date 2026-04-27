@@ -12,6 +12,20 @@ class TaskCommentController extends BaseController {
 
         return $this->success($comments, "List comments");
     }
+    public function getById($commentId) {
+
+        if (!is_numeric($commentId)) {
+            return $this->error("Invalid comment id");
+        }
+
+        $comment = TaskCommentService::getById($commentId);
+
+        if (!$comment) {
+            return $this->error("Comment not found");
+        }
+
+        return $this->success($comment, "Comment detail");
+    }
     public function store($taskId) {
 
         $data = json_decode(file_get_contents("php://input"), true);
