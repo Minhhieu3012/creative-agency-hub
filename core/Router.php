@@ -10,6 +10,13 @@ class Router {
     public function post($uri, $action) {
         $this->routes['POST'][$uri] = $action;
     }
+    public function put($uri, $action) {
+        $this->routes['PUT'][$uri] = $action;
+    }
+
+    public function delete($uri, $action) {
+        $this->routes['DELETE'][$uri] = $action;
+    }
 
     public function resolve($method, $uri) {
         $uri = rtrim($uri, '/') ?: '/';
