@@ -4,6 +4,14 @@ require_once __DIR__ . '/../services/TaskCommentService.php';
 
 class TaskCommentController extends BaseController {
 
+    public function getAll() {
+
+        $taskId = $_GET['task_id'] ?? null;
+
+        $comments = TaskCommentService::getAll($taskId);
+
+        return $this->success($comments, "List comments");
+    }
     public function store($taskId) {
 
         $data = json_decode(file_get_contents("php://input"), true);

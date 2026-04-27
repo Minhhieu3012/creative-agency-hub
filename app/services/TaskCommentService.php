@@ -3,8 +3,36 @@ require_once __DIR__ . '/../../core/Database.php';
 
 class TaskCommentService {
 
+    public static function getAll($taskId = null) {
+
+        $conn = Database::getConnection();
+
+        $sql = "
+            SELECT 
+                tc.id,
+                tc.task_id,
+                tc.comment_text,
+                tc.created_at,
+                tc.updated_at,
+                tc.user_id,
+                e.full_name
+            FROM task_comments tc
+            JOIN employees e ON tc.user_id = e.id
+        ";
+
+        if ($taskId) {
+            $sql .= " WHERE tc.task_id = ?";
+        }
+
+        $sql .= " ORDER BY tc.created_at DESC";
+
+        $stmt = $conn->prepare($sql);
+
+        $taskId ? $stmt->execute([$taskId]) : $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
     public static function create($taskId, $userId, $data) {
-        $headers = getallheaders();
         $conn = Database::getConnection();
 
         $stmt = $conn->prepare("
