@@ -1,17 +1,37 @@
 <?php
-// Bật hiển thị lỗi để dễ debug trong môi trường dev
+
+// DEV MODE 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Nạp các thư viện từ Composer (bao gồm phpdotenv)
-require_once __DIR__ . '/../vendor/autoload.php';
+//  BASE PATH 
+define('BASE_PATH', dirname(__DIR__));
 
-// Khởi tạo và nạp biến môi trường từ file .env ở thư mục gốc
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
+// JSON HEADER 
+header('Content-Type: application/json');
+
+// AUTOLOAD 
+require_once BASE_PATH . '/vendor/autoload.php';
+
+//  ENV 
+$dotenv = Dotenv\Dotenv::createImmutable(BASE_PATH);
 $dotenv->load();
 
-// Test thử xem hệ thống đã đọc được file .env chưa
-// echo "<h1>Hệ thống đã chạy!</h1>";
-// echo "<h3>Chào mừng đến với dự án: " . $_ENV['APP_NAME'] . "</h3>";
-// echo "<p>Môi trường hiện tại: " . $_ENV['APP_ENV'] . "</p>";
+// ROUTER 
+require_once BASE_PATH . '/core/Router.php';
+$router = new Router();
+
+// ROUTES 
+require_once BASE_PATH . '/routes/web.php';
+
+// REQUEST 
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$method = $_SERVER['REQUEST_METHOD'];
+
+// REMOVE /public nếu cần 
+$base = '/creative-agency-hub/public'; 
+$uri = str_replace($base, '', $uri);
+
+// RESOLVE 
+$router->resolve($method, $uri);
