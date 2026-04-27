@@ -46,6 +46,12 @@ try {
         $controller->me();
     }
 
+    // API 3: Đăng ký tài khoản (Public)
+    elseif ($method === 'POST' && $path === '/api/auth/register') {
+        $controller = new AuthController();
+        $controller->register();
+    }
+
     // 404
     else {
         http_response_code(404);

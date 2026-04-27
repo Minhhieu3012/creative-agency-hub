@@ -61,6 +61,69 @@ class AuthController {
         }
     }
 
+    public function register() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        // 1. Lấy và làm sạch dữ liệu
+        $fullName     = Security::escape($_POST['full_name'] ?? '');
+        $email        = Security::escape($_POST['email'] ?? '');
+        $password     = $_POST['password'] ?? '';
+        $departmentId = $_POST['department_id'] ?? '';
+        $positionId   = $_POST['position_id'] ?? '';
+        $employeeCode = Security::escape($_POST['employee_code'] ?? '');
+
+        // 2. Validate cơ bản
+        if (empty($fullName) || empty($email) || empty($password) || empty($departmentId) || empty($positionId) || empty($employeeCode)) {
+            http_response_code(400);
+            echo json_encode(["status" => "error", "message" => "Vui lòng điền đầy đủ các thông tin bắt buộc"]);
+            return;
+        }
+
+        // 3. Validate format email
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            http_response_code(400);
+            echo json_encode(["status" => "error", "message" => "Email không đúng định dạng"]);
+            return;
+        }
+
+        // 4. Validate độ dài password
+        if (strlen($password) < 6) {
+            http_response_code(400);
+            echo json_encode(["status" => "error", "message" => "Mật khẩu phải có ít nhất 6 ký tự"]);
+            return;
+        }
+
+        // 5. Kiểm tra Email đã tồn tại chưa
+        if ($this->userModel->findByEmail($email)) {
+            http_response_code(409);
+            echo json_encode(["status" => "error", "message" => "Email này đã được sử dụng trong hệ thống"]);
+            return;
+        }
+
+        // 6. Lưu vào Database
+        $newUserId = $this->userModel->create([
+            'full_name'     => $fullName,
+            'email'         => $email,
+            'password'      => $password,
+            'role'          => 'employee',
+            'department_id' => $departmentId,
+            'position_id'   => $positionId,
+            'employee_code' => $employeeCode
+        ]);
+
+        if ($newUserId) {
+            http_response_code(201);
+            echo json_encode([
+                "status"  => "success",
+                "message" => "Đăng ký tài khoản thành công",
+                "data"    => ["id" => $newUserId]
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode(["status" => "error", "message" => "Lỗi hệ thống khi tạo tài khoản"]);
+        }
+    }
+
     // Lấy thông tin user đang đăng nhập
     public function me() {
         header('Content-Type: application/json; charset=utf-8');
