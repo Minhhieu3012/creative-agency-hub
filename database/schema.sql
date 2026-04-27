@@ -153,7 +153,7 @@ CREATE TABLE tasks (
     project_id INT NULL, 
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    status ENUM('To do', 'Doing', 'Done') DEFAULT 'To do',
+    status ENUM('To do', 'Doing', 'Review', 'Done') DEFAULT 'To do',
     priority ENUM('Low', 'Medium', 'High') DEFAULT 'Medium',
     deadline DATE,
     assigner_id INT, 
