@@ -16,7 +16,6 @@ CREATE TABLE departments (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL DEFAULT NULL,
     
-        -- Ghi chú thiết kế: Sử dụng UNIQUE kết hợp với Soft Delete để đảm bảo tính duy nhất của tên phòng ban ngay cả khi có bản ghi đã bị xóa mềm (Soft Deleted).
     INDEX idx_departments_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -66,7 +65,7 @@ CREATE TABLE employees (
     -- Ràng buộc ngày tháng cơ bản
     CONSTRAINT chk_emp_dates CHECK (resigned_date IS NULL OR resigned_date >= hire_date),
     
-    -- Ràng buộc đồng nhất trạng thái vòng đời (Lifecycle State Inconsistency)
+    -- Ràng buộc đồng nhất trạng thái vòng đời 
     CONSTRAINT chk_employee_status_resigned CHECK (
         (status = 'resigned' AND resigned_date IS NOT NULL) OR (status <> 'resigned')
     ),
@@ -78,7 +77,6 @@ CREATE TABLE employees (
         AND remaining_leave_days <= total_leave_days
     ),
 
-    -- Tối ưu hóa truy vấn cho Soft Delete và Trạng thái
     INDEX idx_employees_deleted_at (deleted_at),
     INDEX idx_employees_status_deleted (status, deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -106,13 +104,9 @@ CREATE TABLE employee_contracts (
     -- Tối ưu hóa truy vấn cho Soft Delete
     INDEX idx_contracts_deleted_at (deleted_at)
     
-    -- Lưu ý nghiệp vụ: Việc chặn một nhân viên có nhiều hợp đồng 'active' cùng lúc 
-    -- hoặc chặn overlap thời gian hợp đồng sẽ được xử lý tại tầng Service/Backend 
-    -- để tránh làm phức tạp hóa Database bằng Trigger.
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 5. BẢNG NHẬT KÝ ĐIỀU CHỈNH QUỸ PHÉP (Leave Adjustments)
--- Lưu ý thiết kế: Bảng Log (Immutable), không hỗ trợ Update/Delete vật lý.
 CREATE TABLE employee_leave_adjustments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     employee_id INT NOT NULL,
@@ -153,7 +147,7 @@ CREATE TABLE tasks (
     project_id INT NULL, 
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    status ENUM('To do', 'Doing', 'Review', 'Done') DEFAULT 'To do',
+    status ENUM('To do', 'Doing', 'Done') DEFAULT 'To do',
     priority ENUM('Low', 'Medium', 'High') DEFAULT 'Medium',
     deadline DATE,
     assigner_id INT, 
