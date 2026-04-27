@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/BaseController.php';
 require_once __DIR__ . '/../services/TaskCommentService.php';
+use App\Middleware\AuthMiddleware;
+
 
 class TaskCommentController extends BaseController {
 
@@ -27,6 +29,8 @@ class TaskCommentController extends BaseController {
         return $this->success($comment, "Comment detail");
     }
     public function store($taskId) {
+        $user = AuthMiddleware::check();
+        $userId = $user['id'];
 
         $data = json_decode(file_get_contents("php://input"), true);
 
@@ -37,13 +41,6 @@ class TaskCommentController extends BaseController {
         if (strlen($data['content']) < 3) {
             return $this->error("content must be at least 3 characters");
         }
-
-        // sau này lấy từ JWT
-        $headers = getallheaders();
-
-        // TODO: Replace with JWT authentication later
-        $userId = $headers['user_id'] ?? 4;
-        // $userId = $decodedToken->id;
 
         $result = TaskCommentService::create($taskId, $userId, $data);
 
@@ -61,6 +58,8 @@ class TaskCommentController extends BaseController {
     }
     public function update($commentId) {
 
+        $authUser = AuthMiddleware::check();
+        $userId = $authUser['id'];
         if (!is_numeric($commentId)) {
             return $this->error("Invalid comment id");
         }
@@ -74,10 +73,6 @@ class TaskCommentController extends BaseController {
         if (strlen(trim($data['content'])) < 3) {
             return $this->error("Content must be at least 3 characters");
         }
-
-        // mock userId. Change by JWT later
-        $headers = getallheaders();
-        $userId = $headers['user_id'] ?? 1;
 
         $result = TaskCommentService::update($commentId, $userId, $data);
 
@@ -93,9 +88,8 @@ class TaskCommentController extends BaseController {
             return $this->error("Invalid comment id");
         }
 
-        // mock userId. Change by JWT later
-        $headers = getallheaders();
-        $userId = $headers['user_id'] ?? 1;
+        $authUser = AuthMiddleware::check();
+        $userId = $authUser['id'];
 
         $result = TaskCommentService::delete($commentId, $userId);
 

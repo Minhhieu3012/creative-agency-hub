@@ -1,12 +1,15 @@
 <?php
 require_once __DIR__ . '/BaseController.php';
 require_once __DIR__ . '/../services/TaskApprovalService.php';
+use App\Middleware\AuthMiddleware;
 
 class TaskApprovalController extends BaseController {
 
     public function submit($taskId) {
 
-        $userId = getallheaders()['user_id'] ?? 1;
+        $authUser = AuthMiddleware::check();
+        $userId = $authUser['id'];
+
 
         try {
             $result = TaskApprovalService::submit($taskId, $userId);
@@ -18,7 +21,8 @@ class TaskApprovalController extends BaseController {
 
     public function approve($taskId) {
 
-        $userId = getallheaders()['user_id'] ?? 1;
+        $authUser = AuthMiddleware::check();
+        $userId = $authUser['id'];
 
         try {
             $result = TaskApprovalService::approve($taskId, $userId);
@@ -30,7 +34,8 @@ class TaskApprovalController extends BaseController {
 
     public function reject($taskId) {
 
-        $userId = getallheaders()['user_id'] ?? 1;
+        $authUser = AuthMiddleware::check();
+        $userId = $authUser['id'];
 
         try {
             $result = TaskApprovalService::reject($taskId, $userId);
@@ -43,8 +48,8 @@ class TaskApprovalController extends BaseController {
 
         try {
             // giả lập user login
-            $headers = getallheaders();
-            $userId = $headers['user_id'] ?? 1;
+            $authUser = AuthMiddleware::check();
+        $userId = $authUser['id'];
 
             $tasks = TaskApprovalService::getTasksInReview($userId);
 
