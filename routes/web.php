@@ -13,8 +13,13 @@ $router->get('/api/test', 'HealthController@index');
 
 // business API 
     // comments
+$router->get('/api/tasks/comments', 'TaskCommentController@getAll');
 $router->get('/api/tasks/{id}/comments', 'TaskCommentController@getByTask');
 $router->post('/api/tasks/{id}/comments', 'TaskCommentController@store');
+// update comment
+$router->put('/api/tasks/comments/{id}', 'TaskCommentController@update');
+// delete comment
+$router->delete('/api/tasks/comments/{id}', 'TaskCommentController@delete');
 
 // 
 $router->post('/api/tasks/{id}/submit', 'TaskApprovalController@submit');

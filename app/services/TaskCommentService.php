@@ -61,8 +61,11 @@ class TaskCommentService {
         $stmt = $conn->prepare("
             SELECT 
                 tc.id,
+                tc.task_id,
                 tc.comment_text,
                 tc.created_at,
+                tc.updated_at,
+                tc.user_id,
                 e.full_name
             FROM task_comments tc
             JOIN employees e ON tc.user_id = e.id
@@ -73,5 +76,69 @@ class TaskCommentService {
         $stmt->execute([$taskId]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    public static function update($commentId, $userId, $data) {
+
+        $conn = Database::getConnection();
+
+        // check tồn tại + quyền
+        $stmt = $conn->prepare("
+            SELECT user_id FROM task_comments WHERE id = ?
+        ");
+        $stmt->execute([$commentId]);
+        $comment = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$comment) {
+            return false;
+        }
+
+        // chỉ cho owner sửa
+        if ($comment['user_id'] != $userId) {
+            return false;
+        }
+
+        $stmt = $conn->prepare("
+            UPDATE task_comments
+            SET comment_text = ?, updated_at = NOW()
+            WHERE id = ?
+        ");
+
+        $stmt->execute([
+            trim($data['content']),
+            $commentId
+        ]);
+
+        return [
+            "id" => $commentId, 
+            "user_update" => $userId,
+            "comment_text" => trim($data['content']),
+            "updated_at" => date("Y-m-d H:i:s")
+        ];
+    }
+    public static function delete($commentId, $userId) {
+
+        $conn = Database::getConnection();
+
+        // check tồn tại + quyền
+        $stmt = $conn->prepare("
+            SELECT user_id FROM task_comments WHERE id = ?
+        ");
+        $stmt->execute([$commentId]);
+        $comment = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$comment) {
+            return false;
+        }
+
+        // chỉ owner mới được xoá
+        if ($comment['user_id'] != $userId) {
+            return false;
+        }
+
+        $stmt = $conn->prepare("
+            DELETE FROM task_comments WHERE id = ?
+        ");
+
+        return $stmt->execute([$commentId]);
     }
 }
