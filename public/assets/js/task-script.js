@@ -51,14 +51,21 @@ function renderTasks(tasks) {
         card.className = `task-card priority-${task.priority ? task.priority.toLowerCase() : 'medium'}`;
         card.draggable = true;
         card.dataset.id = task.id;
+        
+        // Render ID của Watcher và Assignee nếu có
+        const assigneeText = task.assignee_id ? `Assignee ID: ${task.assignee_id}` : 'Unassigned';
+        const watcherText = task.watcher_id ? `Watcher ID: ${task.watcher_id}` : 'No Watcher';
+
         card.innerHTML = `
             <span class="task-title">${task.title}</span>
-            <div class="task-meta">Deadline: ${task.deadline || 'Chưa thiết lập'}</div>
+            <div class="task-meta">
+                <span><strong>Deadline:</strong> ${task.deadline || 'Chưa thiết lập'}</span>
+                <span><strong>${assigneeText}</strong> | <strong>${watcherText}</strong></span>
+            </div>
         `;
 
         card.addEventListener('dragstart', () => card.classList.add('dragging'));
         
-        // Map 3 trạng thái
         const listId = task.status.toLowerCase().replace(' ', '') + '-list';
         const list = document.getElementById(listId);
         if (list) list.appendChild(card);
@@ -79,7 +86,6 @@ async function updateTaskStatus(id, status) {
             updateCounts();
         } else {
             alert('Lỗi: ' + result.message);
-            // Reload lại nếu thả lỗi
             loadTasks(); 
         }
     } catch(err) {
@@ -92,4 +98,9 @@ function updateCounts() {
         const count = col.querySelectorAll('.task-card').length;
         col.querySelector('.task-count').innerText = count;
     });
+}
+
+function openCreateModal() {
+    // Placeholder cho hàm gọi Modal tạo Task. UI/UX chung sẽ do Phú thiết kế các component Modal.
+    console.log("Mở giao diện tạo Task mới...");
 }

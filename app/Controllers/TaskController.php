@@ -26,7 +26,6 @@ class TaskController {
     public function createTaskAPI() {
         $input = json_decode(file_get_contents('php://input'), true);
         
-        // Validate cơ bản
         if (empty($input['title']) || empty($input['deadline'])) {
             http_response_code(400);
             echo json_encode([
@@ -38,8 +37,10 @@ class TaskController {
 
         $priority = $input['priority'] ?? 'Medium';
         $description = $input['description'] ?? '';
+        $assignee_id = !empty($input['assignee_id']) ? $input['assignee_id'] : null;
+        $watcher_id = !empty($input['watcher_id']) ? $input['watcher_id'] : null;
 
-        $success = $this->taskModel->createTask($input['title'], $description, $priority, $input['deadline']);
+        $success = $this->taskModel->createTask($input['title'], $description, $priority, $input['deadline'], $assignee_id, $watcher_id);
         
         if ($success) {
             http_response_code(201);
@@ -70,7 +71,6 @@ class TaskController {
             exit;
         }
 
-        // Bảng schema.sql mới chỉ có 3 ENUM này
         $validStatuses = ['To do', 'Doing', 'Done'];
         if (!in_array($input['status'], $validStatuses)) {
             http_response_code(400);
@@ -99,3 +99,4 @@ class TaskController {
         exit;
     }
 }
+?>
