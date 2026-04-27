@@ -39,4 +39,19 @@ class TaskApprovalController extends BaseController {
             return $this->error($e->getMessage());
         }
     }
+    public function getReviewTasks() {
+
+        try {
+            // giả lập user login
+            $headers = getallheaders();
+            $userId = $headers['user_id'] ?? 1;
+
+            $tasks = TaskApprovalService::getTasksInReview($userId);
+
+            return $this->success($tasks, "Review tasks list");
+
+        } catch (Exception $e) {
+            return $this->error($e->getMessage());
+        }
+    }
 }

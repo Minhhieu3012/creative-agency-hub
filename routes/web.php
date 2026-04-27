@@ -26,7 +26,10 @@ $router->put('/api/tasks/comments/{id}', 'TaskCommentController@update');
     // delete comment
 $router->delete('/api/tasks/comments/{id}', 'TaskCommentController@delete');
 
-// 
+// submit (assignee), approve (manager/admin), reject (manager/admin)
 $router->post('/api/tasks/{id}/submit', 'TaskApprovalController@submit');
 $router->post('/api/tasks/{id}/approve', 'TaskApprovalController@approve');
 $router->post('/api/tasks/{id}/reject', 'TaskApprovalController@reject');
+
+//get all submited tasks (in status Review)
+$router->get('/api/tasks/submit', 'TaskApprovalController@getReviewTasks');

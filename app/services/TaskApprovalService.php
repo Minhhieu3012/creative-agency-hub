@@ -99,4 +99,41 @@ class TaskApprovalService {
             "status" => "Doing"
         ];
     }
+    public static function getTasksInReview($userId) {
+
+        $conn = Database::getConnection();
+
+        // check role
+        $stmt = $conn->prepare("SELECT role FROM employees WHERE id = ?");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user || !in_array($user['role'], ['admin', 'manager'])) {
+            throw new Exception("Permission denied");
+        }
+
+        // lấy danh sách task đang Review
+        $stmt = $conn->prepare("
+            SELECT 
+                t.id,
+                t.title,
+                t.description,
+                t.status,
+                t.priority,
+                t.deadline,
+                assigner.full_name AS assigner_name,
+                assignee.full_name AS assignee_name,
+                t.created_at,
+                t.updated_at
+            FROM tasks t
+            LEFT JOIN employees assigner ON t.assigner_id = assigner.id
+            LEFT JOIN employees assignee ON t.assignee_id = assignee.id
+            WHERE t.status = 'Review'
+            ORDER BY t.updated_at DESC
+        ");
+
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
