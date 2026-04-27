@@ -28,7 +28,5 @@ $router->delete('/api/tasks/comments/{id}', 'TaskCommentController@delete');
 
 // 
 $router->post('/api/tasks/{id}/submit', 'TaskApprovalController@submit');
-
 $router->post('/api/tasks/{id}/approve', 'TaskApprovalController@approve');
-
 $router->post('/api/tasks/{id}/reject', 'TaskApprovalController@reject');
