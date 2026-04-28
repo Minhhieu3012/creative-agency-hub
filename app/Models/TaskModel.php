@@ -6,7 +6,6 @@ class TaskModel {
         $this->pdo = \Core\Database::getConnection();
     }
 
-    // Xử lý bộ lọc siêu tốc bằng Query Builder động
     public function getAllTasks($filters = []) {
         try {
             $sql = "SELECT id, title, description, status, priority, deadline, project_id, assigner_id, assignee_id, watcher_id FROM tasks WHERE 1=1";
@@ -58,6 +57,16 @@ class TaskModel {
             return $this->pdo->lastInsertId();
         } catch (\PDOException $e) {
             error_log("Lỗi Model createTask: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function updateTask($id, $title, $description, $priority, $deadline, $assignee_id = null, $watcher_id = null, $project_id = null) {
+        try {
+            $stmt = $this->pdo->prepare("UPDATE tasks SET title = ?, description = ?, priority = ?, deadline = ?, assignee_id = ?, watcher_id = ?, project_id = ? WHERE id = ?");
+            return $stmt->execute([$title, $description, $priority, $deadline, $assignee_id, $watcher_id, $project_id, $id]);
+        } catch (\PDOException $e) {
+            error_log("Lỗi Model updateTask: " . $e->getMessage());
             return false;
         }
     }

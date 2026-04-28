@@ -89,6 +89,54 @@ class TaskController {
         exit;
     }
 
+    public function update($taskId) {
+        AuthMiddleware::check();
+        
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        if (empty($input['title']) || empty($input['deadline'])) {
+            http_response_code(400);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Vui lòng nhập Tiêu đề và Deadline"
+            ]);
+            exit;
+        }
+
+        $task = $this->taskModel->getTaskById($taskId);
+        if (!$task) {
+            http_response_code(404);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Không tìm thấy công việc"
+            ]);
+            exit;
+        }
+
+        $priority = $input['priority'] ?? $task['priority'];
+        $description = $input['description'] ?? $task['description'];
+        $assignee_id = !empty($input['assignee_id']) ? $input['assignee_id'] : null;
+        $watcher_id = !empty($input['watcher_id']) ? $input['watcher_id'] : null;
+        $project_id = !empty($input['project_id']) ? $input['project_id'] : null;
+
+        $success = $this->taskModel->updateTask($taskId, $input['title'], $description, $priority, $input['deadline'], $assignee_id, $watcher_id, $project_id);
+        
+        if ($success) {
+            echo json_encode([
+                "status" => "success",
+                "message" => "Cập nhật công việc thành công",
+                "data" => []
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Lỗi server khi cập nhật công việc"
+            ]);
+        }
+        exit;
+    }
+
     public function updateStatus($taskId) {
         AuthMiddleware::check();
 
