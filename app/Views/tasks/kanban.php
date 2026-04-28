@@ -22,10 +22,10 @@
         <button class="btn btn-dark square-btn" onclick="openCreateModal()">+ NEW TASK</button>
     </div>
 
-    <div class="row g-4" id="kanban-wrapper">
-        <div class="col-md-4">
+    <div class="row g-3" id="kanban-wrapper">
+        <div class="col-md-3">
             <div class="kanban-column" data-status="To do">
-                <div class="column-header d-flex justify-content-between align-items-center">
+                <div class="column-header d-flex justify-content-between align-items-center bg-white text-dark">
                     <span>TO DO</span>
                     <span class="task-count">0</span>
                 </div>
@@ -33,7 +33,7 @@
             </div>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="kanban-column" data-status="Doing">
                 <div class="column-header d-flex justify-content-between align-items-center bg-dark text-white">
                     <span>DOING</span>
@@ -43,7 +43,17 @@
             </div>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <div class="kanban-column" data-status="Review">
+                <div class="column-header d-flex justify-content-between align-items-center bg-warning text-dark">
+                    <span>REVIEW</span>
+                    <span class="task-count">0</span>
+                </div>
+                <div class="task-list" id="review-list"></div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
             <div class="kanban-column" data-status="Done">
                 <div class="column-header d-flex justify-content-between align-items-center bg-secondary text-white">
                     <span>DONE</span>

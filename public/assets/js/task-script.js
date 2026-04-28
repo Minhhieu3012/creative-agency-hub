@@ -52,7 +52,6 @@ function renderTasks(tasks) {
         card.draggable = true;
         card.dataset.id = task.id;
         
-        // Render ID của Watcher và Assignee nếu có
         const assigneeText = task.assignee_id ? `Assignee ID: ${task.assignee_id}` : 'Unassigned';
         const watcherText = task.watcher_id ? `Watcher ID: ${task.watcher_id}` : 'No Watcher';
 
@@ -66,6 +65,7 @@ function renderTasks(tasks) {
 
         card.addEventListener('dragstart', () => card.classList.add('dragging'));
         
+        // Map linh hoạt 4 trạng thái: todo-list, doing-list, review-list, done-list
         const listId = task.status.toLowerCase().replace(' ', '') + '-list';
         const list = document.getElementById(listId);
         if (list) list.appendChild(card);
@@ -101,6 +101,5 @@ function updateCounts() {
 }
 
 function openCreateModal() {
-    // Placeholder cho hàm gọi Modal tạo Task. UI/UX chung sẽ do Phú thiết kế các component Modal.
     console.log("Mở giao diện tạo Task mới...");
 }
