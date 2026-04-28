@@ -1,7 +1,8 @@
 <?php
-require_once __DIR__ . '/BaseController.php';
-require_once __DIR__ . '/../services/TaskApprovalService.php';
+namespace App\Controllers;
+use Exception;
 use App\Middleware\AuthMiddleware;
+use App\Services\TaskApprovalService;
 
 class TaskApprovalController extends BaseController {
 

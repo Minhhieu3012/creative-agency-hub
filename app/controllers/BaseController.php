@@ -1,5 +1,5 @@
 <?php
-
+namespace App\Controllers;
 class BaseController {
 
     protected function success($data = [], $message = "Success") {

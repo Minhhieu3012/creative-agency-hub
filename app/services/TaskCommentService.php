@@ -1,4 +1,6 @@
 <?php
+namespace App\Services;
+use PDO;
 use Core\Database;
 
 class TaskCommentService {

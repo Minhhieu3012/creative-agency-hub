@@ -1,7 +1,9 @@
 <?php
-require_once __DIR__ . '/BaseController.php';
-require_once __DIR__ . '/../services/TaskCommentService.php';
+namespace App\Controllers;
+// require_once __DIR__ . '/BaseController.php';
+// require_once __DIR__ . '/../services/TaskCommentService.php';
 use App\Middleware\AuthMiddleware;
+use App\Services\TaskCommentService;
 
 
 class TaskCommentController extends BaseController {
