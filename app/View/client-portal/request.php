@@ -15,8 +15,8 @@ unset($_SESSION['success'], $_SESSION['error']);
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Gửi yêu cầu - Client Portal</title>
-    <link href="../assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
-    <link href="../assets/css/sb-admin-2.css" rel="stylesheet">
+    <link href="../../../public/assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
+    <link href="../../../public/assets/css/sb-admin-2.css" rel="stylesheet">
 </head>
 <body id="page-top">
 <div id="wrapper">
@@ -90,7 +90,7 @@ unset($_SESSION['success'], $_SESSION['error']);
                             <i class="fas fa-user-circle fa-fw"></i>
                         </a>
                         <div class="dropdown-menu dropdown-menu-right shadow">
-                            <a class="dropdown-item" href="../logout.php">
+                            <a class="dropdown-item" href="logout.php">
                                 <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
                                 Đăng xuất
                             </a>
@@ -208,8 +208,8 @@ unset($_SESSION['success'], $_SESSION['error']);
 
 </div>
 
-<script src="../assets/vendor/jquery/jquery.min.js"></script>
-<script src="../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-<script src="../assets/js/sb-admin-2.min.js"></script>
+<script src="../../../public/assets/vendor/jquery/jquery.min.js"></script>
+<script src="../../../public/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="../../../public/assets/js/sb-admin-2.min.js"></script>
 </body>
 </html>
