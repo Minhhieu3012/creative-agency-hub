@@ -54,7 +54,7 @@ The system operates with four main role groups:
 ### 2. Work & Project Management
 - **Dashboard:** Visually track tasks through Kanban and Gantt Chart interfaces.
 - **Task Management:** CRUD tasks, assign assigners and deadlines.
-- **Interaction Flow:** Change status (To do -> Doing -> Done), comment threads, and attach documents to each task.
+- **Interaction Flow:** Change status (To do -> Doing -> Review -> Done), comment threads, and attach documents to each task.
 - **Approval Flow:** Submit -> Review -> Approve/Reject.
 
 ---
