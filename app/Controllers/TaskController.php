@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../Models/TaskModel.php';
+// Import Middleware của Hiếu để bảo mật và định danh người dùng
+use App\Middleware\AuthMiddleware;
 
 class TaskController {
     private $taskModel;
@@ -12,8 +14,16 @@ class TaskController {
         require_once __DIR__ . '/../Views/tasks/kanban.php';
     }
 
+    // Nhận Query Params để lọc dữ liệu
     public function getTasksAPI() {
-        $tasks = $this->taskModel->getAllTasks();
+        $filters = [
+            'project_id'  => $_GET['project_id'] ?? null,
+            'assignee_id' => $_GET['assignee_id'] ?? null,
+            'status'      => $_GET['status'] ?? null,
+            'deadline'    => $_GET['deadline'] ?? null
+        ];
+
+        $tasks = $this->taskModel->getAllTasks($filters);
         
         echo json_encode([
             "status" => "success",
@@ -24,6 +34,11 @@ class TaskController {
     }
 
     public function createTaskAPI() {
+        // Kích hoạt khiên bảo mật: Chỉ user đã đăng nhập mới được tạo Task
+        // Trả về payload JWT chứa ID của người dùng hiện tại
+        $authUser = AuthMiddleware::check();
+        $assigner_id = $authUser['id'] ?? $authUser['user_id'] ?? null;
+
         $input = json_decode(file_get_contents('php://input'), true);
         
         if (empty($input['title']) || empty($input['deadline'])) {
@@ -39,11 +54,20 @@ class TaskController {
         $description = $input['description'] ?? '';
         $assignee_id = !empty($input['assignee_id']) ? $input['assignee_id'] : null;
         $watcher_id = !empty($input['watcher_id']) ? $input['watcher_id'] : null;
+        $project_id = !empty($input['project_id']) ? $input['project_id'] : null;
 
-        $taskId = $this->taskModel->createTask($input['title'], $description, $priority, $input['deadline'], $assignee_id, $watcher_id);
+        if (!$assigner_id) {
+            http_response_code(401);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Không xác định được danh tính người giao việc"
+            ]);
+            exit;
+        }
+
+        $taskId = $this->taskModel->createTask($input['title'], $description, $priority, $input['deadline'], $assigner_id, $assignee_id, $watcher_id, $project_id);
         
         if ($taskId) {
-            // Kích hoạt thông báo cho người nhận việc
             if ($assignee_id) {
                 $this->taskModel->createNotification($assignee_id, "Bạn vừa được giao một công việc mới: " . $input['title']);
             }
@@ -68,6 +92,9 @@ class TaskController {
     }
 
     public function updateTaskStatusAPI($taskId) {
+        // Tích hợp bảo mật cho API kéo thả
+        AuthMiddleware::check();
+
         $input = json_decode(file_get_contents('php://input'), true);
         
         if (!isset($input['status'])) {
@@ -89,7 +116,6 @@ class TaskController {
             exit;
         }
 
-        // Lấy thông tin Task cũ trước khi cập nhật để lấy ID người dùng
         $task = $this->taskModel->getTaskById($taskId);
         if (!$task) {
             http_response_code(404);
@@ -103,7 +129,6 @@ class TaskController {
         $success = $this->taskModel->updateStatus($taskId, $input['status']);
         
         if ($success) {
-            // Bắn thông báo báo cáo tiến độ cho các bên liên quan
             $notifyMsg = "Công việc '" . $task['title'] . "' đã chuyển sang trạng thái: " . $input['status'];
             
             if ($task['assignee_id']) {
