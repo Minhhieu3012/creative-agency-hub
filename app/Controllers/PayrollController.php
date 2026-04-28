@@ -48,7 +48,17 @@ class PayrollController {
 
             // Chuẩn bị sẵn các câu lệnh SQL để chạy trong vòng lặp cho tối ưu
             $stmtAtt = $pdo->prepare("SELECT * FROM attendances WHERE employee_id = ? AND MONTH(work_date) = ? AND YEAR(work_date) = ?");
-            $stmtKPI = $pdo->prepare("SELECT COUNT(id) FROM tasks WHERE assignee_id = ? AND status = 'Done' AND MONTH(updated_at) = ? AND YEAR(updated_at) = ? AND DATE(updated_at) <= deadline");
+            
+            // Đã fix lỗi logic KPI: Hỗ trợ cả các task không có deadline
+            $stmtKPI = $pdo->prepare("
+                SELECT COUNT(id) 
+                FROM tasks 
+                WHERE assignee_id = ? 
+                  AND status = 'Done' 
+                  AND MONTH(updated_at) = ? 
+                  AND YEAR(updated_at) = ? 
+                  AND (deadline IS NULL OR DATE(updated_at) <= deadline)
+            ");
 
             // 2. Vòng lặp tính toán cho từng nhân viên
             foreach ($employees as $emp) {
@@ -128,7 +138,8 @@ class PayrollController {
     // API 2: XUẤT FILE EXCEL (CSV) BẢNG LƯƠNG
     // GET /api/payroll/export
     // ==========================================
-    public function exportPdf() {
+    // Đã đổi tên hàm từ exportPdf thành exportCsv cho chuẩn với hành vi xuất file
+    public function exportCsv() {
         // Gọi lại hàm getSummary nhưng chặn echo json
         ob_start();
         $this->getSummary();
@@ -176,4 +187,5 @@ class PayrollController {
         fclose($output);
         exit;
     }
+
 }
