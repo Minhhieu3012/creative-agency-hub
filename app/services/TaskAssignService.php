@@ -42,6 +42,9 @@ Class TaskAssignService{
 
             $isReassign = true;
         }
+        if ($task['status'] === 'Review') {
+            throw new Exception("Cannot assign task while it is under review");
+        }
 
         // 3. check assignee tồn tại
         $stmt = $conn->prepare("SELECT id FROM employees WHERE id = ?");
