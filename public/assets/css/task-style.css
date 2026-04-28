@@ -1,37 +1,21 @@
-* {
-    border-radius: 0 !important;
-    box-sizing: border-box;
-}
-
-body {
-    background-color: #fcfcfc;
-    color: #000;
-    font-family: 'Helvetica Neue', Arial, sans-serif;
-}
-
-.square-btn {
-    border-radius: 0;
-    padding: 10px 25px;
-    font-weight: bold;
-    letter-spacing: 1px;
-}
-
-.square-card {
-    border-radius: 0;
+/* CSS tùy chỉnh dành riêng cho Kanban Board */
+.task-management-container {
+    padding: 10px;
 }
 
 .kanban-column {
-    background-color: #f4f4f4;
+    background-color: #f8f9fa;
     min-height: 75vh;
-    border: 1px solid #000;
+    border: 1px solid #e3e6f0;
+    border-radius: 0.35rem;
 }
 
 .column-header {
-    border-bottom: 2px solid #000;
     padding: 15px 20px;
-    font-weight: 800;
     font-size: 0.95rem;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
+    border-top-left-radius: 0.35rem;
+    border-top-right-radius: 0.35rem;
 }
 
 .task-list {
@@ -41,40 +25,43 @@ body {
 
 .task-card {
     background-color: #fff;
-    border: 1px solid #000;
+    border: 1px solid #e3e6f0;
+    border-radius: 0.35rem;
     padding: 20px;
     margin-bottom: 15px;
     cursor: grab;
     transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
 
+/* Đổ bóng chuẩn SB Admin 2 khi hover */
 .task-card:hover {
-    box-shadow: 6px 6px 0px #000;
-    transform: translate(-2px, -2px);
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    transform: translateY(-2px);
 }
 
 .task-card.dragging {
     opacity: 0.5;
-    background-color: #f0f0f0;
+    background-color: #eaecf4;
     cursor: grabbing;
 }
 
-.priority-high { border-left: 6px solid #000; }
-.priority-medium { border-left: 6px solid #666; }
-.priority-low { border-left: 6px solid #ccc; }
+/* Viền báo mức độ ưu tiên theo mã màu chuẩn của template */
+.priority-high { border-left: 4px solid #e74a3b; }
+.priority-medium { border-left: 4px solid #f6c23e; }
+.priority-low { border-left: 4px solid #858796; }
 
 .task-title {
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     margin-bottom: 8px;
     display: block;
-    text-transform: uppercase;
+    color: #5a5c69;
 }
 
 .task-meta {
-    font-size: 0.85rem;
-    color: #444;
-    border-top: 1px solid #eee;
+    font-size: 0.8rem;
+    color: #858796;
+    border-top: 1px solid #e3e6f0;
     padding-top: 8px;
     margin-top: 8px;
 }
