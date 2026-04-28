@@ -147,7 +147,6 @@ CREATE TABLE tasks (
     deadline DATE,
     assigner_id INT, 
     assignee_id INT, 
-    -- Đã FIX: Bổ sung watcher_id cho yêu cầu của Huy
     watcher_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -169,7 +168,7 @@ CREATE TABLE task_comments (
     FOREIGN KEY (user_id) REFERENCES employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Bổ sung bảng thông báo khi assign task - Owner: Bảo
+-- Bảng thông báo khi assign task - Owner: Bảo
 CREATE TABLE notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,

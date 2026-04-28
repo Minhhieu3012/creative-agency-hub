@@ -8,7 +8,6 @@ class TaskController {
     private $taskModel;
 
     public function __construct() {
-        // Khởi tạo Model (Giả định TaskModel nằm ở global namespace hoặc đã được require)
         $this->taskModel = new \TaskModel(); 
     }
 
@@ -16,7 +15,6 @@ class TaskController {
         require_once __DIR__ . '/../Views/tasks/kanban.php';
     }
 
-    // Đổi tên từ getTasksAPI -> index
     public function index() {
         $filters = [
             'project_id'  => $_GET['project_id'] ?? null,
@@ -35,7 +33,6 @@ class TaskController {
         exit;
     }
 
-    // Đổi tên từ createTaskAPI -> store
     public function store() {
         $authUser = AuthMiddleware::check();
         $assigner_id = $authUser['id'] ?? $authUser['user_id'] ?? null;
@@ -92,7 +89,6 @@ class TaskController {
         exit;
     }
 
-    // Đổi tên từ updateTaskStatusAPI -> updateStatus
     public function updateStatus($taskId) {
         AuthMiddleware::check();
 
@@ -151,23 +147,6 @@ class TaskController {
                 "message" => "Lỗi cập nhật Database"
             ]);
         }
-        exit;
-    }
-
-    // API mới dành cho BẢO
-    public function addComment($taskId) {
-        $authUser = AuthMiddleware::check();
-        $user_id = $authUser['id'] ?? $authUser['user_id'] ?? null;
-
-        // Khung chờ sẵn để Bảo viết logic insert bảng task_comments
-        echo json_encode([
-            "status" => "success",
-            "message" => "API addComment đã sẵn sàng cho Bảo code",
-            "data" => [
-                "task_id" => $taskId,
-                "user_id" => $user_id
-            ]
-        ]);
         exit;
     }
 }
