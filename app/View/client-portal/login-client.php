@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Client Login - Creative Agency Hub</title>
-    <link href="../assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
+    <link href="../../../public/assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -155,13 +155,13 @@
             </form>
 
             <div class="bottom-link">
-                Nhân viên? <a href="../login.php">Đăng nhập nội bộ</a>
+                Nhân viên? <a href="login.php">Đăng nhập nội bộ</a>
             </div>
         </div>
 
     </div>
 
-    <script src="../assets/vendor/jquery/jquery.min.js"></script>
-    <script src="../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="../../../public/assets/vendor/jquery/jquery.min.js"></script>
+    <script src="../../../public/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
