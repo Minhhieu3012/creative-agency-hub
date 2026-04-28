@@ -16,10 +16,23 @@ class TaskModel {
         }
     }
 
+    public function getTaskById($id) {
+        try {
+            $stmt = $this->pdo->prepare("SELECT * FROM tasks WHERE id = ?");
+            $stmt->execute([$id]);
+            return $stmt->fetch();
+        } catch (\PDOException $e) {
+            error_log("Lỗi Model getTaskById: " . $e->getMessage());
+            return false;
+        }
+    }
+
     public function createTask($title, $description, $priority, $deadline, $assignee_id = null, $watcher_id = null) {
         try {
             $stmt = $this->pdo->prepare("INSERT INTO tasks (title, description, priority, deadline, status, assignee_id, watcher_id) VALUES (?, ?, ?, ?, 'To do', ?, ?)");
-            return $stmt->execute([$title, $description, $priority, $deadline, $assignee_id, $watcher_id]);
+            $stmt->execute([$title, $description, $priority, $deadline, $assignee_id, $watcher_id]);
+            // Trả về ID để dùng cho các logic khác nếu cần
+            return $this->pdo->lastInsertId();
         } catch (\PDOException $e) {
             error_log("Lỗi Model createTask: " . $e->getMessage());
             return false;
@@ -32,6 +45,17 @@ class TaskModel {
             return $stmt->execute([$status, $id]);
         } catch (\PDOException $e) {
             error_log("Lỗi Model updateStatus: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    // Tích hợp gánh team: Ghi thẳng vào bảng notifications của Bảo
+    public function createNotification($user_id, $message) {
+        try {
+            $stmt = $this->pdo->prepare("INSERT INTO notifications (user_id, message) VALUES (?, ?)");
+            return $stmt->execute([$user_id, $message]);
+        } catch (\PDOException $e) {
+            error_log("Lỗi Model createNotification: " . $e->getMessage());
             return false;
         }
     }
