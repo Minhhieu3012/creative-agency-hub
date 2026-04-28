@@ -1,10 +1,6 @@
 <?php
-// Bật Session cho tính năng CSRF
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
 
-// Xử lý CORS
+// CORS
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -14,57 +10,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// 1. Nạp Autoload và Biến môi trường
+if (session_status() === PHP_SESSION_NONE) session_start();
+
 require_once __DIR__ . '/../vendor/autoload.php';
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
 
-use App\Controllers\AuthController;
 use App\Middleware\AuthMiddleware;
+use App\Middleware\RoleMiddleware;
 
-// 2. Ép kiểu trả về mặc định là JSON
 header('Content-Type: application/json; charset=utf-8');
 
-// 3. Xử lý đường dẫn XAMPP
-$uri      = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$basePath = '/creative-agency-hub/public';
-$path     = str_replace($basePath, '', $uri);
-$method   = $_SERVER['REQUEST_METHOD'];
+$uri    = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$path   = str_replace('/creative-agency-hub/public', '', $uri);
+$method = $_SERVER['REQUEST_METHOD'];
 
-// 4. BỘ ĐỊNH TUYẾN (ROUTER)
+$routes = require __DIR__ . '/../routes/api.php';
+
 try {
-    // API 1: Đăng nhập (Public)
-    if ($method === 'POST' && $path === '/api/auth/login') {
-        $controller = new AuthController();
-        $controller->login();
+    foreach ($routes as [$rMethod, $rPath, $controllerClass, $action, $roles]) {
+        // Chuyển :id thành regex để match dynamic route
+        $pattern = preg_replace('#:(\w+)#', '(\d+)', $rPath);
+        $pattern = '#^' . $pattern . '$#';
+
+        if ($method === $rMethod && preg_match($pattern, $path, $matches)) {
+            array_shift($matches); // Bỏ full match, giữ lại các params
+            $authUser = null;
+
+            if ($roles !== null) {
+                $authUser = AuthMiddleware::check();
+                RoleMiddleware::handle($authUser, $roles);
+            }
+
+            $controller = new $controllerClass($authUser);
+            $controller->$action(...$matches);
+            exit;
+        }
     }
 
-    // API 2: Lấy thông tin cá nhân (Private)
-    elseif ($method === 'GET' && $path === '/api/auth/me') {
-        $authUser   = AuthMiddleware::check();
-        $controller = new AuthController($authUser);
-        $controller->me();
-    }
+    http_response_code(404);
+    echo json_encode(["status" => "error", "message" => "API Route không tồn tại."]);
 
-    // API 3: Đăng ký tài khoản (Public)
-    elseif ($method === 'POST' && $path === '/api/auth/register') {
-        $controller = new AuthController();
-        $controller->register();
-    }
-
-    // 404
-    else {
-        http_response_code(404);
-        echo json_encode([
-            "status"  => "error",
-            "message" => "404 Not Found - Đường dẫn $method $path không tồn tại."
-        ]);
-    }
 } catch (\Throwable $e) {
     error_log($e->getMessage());
     http_response_code(500);
-    echo json_encode([
-        "status"  => "error",
-        "message" => "Lỗi hệ thống, vui lòng thử lại sau."
-    ]);
+    echo json_encode(["status" => "error", "message" => "Lỗi hệ thống, vui lòng thử lại sau."]);
 }
