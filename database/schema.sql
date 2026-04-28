@@ -29,7 +29,6 @@ CREATE TABLE positions (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL DEFAULT NULL,
     
-    -- Ghi chú thiết kế: UNIQUE kết hợp Soft Delete áp dụng chung chính sách như bảng departments.
     INDEX idx_positions_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -43,7 +42,8 @@ CREATE TABLE employees (
     full_name VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'manager', 'employee') NOT NULL DEFAULT 'employee',
+    -- Đã FIX: Bổ sung quyền 'client' cho nhánh của Phú
+    role ENUM('admin', 'manager', 'employee', 'client') NOT NULL DEFAULT 'employee',
     phone VARCHAR(20) NULL,
     gender ENUM('male', 'female', 'other') NULL,
     date_of_birth DATE NULL,
@@ -62,15 +62,13 @@ CREATE TABLE employees (
     FOREIGN KEY (position_id) REFERENCES positions(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     FOREIGN KEY (manager_id) REFERENCES employees(id) ON DELETE SET NULL ON UPDATE CASCADE,
     
-    -- Ràng buộc ngày tháng cơ bản
     CONSTRAINT chk_emp_dates CHECK (resigned_date IS NULL OR resigned_date >= hire_date),
     
-    -- Ràng buộc đồng nhất trạng thái vòng đời 
+    -- Ràng buộc đồng nhất trạng thái vòng đời (Lifecycle State Inconsistency)
     CONSTRAINT chk_employee_status_resigned CHECK (
         (status = 'resigned' AND resigned_date IS NOT NULL) OR (status <> 'resigned')
     ),
     
-    -- Ràng buộc quỹ phép
     CONSTRAINT chk_leave_days CHECK (
         total_leave_days >= 0 
         AND remaining_leave_days >= 0 
@@ -101,7 +99,6 @@ CREATE TABLE employee_contracts (
     CONSTRAINT chk_contract_dates CHECK (end_date IS NULL OR end_date >= start_date),
     CONSTRAINT chk_contract_salary CHECK (salary > 0),
     
-    -- Tối ưu hóa truy vấn cho Soft Delete
     INDEX idx_contracts_deleted_at (deleted_at)
     
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -120,10 +117,8 @@ CREATE TABLE employee_leave_adjustments (
     FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     FOREIGN KEY (created_by) REFERENCES employees(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     
-    -- Ràng buộc tính toán quỹ phép (Toán học)
     CONSTRAINT chk_leave_adjustment_math CHECK (new_remaining_days = old_remaining_days + adjustment_days),
     
-    -- Ràng buộc không cho phép log ra số âm (Nghiệp vụ)
     CONSTRAINT chk_leave_adjustment_non_negative CHECK (
         old_remaining_days >= 0 AND new_remaining_days >= 0
     )
@@ -147,16 +142,18 @@ CREATE TABLE tasks (
     project_id INT NULL, 
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    status ENUM('To do', 'Doing', 'Done') DEFAULT 'To do',
+    status ENUM('To do', 'Doing', 'Review','Done') DEFAULT 'To do',
     priority ENUM('Low', 'Medium', 'High') DEFAULT 'Medium',
     deadline DATE,
     assigner_id INT, 
     assignee_id INT, 
+    watcher_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     FOREIGN KEY (assigner_id) REFERENCES employees(id) ON DELETE SET NULL,
-    FOREIGN KEY (assignee_id) REFERENCES employees(id) ON DELETE SET NULL
+    FOREIGN KEY (assignee_id) REFERENCES employees(id) ON DELETE SET NULL,
+    FOREIGN KEY (watcher_id) REFERENCES employees(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 8. BẢNG BÌNH LUẬN (Task Comments) - Owner: Bảo
@@ -171,7 +168,19 @@ CREATE TABLE task_comments (
     FOREIGN KEY (user_id) REFERENCES employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 9. BẢNG NGHỈ PHÉP (Leave Requests) - Owner: Tiến
+-- 9. BẢNG ĐÍNH KÈM TÀI LIỆU (Task Attachments) - Owner: Bảo (ĐÃ FIX: Bổ sung bảng)
+CREATE TABLE task_attachments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    task_id INT NOT NULL,
+    user_id INT NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES employees(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 10. BẢNG NGHỈ PHÉP (Leave Requests) - Owner: Tiến
 CREATE TABLE leave_requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
     employee_id INT NOT NULL,
@@ -186,7 +195,7 @@ CREATE TABLE leave_requests (
     FOREIGN KEY (approved_by) REFERENCES employees(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 10. BẢNG CHẤM CÔNG (Attendances) - Owner: Tiến
+-- 11. BẢNG CHẤM CÔNG (Attendances) - Owner: Tiến
 CREATE TABLE attendances (
     id INT AUTO_INCREMENT PRIMARY KEY,
     employee_id INT NOT NULL,
