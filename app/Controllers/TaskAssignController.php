@@ -16,10 +16,14 @@ Class TaskAssignController extends BaseController{
                 return $this->error("Missing assignee_id");
             }
 
+            // watcher có thể null
+            $watcherId = $data['watcher_id'] ?? null;   
+
             $result = TaskAssignService::assign(
                 $taskId,
                 $authUser['id'],
-                $data['assignee_id']
+                $data['assignee_id'],
+                $watcherId
             );
 
             return $this->success($result, "Task assigned");

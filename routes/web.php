@@ -40,3 +40,8 @@ $router->get('/api/tasks/submit', 'TaskApprovalController@getReviewTasks');
 
 // assign task
 $router->post('/api/tasks/{id}/assign', 'TaskAssignController@assign');
+
+// task attachments
+$router->post('/api/tasks/{id}/attachments', 'TaskAttachmentController@upload');
+$router->get('/api/tasks/{id}/attachments', 'TaskAttachmentController@list');
+$router->get('/api/attachments/{id}/download', 'TaskAttachmentController@download');
