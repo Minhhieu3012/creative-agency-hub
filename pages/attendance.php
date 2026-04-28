@@ -5,81 +5,26 @@ require_once '../config/db_connect.php';
 // Thiết lập múi giờ
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-$_SESSION['employee_id'] = 1; 
+// Giả lập session ID để View có thể render giao diện (Trong thực tế sẽ lấy từ lúc Login)
+$_SESSION['employee_id'] = 3; 
 $emp_id = $_SESSION['employee_id'];
 
 $today = date('Y-m-d');
-$now_time = date('H:i:s');
-$now_datetime = date('Y-m-d H:i:s');
 $month = date('m');
 $year = date('Y');
 
 // ==========================================
-// 1. XỬ LÝ FORM CHẤM CÔNG
+// LẤY DỮ LIỆU HIỂN THỊ LÊN GIAO DIỆN
 // ==========================================
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (isset($_POST['reset_test'])) {
-        $pdo->prepare("DELETE FROM attendances WHERE employee_id = ? AND work_date = ?")->execute([$emp_id, $today]);
-        $_SESSION['flash_msg'] = "Đã xóa toàn bộ dữ liệu chấm công hôm nay.";
-        $_SESSION['flash_type'] = "success";
-        header("Location: attendance.php");
-        exit();
-    }
-
-    if (isset($_POST['check_in'])) {
-        $start_time_limit = date('Y-m-d 08:30:00');
-        $status = ($now_datetime > $start_time_limit) ? 'Late' : 'Present';
-        $msg = "Check-in thành công lúc $now_time.";
-        $alert_type = "success";
-
-        if ($status == 'Late') {
-            $late_seconds = strtotime($now_datetime) - strtotime($start_time_limit);
-            $late_hours = floor($late_seconds / 3600);
-            $late_minutes = floor(($late_seconds % 3600) / 60);
-            $msg .= " Bạn đã vào ca trễ ";
-            if ($late_hours > 0) $msg .= "<strong>$late_hours giờ</strong> ";
-            $msg .= "<strong>$late_minutes phút</strong>.";
-            $alert_type = "warning";
-        }
-
-        $pdo->prepare("INSERT INTO attendances (employee_id, work_date, check_in_time, status) VALUES (?, ?, ?, ?)")->execute([$emp_id, $today, $now_datetime, $status]);
-        $_SESSION['flash_msg'] = $msg;
-        $_SESSION['flash_type'] = $alert_type;
-        header("Location: attendance.php");
-        exit();
-    }
-
-    if (isset($_POST['check_out'])) {
-        $stmt = $pdo->prepare("SELECT check_in_time FROM attendances WHERE employee_id = ? AND work_date = ?");
-        $stmt->execute([$emp_id, $today]);
-        $record = $stmt->fetch();
-        
-        $work_hours = 0;
-        if ($record && $record['check_in_time']) {
-            $in_time = strtotime($record['check_in_time']);
-            $out_time = strtotime($now_datetime);
-            $work_hours = max(0, round(($out_time - $in_time - 5400) / 3600, 2)); // Trừ 1.5h nghỉ trưa
-        }
-
-        $pdo->prepare("UPDATE attendances SET check_out_time = ? WHERE employee_id = ? AND work_date = ?")->execute([$now_datetime, $emp_id, $today]);
-        $_SESSION['flash_msg'] = "Check-out thành công! Tổng làm: <strong>$work_hours giờ</strong>.";
-        $_SESSION['flash_type'] = "info";
-        header("Location: attendance.php");
-        exit();
-    }
-}
-
-// ==========================================
-// 2. LẤY DỮ LIỆU HIỂN THỊ
-// ==========================================
-// Trạng thái nút bấm hôm nay
+// 1. Trạng thái nút bấm hôm nay
 $stmt = $pdo->prepare("SELECT check_in_time, check_out_time FROM attendances WHERE employee_id = ? AND work_date = ?");
 $stmt->execute([$emp_id, $today]);
 $attendance_today = $stmt->fetch();
+
 $has_checked_in = !empty($attendance_today['check_in_time']);
 $has_checked_out = !empty($attendance_today['check_out_time']);
 
-// Lấy dữ liệu nguyên tháng
+// 2. Lấy dữ liệu nguyên tháng
 $stmtDetails = $pdo->prepare("SELECT * FROM attendances WHERE employee_id = ? AND MONTH(work_date) = ? AND YEAR(work_date) = ? ORDER BY work_date DESC");
 $stmtDetails->execute([$emp_id, $month, $year]);
 $raw_details = $stmtDetails->fetchAll();
@@ -92,7 +37,7 @@ $report = [
     'total_hours' => 0
 ];
 
-$details = []; // Mảng chứa dữ liệu đã format để dùng cho UI bên dưới
+$details = []; 
 
 foreach ($raw_details as $row) {
     $is_late = ($row['status'] == 'Late');
@@ -112,11 +57,10 @@ foreach ($raw_details as $row) {
 
         $in_sec = strtotime($row['check_in_time']);
         $out_sec = strtotime($row['check_out_time']);
-        $work_hours = max(0, round(($out_sec - $in_sec - 5400) / 3600, 2));
+        $work_hours = max(0, round(($out_sec - $in_sec - 5400) / 3600, 2)); // Trừ 1.5h nghỉ trưa
         $report['total_hours'] += $work_hours;
     }
 
-    // Đẩy dữ liệu vào mảng details giống hệt format file cũ của bạn
     $details[] = [
         'check_date' => $row['work_date'],
         'check_in' => $row['check_in_time'] ? date('H:i:s', strtotime($row['check_in_time'])) : null,
@@ -141,119 +85,117 @@ foreach ($raw_details as $row) {
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
   <style>
+  body {
+    background-color: #f4f7fc;
+  }
+
   .fw-bold {
     font-weight: 700 !important;
   }
 
-  .rounded-3 {
-    border-radius: 0.75rem !important;
-  }
-
-  /* Bo góc vừa phải */
-  .rounded-4 {
-    border-radius: 1rem !important;
-  }
-
-  /* Chỉnh lại shadow cho mềm mại, giống SB Admin hơn */
-  .card-custom {
-    border: none;
-    border-radius: 0.75rem;
-    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-  }
-
-  /* Thu nhỏ nút bấm */
-  .btn-checkin {
-    border-radius: 50px;
-    padding: 10px 20px;
-    font-weight: 600;
-    font-size: 0.85rem;
-    letter-spacing: 0.5px;
-  }
-
-
-  .stat-icon {
-    font-size: 1.75rem;
-    opacity: 0.8;
-  }
-
-  .main-icon {
-    font-size: 3.5rem;
-  }
-
-
-
   .text-gradient {
-    background: -webkit-linear-gradient(45deg, #4e73df, #224abe);
+    background: linear-gradient(45deg, #4e73df, #36b9cc);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 
+  .card-custom {
+    border: none;
+    border-radius: 1.25rem;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .card-custom:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.08);
+  }
+
+  .btn-checkin {
+    border-radius: 50px;
+    padding: 14px 20px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+  }
+
+  .main-icon {
+    font-size: 4rem;
+    display: inline-block;
+    animation: pulse-soft 2s infinite;
+  }
+
+  @keyframes pulse-soft {
+    0% {
+      transform: scale(1);
+      opacity: 1;
+    }
+
+    50% {
+      transform: scale(1.08);
+      opacity: 0.8;
+    }
+
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
 
   .stat-card {
-    transition: all 0.2s ease;
+    border-radius: 1rem;
+    padding: 1.25rem !important;
+    border: none !important;
     cursor: pointer;
-    border-radius: 0.5rem;
-    padding: 1rem !important;
+    transition: all 0.2s;
   }
 
   .stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+    transform: scale(1.02);
+  }
+
+  .stat-icon {
+    font-size: 2rem;
   }
 
   .stat-value {
-    font-size: 1.4rem;
+    font-size: 1.5rem;
+    line-height: 1.2;
   }
-
 
   .stat-label {
-    font-size: 0.8rem;
-  }
-
-
-
-
-  .d-grid {
-    display: grid;
-  }
-
-  .gap-2 {
-    gap: 0.75rem;
-  }
-
-  .gap-3 {
-    gap: 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 5px;
   }
   </style>
 </head>
 
 <body id="page-top">
-
   <div id="wrapper">
-    <?php include('../components/sidebar.php'); ?>
-
-    <div id="content-wrapper" class="d-flex flex-column bg-light">
+    <?php if(file_exists('../components/sidebar.php')) include('../components/sidebar.php'); ?>
+    <div id="content-wrapper" class="d-flex flex-column w-100">
       <div id="content">
-        <?php include('../components/navbar.php'); ?>
+        <?php if(file_exists('../components/navbar.php')) include('../components/navbar.php'); ?>
 
         <div class="container-fluid py-4">
 
-          <div class="row mb-3">
+          <div class="row mb-4">
             <div class="col-12 text-center">
               <h3 class="fw-bold text-gradient mb-1">Creative Agency Hub</h3>
               <p class="text-muted small mb-3">Cổng thông tin nội bộ - Quản lý nhân sự</p>
-
-              <div class="d-flex justify-content-center flex-wrap" style="gap: 8px;">
-                <a href="http://localhost/LTW/creative-agency-hub"
-                  class="btn btn-sm btn-dark rounded-pill shadow-sm px-3"><i class="bi bi-house-door me-1"></i> Trang
-                  chủ</a>
-                <a href="attendance.php" class="btn btn-sm btn-primary rounded-pill shadow-sm px-3"><i
+              <div class="d-flex justify-content-center flex-wrap" style="gap: 10px;">
+                <a href="../index.php" class="btn btn-sm btn-dark rounded-pill px-4 shadow-sm"><i
+                    class="bi bi-house-door me-1"></i> Trang chủ</a>
+                <a href="attendance.php" class="btn btn-sm btn-primary rounded-pill px-4 shadow-sm"><i
                     class="bi bi-clock-history me-1"></i> Chấm công</a>
                 <a href="leave_request.php"
-                  class="btn btn-sm btn-outline-primary rounded-pill shadow-sm bg-white px-3"><i
+                  class="btn btn-sm btn-outline-primary rounded-pill bg-white px-4 shadow-sm"><i
                     class="bi bi-envelope-paper me-1"></i> Xin nghỉ phép</a>
                 <a href="payroll_summary.php"
-                  class="btn btn-sm btn-outline-primary rounded-pill shadow-sm bg-white px-3"><i
+                  class="btn btn-sm btn-outline-primary rounded-pill bg-white px-4 shadow-sm"><i
                     class="bi bi-receipt me-1"></i> Bảng lương</a>
               </div>
             </div>
@@ -261,137 +203,121 @@ foreach ($raw_details as $row) {
 
           <div class="row align-items-stretch">
 
-            <div class="col-md-5 mb-4">
+            <div class="col-lg-5 mb-4">
               <div class="card card-custom h-100">
-                <div class="card-body p-4 text-center d-flex flex-column justify-content-center">
-                  <i class="bi bi-clock-history main-icon text-primary mb-2"></i>
-                  <h5 class="fw-bold mb-1 text-gray-800">Ghi nhận thời gian</h5>
-                  <p class="text-muted small mb-3">Hôm nay: <?= date('d/m/Y') ?></p>
+                <div class="card-body p-5 text-center d-flex flex-column justify-content-center">
+                  <div class="mb-4">
+                    <i class="bi bi-clock-history main-icon text-primary mb-3"></i>
+                    <h4 class="fw-bold text-gray-800 mb-1">Ghi nhận thời gian</h4>
+                    <p class="text-muted mb-0">Hôm nay: <strong class="text-dark"><?= date('d/m/Y') ?></strong></p>
+                  </div>
 
-                  <?php if (isset($_SESSION['flash_msg'])): ?>
-                  <div
-                    class="alert alert-<?= $_SESSION['flash_type'] ?> alert-dismissible fade show text-left rounded-3 small py-2 px-3"
-                    role="alert">
-                    <i class="bi bi-info-circle-fill me-1"></i> <?= $_SESSION['flash_msg'] ?>
-                    <button type="button" class="close p-2" data-dismiss="alert" aria-label="Close">
-                      <span aria-hidden="true">&times;</span>
+                  <div class="d-grid gap-3 mt-2" style="display: grid;">
+                    <button type="button" onclick="handleAttendance('checkin')"
+                      class="btn btn-checkin btn-primary shadow-sm text-white" <?= $has_checked_in ? 'disabled' : '' ?>>
+                      <i class="bi bi-box-arrow-in-right me-2" style="font-size: 1.1rem;"></i> BẮT ĐẦU CA LÀM
+                    </button>
+                    <button type="button" onclick="handleAttendance('checkout')"
+                      class="btn btn-checkin btn-danger shadow-sm text-white"
+                      <?= (!$has_checked_in || $has_checked_out) ? 'disabled' : '' ?>>
+                      <i class="bi bi-box-arrow-right me-2" style="font-size: 1.1rem;"></i> KẾT THÚC CA LÀM
                     </button>
                   </div>
-                  <?php unset($_SESSION['flash_msg']); unset($_SESSION['flash_type']); ?>
-                  <?php endif; ?>
-
-                  <form method="POST" class="d-grid gap-2 mt-1">
-                    <button type="submit" name="check_in" class="btn btn-primary btn-checkin"
-                      <?= $has_checked_in ? 'disabled' : '' ?>>
-                      <i class="bi bi-box-arrow-in-right me-1"></i> BẮT ĐẦU CA LÀM
-                    </button>
-
-                    <button type="submit" name="check_out" class="btn btn-outline-danger btn-checkin"
-                      <?= (!$has_checked_in || $has_checked_out) ? 'disabled' : '' ?>>
-                      <i class="bi bi-box-arrow-right me-1"></i> KẾT THÚC CA LÀM
-                    </button>
-
-                    <button type="submit" name="reset_test"
-                      class="btn btn-light border btn-sm rounded-pill py-2 mt-3 text-muted"
-                      onclick="return confirm('Xóa dữ liệu chấm công hôm nay?');">
-                      <i class="bi bi-arrow-clockwise"></i> Reset bản nháp
-                    </button>
-                  </form>
 
                   <?php if ($has_checked_in): ?>
-                  <div class="alert alert-success mt-3 mb-0 rounded-pill small py-2" role="alert">
-                    <i class="bi bi-check-circle-fill me-1"></i> Giờ vào ca:
-                    <strong><?= date('H:i:s', strtotime($attendance_today['check_in_time'])) ?></strong>
+                  <div class="alert alert-success mt-4 mb-0 rounded-pill small py-2 font-weight-bold shadow-sm"
+                    role="alert">
+                    <i class="bi bi-check-circle-fill me-1"></i> Đã vào ca lúc:
+                    <span class="badge badge-success px-2 py-1 ml-1"
+                      style="font-size: 0.9rem;"><?= date('H:i:s', strtotime($attendance_today['check_in_time'])) ?></span>
                   </div>
                   <?php endif; ?>
                 </div>
               </div>
             </div>
 
-            <div class="col-md-7 mb-4">
+            <div class="col-lg-7 mb-4">
               <div class="card card-custom h-100">
                 <div class="card-body p-4 d-flex flex-column">
-                  <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-                    <h6 class="fw-bold mb-0 text-gray-800">
-                      <i class="bi bi-bar-chart-line text-success me-1"></i> Thống kê Tháng <?= $month ?>
-                    </h6>
+                  <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+                    <h5 class="fw-bold mb-0 text-gray-800"><i class="bi bi-bar-chart-line-fill text-success me-2"></i>
+                      Thống kê Tháng <?= $month ?></h5>
                   </div>
 
                   <div class="row flex-grow-1 align-content-center">
-                    <div class="col-sm-6 mb-3">
-                      <div class="bg-light border d-flex align-items-center stat-card h-100" data-toggle="modal"
+                    <div class="col-sm-6 mb-4">
+                      <div class="stat-card h-100 d-flex align-items-center"
+                        style="background-color: rgba(78, 115, 223, 0.1);" data-toggle="modal"
                         data-target="#modalTotalDays">
-                        <i class="bi bi-calendar-check text-primary stat-icon me-3"></i>
+                        <i class="bi bi-calendar-check stat-icon me-3 text-primary"></i>
                         <div>
-                          <div class="stat-label text-muted">Tổng ngày làm</div>
-                          <div class="stat-value fw-bold text-dark"><?= $report['total_days'] ?? 0 ?> <span
-                              class="fw-normal text-muted" style="font-size: 0.8rem;">ngày</span></div>
+                          <div class="stat-label text-primary">Tổng ngày làm</div>
+                          <div class="stat-value fw-bold text-primary"><?= $report['total_days'] ?? 0 ?> <span
+                              class="fw-normal" style="font-size: 0.9rem;">ngày</span></div>
                         </div>
                       </div>
                     </div>
-
-                    <div class="col-sm-6 mb-3">
-                      <div class="bg-light border d-flex align-items-center stat-card h-100" data-toggle="modal"
+                    <div class="col-sm-6 mb-4">
+                      <div class="stat-card h-100 d-flex align-items-center"
+                        style="background-color: rgba(54, 185, 204, 0.1);" data-toggle="modal"
                         data-target="#modalTotalDays">
-                        <i class="bi bi-stopwatch text-info stat-icon me-3"></i>
+                        <i class="bi bi-stopwatch stat-icon me-3 text-info"></i>
                         <div>
-                          <div class="stat-label text-muted">Tổng giờ làm</div>
-                          <div class="stat-value fw-bold text-dark"><?= $report['total_hours'] ?? 0 ?> <span
-                              class="fw-normal text-muted" style="font-size: 0.8rem;">giờ</span></div>
+                          <div class="stat-label text-info">Tổng giờ làm</div>
+                          <div class="stat-value fw-bold text-info"><?= $report['total_hours'] ?? 0 ?> <span
+                              class="fw-normal" style="font-size: 0.9rem;">giờ</span></div>
                         </div>
                       </div>
                     </div>
-
-                    <div class="col-sm-6 mb-3">
-                      <div class="bg-light border border-warning d-flex align-items-center stat-card h-100"
-                        data-toggle="modal" data-target="#modalLate">
-                        <i class="bi bi-exclamation-triangle text-warning stat-icon me-3"></i>
+                    <div class="col-sm-6 mb-4">
+                      <div class="stat-card h-100 d-flex align-items-center"
+                        style="background-color: rgba(246, 194, 62, 0.15);" data-toggle="modal"
+                        data-target="#modalLate">
+                        <i class="bi bi-exclamation-triangle stat-icon me-3 text-warning"></i>
                         <div>
-                          <div class="stat-label text-muted">Số lần đi muộn</div>
+                          <div class="stat-label text-warning">Số lần đi muộn</div>
                           <div class="stat-value fw-bold text-warning"><?= $report['total_late'] ?? 0 ?> <span
-                              class="fw-normal text-muted" style="font-size: 0.8rem;">lần</span></div>
+                              class="fw-normal" style="font-size: 0.9rem;">lần</span></div>
                         </div>
                       </div>
                     </div>
-
-                    <div class="col-sm-6 mb-3">
-                      <div class="bg-light border border-danger d-flex align-items-center stat-card h-100"
-                        data-toggle="modal" data-target="#modalEarly">
-                        <i class="bi bi-door-open text-danger stat-icon me-3"></i>
+                    <div class="col-sm-6 mb-4">
+                      <div class="stat-card h-100 d-flex align-items-center"
+                        style="background-color: rgba(231, 74, 59, 0.1);" data-toggle="modal" data-target="#modalEarly">
+                        <i class="bi bi-door-open stat-icon me-3 text-danger"></i>
                         <div>
-                          <div class="stat-label text-muted">Số lần về sớm</div>
+                          <div class="stat-label text-danger">Số lần về sớm</div>
                           <div class="stat-value fw-bold text-danger"><?= $report['total_early'] ?? 0 ?> <span
-                              class="fw-normal text-muted" style="font-size: 0.8rem;">lần</span></div>
+                              class="fw-normal" style="font-size: 0.9rem;">lần</span></div>
                         </div>
                       </div>
                     </div>
                   </div>
+
                 </div>
               </div>
             </div>
-
           </div>
-        </div>
 
+        </div>
       </div>
-      <?php include('../components/footer.php'); ?>
+      <?php if(file_exists('../components/footer.php')) include('../components/footer.php'); ?>
     </div>
   </div>
 
   <div class="modal fade" id="modalTotalDays" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content rounded-3">
-        <div class="modal-header border-0 bg-light py-3">
-          <h6 class="modal-title fw-bold text-primary mb-0"><i class="bi bi-calendar-check me-2"></i>Chi tiết ngày công
-          </h6>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+      <div class="modal-content rounded-3 border-0 shadow-lg">
+        <div class="modal-header border-0 bg-primary text-white py-3">
+          <h6 class="modal-title fw-bold mb-0"><i class="bi bi-calendar-check me-2"></i>Chi tiết ngày công</h6>
+          <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close"><span
               aria-hidden="true">&times;</span></button>
         </div>
         <div class="modal-body p-0">
-          <table class="table table-hover table-sm mb-0 text-center align-middle" style="font-size: 0.9rem;">
+          <table class="table table-hover table-sm mb-0 text-center align-middle" style="font-size: 0.95rem;">
             <thead class="bg-light text-muted">
               <tr>
-                <th>Ngày</th>
+                <th class="py-3">Ngày</th>
                 <th>Giờ vào</th>
                 <th>Giờ ra</th>
                 <th>Số giờ</th>
@@ -401,21 +327,23 @@ foreach ($raw_details as $row) {
             <tbody>
               <?php if(empty($details)): ?>
               <tr>
-                <td colspan="5" class="text-muted py-4">Chưa có dữ liệu chấm công.</td>
+                <td colspan="5" class="text-muted py-5">Chưa có dữ liệu chấm công.</td>
               </tr>
               <?php else: foreach($details as $row): ?>
               <tr>
-                <td><strong><?= date('d/m/Y', strtotime($row['check_date'])) ?></strong></td>
+                <td class="py-3"><strong class="text-dark"><?= date('d/m/Y', strtotime($row['check_date'])) ?></strong>
+                </td>
                 <td><?= $row['check_in'] ?? '<span class="text-muted">-</span>' ?></td>
                 <td><?= $row['check_out'] ?? '<span class="text-muted">-</span>' ?></td>
-                <td><span class="badge badge-info text-white p-1 px-2"><?= $row['work_hours'] ?> h</span></td>
+                <td><span class="badge badge-info text-white px-2 py-1 rounded-pill"><?= $row['work_hours'] ?> h</span>
+                </td>
                 <td>
                   <?php if($row['is_late']): ?><span
-                    class="badge badge-warning text-dark p-1 px-2 me-1">Muộn</span><?php endif; ?>
+                    class="badge badge-warning text-dark px-2 py-1 rounded-pill me-1">Muộn</span><?php endif; ?>
                   <?php if($row['is_early_leave']): ?><span
-                    class="badge badge-danger p-1 px-2">Sớm</span><?php endif; ?>
+                    class="badge badge-danger px-2 py-1 rounded-pill">Sớm</span><?php endif; ?>
                   <?php if(!$row['is_late'] && !$row['is_early_leave'] && $row['check_out']): ?><span
-                    class="badge badge-success p-1 px-2">Đúng giờ</span><?php endif; ?>
+                    class="badge badge-success px-2 py-1 rounded-pill">Đúng giờ</span><?php endif; ?>
                 </td>
               </tr>
               <?php endforeach; endif; ?>
@@ -426,62 +354,47 @@ foreach ($raw_details as $row) {
     </div>
   </div>
 
-  <div class="modal fade" id="modalLate" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content border-warning rounded-3">
-        <div class="modal-header border-0 bg-warning text-dark py-3">
-          <h6 class="modal-title fw-bold mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Lịch sử đi muộn</h6>
-          <button type="button" class="close text-dark" data-dismiss="modal" aria-label="Close"><span
-              aria-hidden="true">&times;</span></button>
-        </div>
-        <div class="modal-body p-0" style="font-size: 0.9rem;">
-          <ul class="list-group list-group-flush">
-            <?php $hasLate = false; foreach($details as $row): 
-                            if($row['is_late']): $hasLate = true; $late_mins = round((strtotime($row['check_in']) - strtotime('08:30:00')) / 60); ?>
-            <li class="list-group-item d-flex justify-content-between align-items-center py-2">
-              <div><strong class="text-dark"><?= date('d/m/Y', strtotime($row['check_date'])) ?></strong> <span
-                  class="text-muted ml-2">Vào: <?= $row['check_in'] ?></span></div>
-              <span class="badge badge-warning text-dark p-1 px-2 badge-pill">Trễ <?= $late_mins ?> phút</span>
-            </li>
-            <?php endif; endforeach; if(!$hasLate): ?>
-            <li class="list-group-item text-center text-muted py-3">Bạn không đi muộn ngày nào.</li>
-            <?php endif; ?>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="modalEarly" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content border-danger rounded-3">
-        <div class="modal-header border-0 bg-danger text-white py-3">
-          <h6 class="modal-title fw-bold mb-0"><i class="bi bi-door-open me-2"></i>Lịch sử về sớm</h6>
-          <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close"><span
-              aria-hidden="true">&times;</span></button>
-        </div>
-        <div class="modal-body p-0" style="font-size: 0.9rem;">
-          <ul class="list-group list-group-flush">
-            <?php $hasEarly = false; foreach($details as $row): 
-                            if($row['is_early_leave'] && $row['check_out']): $hasEarly = true; $early_mins = round((strtotime('17:30:00') - strtotime($row['check_out'])) / 60); ?>
-            <li class="list-group-item d-flex justify-content-between align-items-center py-2">
-              <div><strong class="text-dark"><?= date('d/m/Y', strtotime($row['check_date'])) ?></strong> <span
-                  class="text-muted ml-2">Ra: <?= $row['check_out'] ?></span></div>
-              <span class="badge badge-danger p-1 px-2 badge-pill">Sớm <?= $early_mins ?> phút</span>
-            </li>
-            <?php endif; endforeach; if(!$hasEarly): ?>
-            <li class="list-group-item text-center text-muted py-3">Bạn không về sớm ngày nào.</li>
-            <?php endif; ?>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <script src="../assets/vendor/jquery/jquery.min.js"></script>
   <script src="../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="../assets/js/sb-admin-2.min.js"></script>
 
+  <script>
+  function handleAttendance(action) {
+    // Lấy JWT Token (Chìa khóa) từ LocalStorage
+    const token = localStorage.getItem('jwt_token');
+
+    if (!token) {
+      alert("Lỗi: Bạn chưa đăng nhập (Chưa có Token)!");
+      return;
+    }
+
+    // Tạo đường dẫn API tương ứng (checkin hoặc checkout)
+    const apiUrl = '/creative-agency-hub/public/api/attendance/' + action;
+
+    // Gọi Fetch API xuống AttendanceController
+    fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          alert("✅ " + data.message);
+          // Reload trang để View tự động lấy dữ liệu mới từ Database và render lại thống kê
+          location.reload();
+        } else {
+          alert("❌ Lỗi: " + data.message);
+        }
+      })
+      .catch(error => {
+        console.error('Lỗi:', error);
+        alert("❌ Lỗi: Không thể kết nối đến máy chủ API!");
+      });
+  }
+  </script>
 </body>
 
 </html>
