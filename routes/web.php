@@ -37,3 +37,6 @@ $router->post('/api/tasks/{id}/reject', 'TaskApprovalController@reject');
 
 //get all submited tasks (in status Review)
 $router->get('/api/tasks/submit', 'TaskApprovalController@getReviewTasks');
+
+// assign task
+$router->post('/api/tasks/{id}/assign', 'TaskAssignController@assign');
