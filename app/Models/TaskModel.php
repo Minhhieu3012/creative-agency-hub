@@ -90,5 +90,16 @@ class TaskModel {
             return false;
         }
     }
+
+    // TÍNH NĂNG MỚI: Hỗ trợ Bảo ghi lịch sử hoạt động
+    public function logActivity($taskId, $userId, $action, $description = null) {
+        try {
+            $stmt = $this->pdo->prepare("INSERT INTO task_activity_logs (task_id, user_id, action, description) VALUES (?, ?, ?, ?)");
+            return $stmt->execute([$taskId, $userId, $action, $description]);
+        } catch (\PDOException $e) {
+            error_log("Lỗi Model logActivity: " . $e->getMessage());
+            return false;
+        }
+    }
 }
 ?>

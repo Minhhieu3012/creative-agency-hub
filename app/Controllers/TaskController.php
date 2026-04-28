@@ -66,8 +66,12 @@ class TaskController {
         $taskId = $this->taskModel->createTask($input['title'], $description, $priority, $input['deadline'], $assigner_id, $assignee_id, $watcher_id, $project_id);
         
         if ($taskId) {
+            // Ghi log hoạt động Tạo mới cho Bảo
+            $this->taskModel->logActivity($taskId, $assigner_id, 'create', 'Tạo công việc mới: ' . $input['title']);
+
             if ($assignee_id) {
                 $this->taskModel->createNotification($assignee_id, "Bạn vừa được giao một công việc mới: " . $input['title']);
+                $this->taskModel->logActivity($taskId, $assigner_id, 'assign', 'Giao việc cho nhân viên ID: ' . $assignee_id);
             }
             if ($watcher_id) {
                 $this->taskModel->createNotification($watcher_id, "Bạn được thêm làm người theo dõi cho công việc: " . $input['title']);
@@ -90,7 +94,8 @@ class TaskController {
     }
 
     public function update($taskId) {
-        AuthMiddleware::check();
+        $authUser = AuthMiddleware::check();
+        $user_id = $authUser['id'] ?? $authUser['user_id'] ?? null;
         
         $input = json_decode(file_get_contents('php://input'), true);
         
@@ -122,6 +127,9 @@ class TaskController {
         $success = $this->taskModel->updateTask($taskId, $input['title'], $description, $priority, $input['deadline'], $assignee_id, $watcher_id, $project_id);
         
         if ($success) {
+            // Ghi log hoạt động Cập nhật chi tiết cho Bảo
+            $this->taskModel->logActivity($taskId, $user_id, 'update', 'Cập nhật nội dung/chi tiết công việc');
+
             echo json_encode([
                 "status" => "success",
                 "message" => "Cập nhật công việc thành công",
@@ -138,7 +146,8 @@ class TaskController {
     }
 
     public function updateStatus($taskId) {
-        AuthMiddleware::check();
+        $authUser = AuthMiddleware::check();
+        $user_id = $authUser['id'] ?? $authUser['user_id'] ?? null;
 
         $input = json_decode(file_get_contents('php://input'), true);
         
@@ -174,6 +183,9 @@ class TaskController {
         $success = $this->taskModel->updateStatus($taskId, $input['status']);
         
         if ($success) {
+            // Ghi log hoạt động Đổi trạng thái (kéo thả) cho Bảo
+            $this->taskModel->logActivity($taskId, $user_id, 'status_change', 'Kéo công việc sang cột: ' . $input['status']);
+
             $notifyMsg = "Công việc '" . $task['title'] . "' đã chuyển sang trạng thái: " . $input['status'];
             
             if ($task['assignee_id']) {
