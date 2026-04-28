@@ -47,10 +47,11 @@ Authorization: Bearer <your_jwt_token>
 
 > Nhánh: `core-auth-security` — **Hiếu**
 
-| Method | Endpoint          | Mô tả                             |
-| ------ | ----------------- | --------------------------------- |
-| `POST` | `/api/auth/login` | Đăng nhập, trả về JWT Token       |
-| `GET`  | `/api/auth/me`    | Lấy thông tin user đang đăng nhập |
+| Method | Endpoint             | Mô tả                             |
+| ------ | -------------------- | --------------------------------- |
+| `POST` | `/api/auth/login`    | Đăng nhập, trả về JWT Token       |
+| `POST` | `/api/auth/register` | Đăng ký tài khoản nhân viên mới   |
+| `GET`  | `/api/auth/me`       | Lấy thông tin user đang đăng nhập |
 
 ---
 
@@ -72,12 +73,39 @@ Authorization: Bearer <your_jwt_token>
 
 > Nhánh: `task-kanban-board` — **Huy & Bảo**
 
-| Method  | Endpoint                  | Mô tả                                                     |
-| ------- | ------------------------- | --------------------------------------------------------- |
-| `GET`   | `/api/tasks`              | Lấy danh sách task (filter: `?status=Doing&project_id=1`) |
-| `POST`  | `/api/tasks`              | Tạo task mới                                              |
-| `PATCH` | `/api/tasks/:id/status`   | Cập nhật trạng thái (Kanban drag & drop)                  |
-| `POST`  | `/api/tasks/:id/comments` | Thêm bình luận vào task                                   |
+| Method  | Endpoint                  | Mô tả                                                                                               |
+| ------- | ------------------------- | --------------------------------------------------------------------------------------------------- |
+| `GET`   | `/api/tasks`              | Lấy danh sách task (filter: `?status=...&project_id=...`). Trạng thái: `To do, Doing, Review, Done` |
+| `POST`  | `/api/tasks`              | Tạo task mới                                                                                        |
+| `PATCH` | `/api/tasks/:id/status`   | Cập nhật trạng thái Kanban. Các giá trị hợp lệ: `To do, Doing, Review, Done`                        |
+| `POST`  | `/api/tasks/:id/comments` | Thêm bình luận vào task                                                                             |
+
+---
+
+#### Field `status` - Allowed Values
+
+| Giá trị  | Mô tả                  |
+| -------- | ---------------------- |
+| `To do`  | Task mới, chưa bắt đầu |
+| `Doing`  | Đang thực hiện         |
+| `Review` | Chờ review/kiểm tra    |
+| `Done`   | Hoàn thành             |
+
+> Áp dụng cho cả `POST /api/tasks` (field `status` khi tạo) và `PATCH /api/tasks/:id/status` (field `status` khi cập nhật).
+
+#### Ví dụ Request — `PATCH /api/tasks/:id/status`
+
+```json
+{
+  "status": "Review"
+}
+```
+
+#### Ví dụ Request — `GET /api/tasks` với filter
+
+```
+GET /api/tasks?status=Review&project_id=1
+```
 
 ---
 

@@ -64,6 +64,7 @@ CREATE TABLE employees (
     
     CONSTRAINT chk_emp_dates CHECK (resigned_date IS NULL OR resigned_date >= hire_date),
     
+    -- Ràng buộc đồng nhất trạng thái vòng đời (Lifecycle State Inconsistency)
     CONSTRAINT chk_employee_status_resigned CHECK (
         (status = 'resigned' AND resigned_date IS NOT NULL) OR (status <> 'resigned')
     ),
@@ -141,12 +142,11 @@ CREATE TABLE tasks (
     project_id INT NULL, 
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    status ENUM('To do', 'Doing', 'Done') DEFAULT 'To do',
+    status ENUM('To do', 'Doing', 'Review','Done') DEFAULT 'To do',
     priority ENUM('Low', 'Medium', 'High') DEFAULT 'Medium',
     deadline DATE,
     assigner_id INT, 
     assignee_id INT, 
-    -- Đã FIX: Bổ sung watcher_id cho yêu cầu của Huy
     watcher_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

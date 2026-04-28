@@ -71,7 +71,8 @@ class TaskController {
             exit;
         }
 
-        $validStatuses = ['To do', 'Doing', 'Done'];
+        // Đã cập nhật 4 trạng thái chuẩn theo API_CONTRACTS.md
+        $validStatuses = ['To do', 'Doing', 'Review', 'Done'];
         if (!in_array($input['status'], $validStatuses)) {
             http_response_code(400);
             echo json_encode([
