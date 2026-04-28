@@ -1,21 +1,23 @@
 <?php
-require_once __DIR__ . '/../Models/TaskModel.php';
-// Import Middleware của Hiếu để bảo mật và định danh người dùng
+namespace App\Controllers;
+
 use App\Middleware\AuthMiddleware;
+require_once __DIR__ . '/../Models/TaskModel.php';
 
 class TaskController {
     private $taskModel;
 
     public function __construct() {
-        $this->taskModel = new TaskModel();
+        // Khởi tạo Model (Giả định TaskModel nằm ở global namespace hoặc đã được require)
+        $this->taskModel = new \TaskModel(); 
     }
 
     public function showBoard() {
         require_once __DIR__ . '/../Views/tasks/kanban.php';
     }
 
-    // Nhận Query Params để lọc dữ liệu
-    public function getTasksAPI() {
+    // Đổi tên từ getTasksAPI -> index
+    public function index() {
         $filters = [
             'project_id'  => $_GET['project_id'] ?? null,
             'assignee_id' => $_GET['assignee_id'] ?? null,
@@ -33,9 +35,8 @@ class TaskController {
         exit;
     }
 
-    public function createTaskAPI() {
-        // Kích hoạt khiên bảo mật: Chỉ user đã đăng nhập mới được tạo Task
-        // Trả về payload JWT chứa ID của người dùng hiện tại
+    // Đổi tên từ createTaskAPI -> store
+    public function store() {
         $authUser = AuthMiddleware::check();
         $assigner_id = $authUser['id'] ?? $authUser['user_id'] ?? null;
 
@@ -91,8 +92,8 @@ class TaskController {
         exit;
     }
 
-    public function updateTaskStatusAPI($taskId) {
-        // Tích hợp bảo mật cho API kéo thả
+    // Đổi tên từ updateTaskStatusAPI -> updateStatus
+    public function updateStatus($taskId) {
         AuthMiddleware::check();
 
         $input = json_decode(file_get_contents('php://input'), true);
@@ -150,6 +151,23 @@ class TaskController {
                 "message" => "Lỗi cập nhật Database"
             ]);
         }
+        exit;
+    }
+
+    // API mới dành cho BẢO
+    public function addComment($taskId) {
+        $authUser = AuthMiddleware::check();
+        $user_id = $authUser['id'] ?? $authUser['user_id'] ?? null;
+
+        // Khung chờ sẵn để Bảo viết logic insert bảng task_comments
+        echo json_encode([
+            "status" => "success",
+            "message" => "API addComment đã sẵn sàng cho Bảo code",
+            "data" => [
+                "task_id" => $taskId,
+                "user_id" => $user_id
+            ]
+        ]);
         exit;
     }
 }
