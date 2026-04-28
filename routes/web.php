@@ -45,3 +45,6 @@ $router->post('/api/tasks/{id}/assign', 'TaskAssignController@assign');
 $router->post('/api/tasks/{id}/attachments', 'TaskAttachmentController@upload');
 $router->get('/api/tasks/{id}/attachments', 'TaskAttachmentController@list');
 $router->get('/api/attachments/{id}/download', 'TaskAttachmentController@download');
+
+// task activity logs
+$router->get('/api/tasks/{id}/activity', 'TaskActivityController@history');

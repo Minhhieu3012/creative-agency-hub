@@ -2,6 +2,8 @@
 namespace App\Services;
 use Core\Database;
 use Exception;
+use App\Services\TaskActivityService;
+use App\Enums\TaskAction;
 Class TaskAssignService{
     public static function assign($taskId, $assignerId, $assigneeId, $watcherId = null) {
 
@@ -88,6 +90,23 @@ Class TaskAssignService{
         ]);
 
         $title = $task['title'];
+
+// Task activity logs
+        if ($isReassign) {
+            TaskActivityService::log(
+                $taskId,
+                $assignerId,
+                TaskAction::REASSIGN,
+                "Reassigned task \"{$task['title']}\" from user {$task['assignee_id']} to $assigneeId"
+            );
+        } else {
+            TaskActivityService::log(
+                $taskId,
+                $assignerId,
+                TaskAction::ASSIGN,
+                "Assigned task \"{$task['title']}\" to user ID: $assigneeId"
+            );
+        }
 
         // 7. notify assignee
         $message = $isReassign

@@ -1,7 +1,10 @@
 <?php
 namespace App\Services;
+
 use PDO;
 use Core\Database;
+use App\Services\TaskActivityService;
+use App\Enums\TaskAction;
 
 class TaskCommentService {
 
@@ -29,11 +32,11 @@ class TaskCommentService {
         $sql .= " ORDER BY tc.created_at DESC";
 
         $stmt = $conn->prepare($sql);
-
         $taskId ? $stmt->execute([$taskId]) : $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
     public static function getById($commentId) {
 
         $conn = Database::getConnection();
@@ -57,7 +60,9 @@ class TaskCommentService {
 
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
+
     public static function create($taskId, $userId, $data) {
+
         $conn = Database::getConnection();
 
         $stmt = $conn->prepare("
@@ -65,20 +70,31 @@ class TaskCommentService {
             VALUES (?, ?, ?)
         ");
 
-        $stmt->execute([
+        $content = trim($data['content']);
+
+        $stmt->execute([$taskId, $userId, $content]);
+
+        // lấy tên user
+        $stmt = $conn->prepare("SELECT full_name FROM employees WHERE id = ?");
+        $stmt->execute([$userId]);
+        $actor = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        TaskActivityService::log(
             $taskId,
             $userId,
-            trim($data['content']) 
-        ]);
+            TaskAction::COMMENT,
+            "{$actor['full_name']} added comment: \"" . substr($content, 0, 50) . "\""
+        );
 
         return [
             "id" => $conn->lastInsertId(),
             "task_id" => $taskId,
             "user_id" => $userId,
-            "comment_text" => $data['content'],
+            "comment_text" => $content,
             "created_at" => date("Y-m-d H:i:s")
         ];
     }
+
     public static function getByTask($taskId) {
 
         $conn = Database::getConnection();
@@ -102,25 +118,23 @@ class TaskCommentService {
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
     public static function update($commentId, $userId, $data) {
 
         $conn = Database::getConnection();
 
-        // check tồn tại + quyền
+        // lấy thêm task_id
         $stmt = $conn->prepare("
-            SELECT user_id FROM task_comments WHERE id = ?
+            SELECT user_id, task_id FROM task_comments WHERE id = ?
         ");
         $stmt->execute([$commentId]);
         $comment = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$comment) {
-            return false;
-        }
+        if (!$comment) return false;
 
-        // chỉ cho owner sửa
-        if ($comment['user_id'] != $userId) {
-            return false;
-        }
+        if ($comment['user_id'] != $userId) return false;
+
+        $content = trim($data['content']);
 
         $stmt = $conn->prepare("
             UPDATE task_comments
@@ -128,42 +142,57 @@ class TaskCommentService {
             WHERE id = ?
         ");
 
-        $stmt->execute([
-            trim($data['content']),
-            $commentId
-        ]);
+        $stmt->execute([$content, $commentId]);
+
+        $stmt = $conn->prepare("SELECT full_name FROM employees WHERE id = ?");
+        $stmt->execute([$userId]);
+        $actor = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        TaskActivityService::log(
+            $comment['task_id'],
+            $userId,
+            TaskAction::UPDATE,
+            "{$actor['full_name']} updated a comment"
+        );
 
         return [
-            "id" => $commentId, 
+            "id" => $commentId,
             "user_update" => $userId,
-            "comment_text" => trim($data['content']),
+            "comment_text" => $content,
             "updated_at" => date("Y-m-d H:i:s")
         ];
     }
+
     public static function delete($commentId, $userId) {
 
         $conn = Database::getConnection();
 
-        // check tồn tại + quyền
         $stmt = $conn->prepare("
-            SELECT user_id FROM task_comments WHERE id = ?
+            SELECT user_id, task_id FROM task_comments WHERE id = ?
         ");
         $stmt->execute([$commentId]);
         $comment = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$comment) {
-            return false;
-        }
+        if (!$comment) return false;
 
-        // chỉ owner mới được xoá
-        if ($comment['user_id'] != $userId) {
-            return false;
-        }
+        if ($comment['user_id'] != $userId) return false;
 
         $stmt = $conn->prepare("
             DELETE FROM task_comments WHERE id = ?
         ");
 
-        return $stmt->execute([$commentId]);
+        $stmt->execute([$commentId]);
+
+        $stmt = $conn->prepare("SELECT full_name FROM employees WHERE id = ?");
+        $stmt->execute([$userId]);
+        $actor = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        TaskActivityService::log(
+            $comment['task_id'],
+            $userId,
+            TaskAction::UPDATE,
+            "{$actor['full_name']} deleted a comment"
+        );
+        return true;
     }
 }

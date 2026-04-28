@@ -1,8 +1,11 @@
 <?php
 namespace App\Services;
+
 use Exception;
 use PDO;
 use Core\Database;
+use App\Enums\TaskAction;
+use App\Services\TaskActivityService;
 
 class TaskApprovalService {
 
@@ -11,7 +14,7 @@ class TaskApprovalService {
         $conn = Database::getConnection();
 
         // check task
-        $stmt = $conn->prepare("SELECT status, assignee_id FROM tasks WHERE id = ?");
+        $stmt = $conn->prepare("SELECT title, status, assignee_id FROM tasks WHERE id = ?");
         $stmt->execute([$taskId]);
         $task = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -19,19 +22,28 @@ class TaskApprovalService {
             throw new Exception("Task not found");
         }
 
-        // chỉ người được assign mới submit
         if ($task['assignee_id'] != $userId) {
             throw new Exception("You are not assigned to this task");
         }
 
-        // chỉ submit khi đang Doing
         if ($task['status'] !== 'Doing') {
             throw new Exception("Only Doing tasks can be submitted");
         }
 
-        // update status → Review
+        // update
         $stmt = $conn->prepare("UPDATE tasks SET status = 'Review' WHERE id = ?");
         $stmt->execute([$taskId]);
+
+        $stmt = $conn->prepare("SELECT full_name FROM employees WHERE id = ?");
+        $stmt->execute([$userId]);
+        $actor = $stmt->fetch(PDO::FETCH_ASSOC);
+        // activity log
+        TaskActivityService::log(
+            $taskId,
+            $userId,
+            TaskAction::STATUS_CHANGE,
+            "{$actor['full_name']} submitted task \"{$task['title']}\" for review"
+        );
 
         return [
             "task_id" => $taskId,
@@ -43,7 +55,7 @@ class TaskApprovalService {
 
         $conn = Database::getConnection();
 
-        // check user role
+        // check role
         $stmt = $conn->prepare("SELECT role FROM employees WHERE id = ?");
         $stmt->execute([$userId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -52,8 +64,13 @@ class TaskApprovalService {
             throw new Exception("Permission denied");
         }
 
-        // check task
-        $stmt = $conn->prepare("SELECT status FROM tasks WHERE id = ?");
+        // lấy thêm title + assignee name
+        $stmt = $conn->prepare("
+            SELECT t.title, t.status, e.full_name
+            FROM tasks t
+            LEFT JOIN employees e ON t.assignee_id = e.id
+            WHERE t.id = ?
+        ");
         $stmt->execute([$taskId]);
         $task = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -61,9 +78,21 @@ class TaskApprovalService {
             throw new Exception("Task must be in Review state");
         }
 
-        // update → Done
+        // update
         $stmt = $conn->prepare("UPDATE tasks SET status = 'Done' WHERE id = ?");
         $stmt->execute([$taskId]);
+
+        // lấy tên manager
+        $stmt = $conn->prepare("SELECT full_name FROM employees WHERE id = ?");
+        $stmt->execute([$userId]);
+        $actor = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        TaskActivityService::log(
+            $taskId,
+            $userId,
+            TaskAction::STATUS_CHANGE,
+            "{$actor['full_name']} approved task \"{$task['title']}\" → Done (Assignee: {$task['full_name']})"
+        );
 
         return [
             "task_id" => $taskId,
@@ -84,8 +113,13 @@ class TaskApprovalService {
             throw new Exception("Permission denied");
         }
 
-        // check task
-        $stmt = $conn->prepare("SELECT status FROM tasks WHERE id = ?");
+        // lấy thêm title + assignee name
+        $stmt = $conn->prepare("
+            SELECT t.title, t.status, e.full_name
+            FROM tasks t
+            LEFT JOIN employees e ON t.assignee_id = e.id
+            WHERE t.id = ?
+        ");
         $stmt->execute([$taskId]);
         $task = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -93,20 +127,32 @@ class TaskApprovalService {
             throw new Exception("Task must be in Review state");
         }
 
-        // update -> về lại Doing
+        // update
         $stmt = $conn->prepare("UPDATE tasks SET status = 'Doing' WHERE id = ?");
         $stmt->execute([$taskId]);
+
+        // lấy tên manager
+        $stmt = $conn->prepare("SELECT full_name FROM employees WHERE id = ?");
+        $stmt->execute([$userId]);
+        $actor = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        TaskActivityService::log(
+            $taskId,
+            $userId,
+            TaskAction::STATUS_CHANGE,
+            "{$actor['full_name']} rejected task \"{$task['title']}\" → Back to Doing (Assignee: {$task['full_name']})"
+        );
 
         return [
             "task_id" => $taskId,
             "status" => "Doing"
         ];
     }
+
     public static function getTasksInReview($userId) {
 
         $conn = Database::getConnection();
 
-        // check role
         $stmt = $conn->prepare("SELECT role FROM employees WHERE id = ?");
         $stmt->execute([$userId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -115,7 +161,6 @@ class TaskApprovalService {
             throw new Exception("Permission denied");
         }
 
-        // lấy danh sách task đang Review
         $stmt = $conn->prepare("
             SELECT 
                 t.id,

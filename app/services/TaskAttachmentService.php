@@ -1,8 +1,9 @@
 <?php
 namespace App\Services;
-
+use App\Services\TaskActivityService;
 use Core\Database;
 use Exception;
+use App\Enums\TaskAction;
 
 class TaskAttachmentService {
 
@@ -109,6 +110,17 @@ class TaskAttachmentService {
             throw $e;
         }
 
+        $stmt = $conn->prepare("SELECT full_name FROM employees WHERE id = ?");
+        $stmt->execute([$userId]);
+        $actor = $stmt->fetch();
+
+        // Task Activity logs
+        TaskActivityService::log(
+            $taskId,
+            $userId,
+            TaskAction::UPLOAD,
+            "{$actor['full_name']} uploaded file \"{$file['name']}\""
+        );
         return [
             "id" => $conn->lastInsertId(),
             "file_name" => $file['name'],
@@ -188,6 +200,16 @@ class TaskAttachmentService {
             header('Content-Length: ' . filesize($path));
             header('Cache-Control: no-cache, must-revalidate');
             header('Pragma: public');
+            $stmt = $conn->prepare("SELECT full_name FROM employees WHERE id = ?");
+            $stmt->execute([$userId]);
+            $actor = $stmt->fetch();
+
+            TaskActivityService::log(
+                $file['task_id'],
+                $userId,
+                TaskAction::DOWNLOAD,
+                "{$actor['full_name']} downloaded file \"{$file['file_name']}\""
+            );
 
             // 7. Output file
             readfile($path);
