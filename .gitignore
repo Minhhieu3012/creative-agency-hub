@@ -4,3 +4,7 @@
 !.env.example
 
 /public/seed.php
+/public/uploads/*
+!/public/uploads/.gitkeep
+!/public/uploads/tasks/
+!/public/uploads/tasks/.gitkeep
