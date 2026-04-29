@@ -1,7 +1,11 @@
 <?php
 namespace App\Controllers;
 
+use App\Services\TaskActivityService;
+use App\Enums\TaskAction;
 use App\Middleware\AuthMiddleware;
+use App\Services\NotificationService;
+
 require_once __DIR__ . '/../Models/TaskModel.php';
 
 class TaskController {
@@ -36,6 +40,15 @@ class TaskController {
     public function store() {
         $authUser = AuthMiddleware::check();
         $assigner_id = $authUser['id'] ?? $authUser['user_id'] ?? null;
+        // bổ sung phân quyền
+        if (!in_array($authUser['role'], ['admin', 'manager'])) {
+            http_response_code(403);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Permission denied"
+            ]);
+            exit;
+        }
 
         $input = json_decode(file_get_contents('php://input'), true);
         
@@ -66,6 +79,44 @@ class TaskController {
         $taskId = $this->taskModel->createTask($input['title'], $description, $priority, $input['deadline'], $assigner_id, $assignee_id, $watcher_id, $project_id);
         
         if ($taskId) {
+            // get user full_name
+            $stmt = \Core\Database::getConnection()->prepare("SELECT full_name FROM employees WHERE id = ?");
+            $stmt->execute([$assigner_id]);
+            $actor = $stmt->fetch();
+
+            // activity log create
+            TaskActivityService::log(
+                $taskId,
+                $assigner_id,
+                TaskAction::CREATE,
+                "{$actor['full_name']} created task \"{$input['title']}\""
+            );
+
+            if ($assignee_id) {
+                // Thay notification của Huy bằng notification của Bảo nhé (lưu vào bảng notifications trong DB)
+                // $this->taskModel->createNotification($assignee_id, "Bạn vừa được giao một công việc mới: " . $input['title']);
+                NotificationService::send(
+                    $assignee_id,
+                    "Bạn được giao task: " . $input['title']
+                );
+
+                // get user full_name
+                $stmt = \Core\Database::getConnection()->prepare("SELECT full_name FROM employees WHERE id = ?");
+                $stmt->execute([$assignee_id]);
+                $assignee = $stmt->fetch();
+                // activity log create
+                TaskActivityService::log(
+                    $taskId,
+                    $assigner_id,
+                    TaskAction::ASSIGN,
+                    "{$actor['full_name']} assigned task to {$assignee['full_name']}"
+                );
+            }
+            if ($watcher_id) {
+                NotificationService::send(
+                    $watcher_id,
+                    "Bạn được thêm vào vị trí có thể theo dõi task: " . $input['title']
+                );
             // Ghi log hoạt động Tạo mới cho Bảo
             $this->taskModel->logActivity($taskId, $assigner_id, 'create', 'Tạo công việc mới: ' . $input['title']);
 
@@ -96,6 +147,26 @@ class TaskController {
     public function update($taskId) {
         $authUser = AuthMiddleware::check();
         $user_id = $authUser['id'] ?? $authUser['user_id'] ?? null;
+        // Lấy task trước
+        $task = $this->taskModel->getTaskById($taskId);
+
+        if (!$task) {
+            http_response_code(404);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Không tìm thấy công việc"
+            ]);
+            exit;
+        }
+        // Phân quyền
+        if (!in_array($authUser['role'], ['admin', 'manager'])) {
+            http_response_code(403);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Permission denied"
+            ]);
+            exit;
+        }
         
         $input = json_decode(file_get_contents('php://input'), true);
         
@@ -127,6 +198,26 @@ class TaskController {
         $success = $this->taskModel->updateTask($taskId, $input['title'], $description, $priority, $input['deadline'], $assignee_id, $watcher_id, $project_id);
         
         if ($success) {
+            $stmt = \Core\Database::getConnection()->prepare("SELECT full_name FROM employees WHERE id = ?");
+            $stmt->execute([$user_id]);
+            $actor = $stmt->fetch();
+
+            TaskActivityService::log(
+                $taskId,
+                $user_id,
+                TaskAction::UPDATE,
+                "{$actor['full_name']} updated task \"{$input['title']}\""
+            );
+            $notifyMsg = "Task '{$input['title']}' vừa được cập nhật";
+
+            NotificationService::sendToMany(
+                array_filter([
+                    $task['assignee_id'],
+                    // $task['assigner_id'], Không cần thông báo cho người update task (manager)
+                    $task['watcher_id']
+                ]),
+                $notifyMsg
+            );
             // Ghi log hoạt động Cập nhật chi tiết cho Bảo
             $this->taskModel->logActivity($taskId, $user_id, 'update', 'Cập nhật nội dung/chi tiết công việc');
 
@@ -148,6 +239,26 @@ class TaskController {
     public function updateStatus($taskId) {
         $authUser = AuthMiddleware::check();
         $user_id = $authUser['id'] ?? $authUser['user_id'] ?? null;
+        // Lấy task trước
+        $task = $this->taskModel->getTaskById($taskId);
+
+        if (!$task) {
+            http_response_code(404);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Không tìm thấy công việc"
+            ]);
+            exit;
+        }
+        // Phân quyền
+        if (!in_array($authUser['role'], ['admin', 'manager'])) {
+            http_response_code(403);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Permission denied"
+            ]);
+            exit;
+        }
 
         $input = json_decode(file_get_contents('php://input'), true);
         
@@ -183,6 +294,26 @@ class TaskController {
         $success = $this->taskModel->updateStatus($taskId, $input['status']);
         
         if ($success) {
+            $stmt = \Core\Database::getConnection()->prepare("SELECT full_name FROM employees WHERE id = ?");
+            $stmt->execute([$user_id]);
+            $actor = $stmt->fetch();
+
+            TaskActivityService::log(
+                $taskId,
+                $user_id,
+                TaskAction::STATUS_CHANGE,
+                "{$actor['full_name']} moved task to \"{$input['status']}\""
+            );
+
+            $notifyMsg = "Task '{$task['title']}' đã chuyển trạng thái sang {$input['status']}";
+
+            NotificationService::sendToMany(
+                array_filter([
+                    $task['assignee_id'],
+                    $task['watcher_id']
+                ]),
+                $notifyMsg
+            );
             // Ghi log hoạt động Đổi trạng thái (kéo thả) cho Bảo
             $this->taskModel->logActivity($taskId, $user_id, 'status_change', 'Kéo công việc sang cột: ' . $input['status']);
 
@@ -194,7 +325,6 @@ class TaskController {
             if ($task['assigner_id']) {
                 $this->taskModel->createNotification($task['assigner_id'], $notifyMsg);
             }
-
             echo json_encode([
                 "status" => "success",
                 "message" => "Cập nhật trạng thái thành công",

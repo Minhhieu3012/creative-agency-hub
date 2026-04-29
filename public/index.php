@@ -1,14 +1,28 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // CORS
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, user_id');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
+
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+define('BASE_PATH', dirname(__DIR__));
+
+require_once BASE_PATH . '/vendor/autoload.php';
+
+$dotenv = Dotenv\Dotenv::createImmutable(BASE_PATH);
+$dotenv->load();
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 
@@ -22,12 +36,34 @@ use App\Middleware\RoleMiddleware;
 // Ghi chú: Nạp class TaskController của Huy (Không dùng namespace)
 require_once __DIR__ . '/../app/Controllers/TaskController.php';
 
-// 2. Ép kiểu trả về mặc định là JSON
 header('Content-Type: application/json; charset=utf-8');
 
-$uri    = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$path   = str_replace('/creative-agency-hub/public', '', $uri);
+require_once BASE_PATH . '/core/Router.php';
+$router = new Router();
+
+// load web.php router
+require_once BASE_PATH . '/routes/web.php';
+// load api.php routes
+$apiRoutes = require __DIR__ . '/../routes/api.php';
+foreach ($apiRoutes as $route) {
+
+    if (!is_array($route)) {
+        continue;
+    }
+
+    [$method, $uri, $controller, $action] = $route;
+
+    $router->{strtolower($method)}(
+        $uri,
+        $controller . '@' . $action
+    );
+}
+
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
+
+$base = '/creative-agency-hub/public';
+$uri = str_replace($base, '', $uri);
 
 // 4. BỘ ĐỊNH TUYẾN (ROUTER)
 try {
@@ -113,6 +149,10 @@ try {
     echo json_encode(["status" => "error", "message" => "API Route không tồn tại."]);
 } catch (\Throwable $e) {
     error_log($e->getMessage());
+
     http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Lỗi hệ thống, vui lòng thử lại sau."]);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Lỗi hệ thống, vui lòng thử lại sau."
+    ]);
 }

@@ -1,6 +1,7 @@
 <?php
 
-use App\Controllers\AuthController;
+use App\Controllers\TaskController;
+use App\Controllers\NotificationController;
 
 return [
     // AUTH (Public)
@@ -18,10 +19,18 @@ return [
     // ['DELETE', '/api/employees/:id', EmployeeController::class, 'destroy', ['admin']],
 
     // TASK - Huy & Bảo (uncomment khi làm xong)
-    // ['GET',   '/api/tasks',                TaskController::class, 'index',        ['admin', 'manager', 'employee', 'client']],
-    // ['POST',  '/api/tasks',                TaskController::class, 'store',        ['admin', 'manager']],
-    // ['PATCH', '/api/tasks/:id/status',     TaskController::class, 'updateStatus', ['admin', 'manager', 'employee']],
+    ['GET',   '/api/tasks',                TaskController::class, 'index',        ['admin', 'manager', 'employee', 'client']],
+    ['POST',  '/api/tasks',                TaskController::class, 'store',        ['admin', 'manager']],
+    ['PUT',  '/api/tasks/{id}',                TaskController::class, 'update',        ['admin', 'manager']],
+    ['PATCH', '/api/tasks/{id}/status',     TaskController::class, 'updateStatus', ['admin', 'manager', 'employee']],
     // ['POST',  '/api/tasks/:id/comments',   TaskController::class, 'addComment',   ['admin', 'manager', 'employee', 'client']],
+
+    // NOTIFICATION - Bảo
+
+    ['GET', '/api/notifications', NotificationController::class, 'index'],
+    ['GET', '/api/notifications/unread', NotificationController::class, 'unread'],
+    ['GET', '/api/notifications/unread-count', NotificationController::class, 'unreadCount'],
+    ['PATCH', '/api/notifications/{id}/read', NotificationController::class, 'markAsRead'],
 
     // ATTENDANCE & LEAVE - Tiến 
     ['POST',  '/api/attendance/checkin',   AttendanceController::class, 'checkin', ['admin', 'manager', 'employee']],
