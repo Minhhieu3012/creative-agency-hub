@@ -16,13 +16,21 @@ class AuthController {
         $this->authUser = $authUser;
     }
 
+    // Helper: Hỗ trợ đọc cả JSON (từ Frontend) và Form-data (từ Postman)
+    private function getInputData() {
+        $json = json_decode(file_get_contents('php://input'), true);
+        return $json ?: $_POST;
+    }
+
     // Xử lý Đăng nhập
     public function login() {
         header('Content-Type: application/json; charset=utf-8');
+        
+        $input = $this->getInputData();
 
         // 1. Làm sạch và validate dữ liệu đầu vào
-        $email    = Security::escape($_POST['email'] ?? '');
-        $password = $_POST['password'] ?? '';
+        $email    = Security::escape($input['email'] ?? '');
+        $password = $input['password'] ?? '';
 
         if (empty($email) || empty($password)) {
             http_response_code(400);
@@ -61,16 +69,19 @@ class AuthController {
         }
     }
 
+    // Xử lý Đăng ký
     public function register() {
         header('Content-Type: application/json; charset=utf-8');
 
+        $input = $this->getInputData();
+
         // 1. Lấy và làm sạch dữ liệu
-        $fullName     = Security::escape($_POST['full_name'] ?? '');
-        $email        = Security::escape($_POST['email'] ?? '');
-        $password     = $_POST['password'] ?? '';
-        $departmentId = $_POST['department_id'] ?? '';
-        $positionId   = $_POST['position_id'] ?? '';
-        $employeeCode = Security::escape($_POST['employee_code'] ?? '');
+        $fullName     = Security::escape($input['full_name'] ?? '');
+        $email        = Security::escape($input['email'] ?? '');
+        $password     = $input['password'] ?? '';
+        $departmentId = $input['department_id'] ?? '';
+        $positionId   = $input['position_id'] ?? '';
+        $employeeCode = Security::escape($input['employee_code'] ?? '');
 
         // 2. Validate cơ bản
         if (empty($fullName) || empty($email) || empty($password) || empty($departmentId) || empty($positionId) || empty($employeeCode)) {
