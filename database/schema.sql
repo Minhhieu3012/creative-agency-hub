@@ -147,6 +147,7 @@ CREATE TABLE tasks (
     deadline DATE,
     assigner_id INT, 
     assignee_id INT, 
+    -- Đã FIX: Bổ sung watcher_id cho yêu cầu của Huy
     watcher_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

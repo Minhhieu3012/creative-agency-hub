@@ -1,4 +1,5 @@
 <?php
+
 namespace Core;
 
 use PDO;
@@ -9,19 +10,18 @@ class Database {
     private $connection;
 
     private function __construct() {
-        $host = $_ENV['DB_HOST'];
-        $port = $_ENV['DB_PORT'];
-        $db   = $_ENV['DB_DATABASE'];
-        $user = $_ENV['DB_USERNAME'];
-        $pass = $_ENV['DB_PASSWORD'];
-        
+        $host = $_ENV['DB_HOST'] ?? 'localhost';
+        $port = $_ENV['DB_PORT'] ?? '3306';
+        $db   = $_ENV['DB_DATABASE'] ?? 'creative_agency';
+        $user = $_ENV['DB_USERNAME'] ?? 'root';
+        $pass = $_ENV['DB_PASSWORD'] ?? '';
+
         $dsn = "mysql:host=$host;port=$port;dbname=$db;charset=utf8mb4";
-        
+
         $options = [
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION, 
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,       
-            // Ép MySQL dùng Prepared Statement thật, tắt chế độ giả lập của PHP
-            PDO::ATTR_EMULATE_PREPARES   => false,                  
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
         ];
 
         try {
@@ -30,7 +30,10 @@ class Database {
             error_log("DB Connection Error: " . $e->getMessage());
 
             http_response_code(500);
-            die(json_encode(["status" => "error", "message" => "Không thể kết nối đến hệ thống. Vui lòng thử lại sau."]));
+            die(json_encode([
+                "status" => "error",
+                "message" => "Database connection failed"
+            ]));
         }
     }
 
