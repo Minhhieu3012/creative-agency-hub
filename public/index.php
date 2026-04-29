@@ -1,17 +1,58 @@
 <?php
-// Bật hiển thị lỗi để dễ debug trong môi trường dev
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 
-// Nạp các thư viện từ Composer (bao gồm phpdotenv)
+// CORS
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+if (session_status() === PHP_SESSION_NONE) session_start();
+
 require_once __DIR__ . '/../vendor/autoload.php';
-
-// Khởi tạo và nạp biến môi trường từ file .env ở thư mục gốc
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
 
-// Test thử xem hệ thống đã đọc được file .env chưa
-// echo "<h1>Hệ thống đã chạy!</h1>";
-// echo "<h3>Chào mừng đến với dự án: " . $_ENV['APP_NAME'] . "</h3>";
-// echo "<p>Môi trường hiện tại: " . $_ENV['APP_ENV'] . "</p>";
+use App\Middleware\AuthMiddleware;
+use App\Middleware\RoleMiddleware;
+
+header('Content-Type: application/json; charset=utf-8');
+
+$uri    = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$path   = str_replace('/creative-agency-hub/public', '', $uri);
+$method = $_SERVER['REQUEST_METHOD'];
+
+$routes = require __DIR__ . '/../routes/api.php';
+
+try {
+    foreach ($routes as [$rMethod, $rPath, $controllerClass, $action, $roles]) {
+        // Chuyển :id thành regex để match dynamic route
+        $pattern = preg_replace('#:(\w+)#', '(\d+)', $rPath);
+        $pattern = '#^' . $pattern . '$#';
+
+        if ($method === $rMethod && preg_match($pattern, $path, $matches)) {
+            array_shift($matches); // Bỏ full match, giữ lại các params
+            $authUser = null;
+
+            if ($roles !== null) {
+                $authUser = AuthMiddleware::check();
+                RoleMiddleware::handle($authUser, $roles);
+            }
+
+            $controller = new $controllerClass($authUser);
+            $controller->$action(...$matches);
+            exit;
+        }
+    }
+
+    http_response_code(404);
+    echo json_encode(["status" => "error", "message" => "API Route không tồn tại."]);
+
+} catch (\Throwable $e) {
+    error_log($e->getMessage());
+    http_response_code(500);
+    echo json_encode(["status" => "error", "message" => "Lỗi hệ thống, vui lòng thử lại sau."]);
+}
