@@ -23,8 +23,8 @@ return [
     // ['PATCH', '/api/tasks/:id/status',     TaskController::class, 'updateStatus', ['admin', 'manager', 'employee']],
     // ['POST',  '/api/tasks/:id/comments',   TaskController::class, 'addComment',   ['admin', 'manager', 'employee', 'client']],
 
-    // ATTENDANCE & LEAVE - Tiến (uncomment khi làm xong)
-    // ['POST',  '/api/attendance/checkin',   AttendanceController::class, 'checkin', ['admin', 'manager', 'employee']],
-    // ['POST',  '/api/leaves',               LeaveController::class,      'store',   ['admin', 'manager', 'employee']],
-    // ['PATCH', '/api/leaves/:id/approve',   LeaveController::class,      'approve', ['admin', 'manager']],
+    // ATTENDANCE & LEAVE - Tiến 
+    ['POST',  '/api/attendance/checkin',   AttendanceController::class, 'checkin', ['admin', 'manager', 'employee']],
+    ['POST',  '/api/leaves',               LeaveController::class,      'store',   ['admin', 'manager', 'employee']],
+    ['PATCH', '/api/leaves/:id/approve',   LeaveController::class,      'approve', ['admin', 'manager']],
 ];
