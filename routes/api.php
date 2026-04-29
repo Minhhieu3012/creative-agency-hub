@@ -1,9 +1,7 @@
 <?php
 
-use App\Controllers\AuthController;
 use App\Controllers\TaskController;
 use App\Controllers\NotificationController;
-
 
 return [
     // AUTH (Public)
@@ -34,8 +32,8 @@ return [
     ['GET', '/api/notifications/unread-count', NotificationController::class, 'unreadCount'],
     ['PATCH', '/api/notifications/{id}/read', NotificationController::class, 'markAsRead'],
 
-    // ATTENDANCE & LEAVE - Tiến (uncomment khi làm xong)
-    // ['POST',  '/api/attendance/checkin',   AttendanceController::class, 'checkin', ['admin', 'manager', 'employee']],
-    // ['POST',  '/api/leaves',               LeaveController::class,      'store',   ['admin', 'manager', 'employee']],
-    // ['PATCH', '/api/leaves/:id/approve',   LeaveController::class,      'approve', ['admin', 'manager']],
+    // ATTENDANCE & LEAVE - Tiến 
+    ['POST',  '/api/attendance/checkin',   AttendanceController::class, 'checkin', ['admin', 'manager', 'employee']],
+    ['POST',  '/api/leaves',               LeaveController::class,      'store',   ['admin', 'manager', 'employee']],
+    ['PATCH', '/api/leaves/:id/approve',   LeaveController::class,      'approve', ['admin', 'manager']],
 ];

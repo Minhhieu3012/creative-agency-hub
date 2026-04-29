@@ -169,7 +169,7 @@ CREATE TABLE task_comments (
     FOREIGN KEY (user_id) REFERENCES employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Bổ sung bảng thông báo khi assign task - Owner: Bảo
+-- Bảng thông báo khi assign task - Owner: Bảo
 CREATE TABLE notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -179,6 +179,7 @@ CREATE TABLE notifications (
 
     FOREIGN KEY (user_id) REFERENCES employees(id) ON DELETE CASCADE
 );
+
 -- BẢNG LỊCH SỬ CHỈNH SỬA TASK (Task Activity Logs) - Owner: Bảo (Bổ sung bảng)
 CREATE TABLE task_activity_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,

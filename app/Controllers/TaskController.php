@@ -5,6 +5,7 @@ use App\Services\TaskActivityService;
 use App\Enums\TaskAction;
 use App\Middleware\AuthMiddleware;
 use App\Services\NotificationService;
+
 require_once __DIR__ . '/../Models/TaskModel.php';
 
 class TaskController {
@@ -48,6 +49,7 @@ class TaskController {
             ]);
             exit;
         }
+
         $input = json_decode(file_get_contents('php://input'), true);
         
         if (empty($input['title']) || empty($input['deadline'])) {
@@ -115,6 +117,15 @@ class TaskController {
                     $watcher_id,
                     "Bạn được thêm vào vị trí có thể theo dõi task: " . $input['title']
                 );
+            // Ghi log hoạt động Tạo mới cho Bảo
+            $this->taskModel->logActivity($taskId, $assigner_id, 'create', 'Tạo công việc mới: ' . $input['title']);
+
+            if ($assignee_id) {
+                $this->taskModel->createNotification($assignee_id, "Bạn vừa được giao một công việc mới: " . $input['title']);
+                $this->taskModel->logActivity($taskId, $assigner_id, 'assign', 'Giao việc cho nhân viên ID: ' . $assignee_id);
+            }
+            if ($watcher_id) {
+                $this->taskModel->createNotification($watcher_id, "Bạn được thêm làm người theo dõi cho công việc: " . $input['title']);
             }
 
             http_response_code(201);
@@ -207,6 +218,8 @@ class TaskController {
                 ]),
                 $notifyMsg
             );
+            // Ghi log hoạt động Cập nhật chi tiết cho Bảo
+            $this->taskModel->logActivity($taskId, $user_id, 'update', 'Cập nhật nội dung/chi tiết công việc');
 
             echo json_encode([
                 "status" => "success",
@@ -301,7 +314,17 @@ class TaskController {
                 ]),
                 $notifyMsg
             );
+            // Ghi log hoạt động Đổi trạng thái (kéo thả) cho Bảo
+            $this->taskModel->logActivity($taskId, $user_id, 'status_change', 'Kéo công việc sang cột: ' . $input['status']);
 
+            $notifyMsg = "Công việc '" . $task['title'] . "' đã chuyển sang trạng thái: " . $input['status'];
+            
+            if ($task['assignee_id']) {
+                $this->taskModel->createNotification($task['assignee_id'], $notifyMsg);
+            }
+            if ($task['assigner_id']) {
+                $this->taskModel->createNotification($task['assigner_id'], $notifyMsg);
+            }
             echo json_encode([
                 "status" => "success",
                 "message" => "Cập nhật trạng thái thành công",
