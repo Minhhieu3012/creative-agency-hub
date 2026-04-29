@@ -112,11 +112,14 @@ class TaskController {
                     "{$actor['full_name']} assigned task to {$assignee['full_name']}"
                 );
             }
+            
             if ($watcher_id) {
                 NotificationService::send(
                     $watcher_id,
                     "Bạn được thêm vào vị trí có thể theo dõi task: " . $input['title']
                 );
+            } // FIX: BỔ SUNG DẤU NGOẶC ĐÓNG `}` BỊ MẤT Ở ĐÂY ĐỂ ĐÓNG KHỐI LỆNH LẠI
+
             // Ghi log hoạt động Tạo mới cho Bảo
             $this->taskModel->logActivity($taskId, $assigner_id, 'create', 'Tạo công việc mới: ' . $input['title']);
 

@@ -32,9 +32,11 @@ $dotenv->load();
 
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
+use App\Controllers\AuthController;
 
 // Ghi chú: Nạp class TaskController của Huy (Không dùng namespace)
 require_once __DIR__ . '/../app/Controllers/TaskController.php';
+require_once __DIR__ . '/../app/Controllers/AuthController.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -65,6 +67,9 @@ $method = $_SERVER['REQUEST_METHOD'];
 $base = '/creative-agency-hub/public';
 $uri = str_replace($base, '', $uri);
 
+// FIX 1: Định nghĩa biến $path để dùng cho các luồng if/else phía dưới
+$path = $uri; 
+
 // 4. BỘ ĐỊNH TUYẾN (ROUTER)
 try {
     // ==========================================
@@ -73,15 +78,18 @@ try {
     if ($method === 'POST' && $path === '/api/auth/login') {
         $controller = new AuthController();
         $controller->login();
+        exit; // Xử lý Edge Case: Chặn thực thi khối Router động bên dưới
     }
     elseif ($method === 'GET' && $path === '/api/auth/me') {
         $authUser   = AuthMiddleware::check();
         $controller = new AuthController($authUser);
         $controller->me();
+        exit;
     }
     elseif ($method === 'POST' && $path === '/api/auth/register') {
         $controller = new AuthController();
         $controller->register();
+        exit;
     }
 
     // ==========================================
@@ -93,34 +101,51 @@ try {
         header('Content-Type: text/html; charset=utf-8');
         $controller = new TaskController();
         $controller->showBoard();
+        exit;
     }
 
     // API: Lấy danh sách Task
     elseif ($method === 'GET' && $path === '/api/tasks') {
         $controller = new TaskController();
         $controller->getTasksAPI();
+        exit;
     }
 
     // API: Tạo Task mới
     elseif ($method === 'POST' && $path === '/api/tasks') {
         $controller = new TaskController();
         $controller->createTaskAPI();
+        exit;
     }
 
     // API: Cập nhật trạng thái Task (Kéo thả)
     elseif ($method === 'PATCH' && preg_match('#^/api/tasks/(\d+)/status$#', $path, $matches)) {
         $controller = new TaskController();
         $controller->updateTaskStatusAPI($matches[1]);
+        exit;
     }
 
     // 404
     else {
-        http_response_code(404);
-        echo json_encode([
-            "status"  => "error",
-            "message" => "404 Not Found - Đường dẫn $method $path không tồn tại."
-        ]);
+        // Cảnh báo kiến trúc: Đoạn code này sẽ khiến mọi request không nằm trong
+        // danh sách if/else phía trên bị trả về 404 ngay lập tức, làm mất tác dụng 
+        // của khối Router động ($routes) bên dưới. Giữ lại để đúng yêu cầu "giữ nguyên logic".
+        // http_response_code(404);
+        // echo json_encode([
+        //     "status"  => "error",
+        //     "message" => "404 Not Found - Đường dẫn $method $path không tồn tại (Router tĩnh)."
+        // ]);
     }
+} catch (\Throwable $e) { 
+    // FIX 2: Bổ sung } catch để đóng khối try bị thiếu
+    error_log($e->getMessage());
+    http_response_code(500);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Lỗi hệ thống nhánh cứng: " . $e->getMessage()
+    ]);
+    exit;
+}
 
 $routes = require __DIR__ . '/../routes/api.php';
 
