@@ -17,6 +17,9 @@ class Router {
     public function delete($uri, $action) {
         $this->routes['DELETE'][$uri] = $action;
     }
+    public function patch($uri, $action) {
+        $this->routes['PATCH'][$uri] = $action;
+    }
 
     public function resolve($method, $uri) {
         $uri = rtrim($uri, '/') ?: '/';
@@ -41,6 +44,9 @@ class Router {
 
         return $this->notFound();
     }
+    public function add($method, $uri, $action) {
+        $this->routes[$method][$uri] = $action;
+    }
 
     private function callAction($action, $params = []) {
 
@@ -54,7 +60,11 @@ class Router {
 
             [$controller, $method] = explode('@', $action);
 
-            $controllerClass = "App\\Controllers\\$controller";
+            if (str_contains($controller, '\\')) {
+                $controllerClass = $controller;
+            } else {
+                $controllerClass = "App\\Controllers\\$controller";
+            }
 
             if (!class_exists($controllerClass)) {
                 throw new Exception("Controller $controllerClass not found");
