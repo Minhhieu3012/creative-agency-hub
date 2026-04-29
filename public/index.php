@@ -33,10 +33,12 @@ $dotenv->load();
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
 use App\Controllers\AuthController;
+use App\Controllers\HRM\EmployeeController;
 
 // Ghi chú: Nạp class TaskController của Huy (Không dùng namespace)
 require_once __DIR__ . '/../app/Controllers/TaskController.php';
 require_once __DIR__ . '/../app/Controllers/AuthController.php';
+require_once __DIR__ . '/../app/Controllers/HRM/EmployeeController.php'; 
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -164,7 +166,37 @@ try {
                 RoleMiddleware::handle($authUser, $roles);
             }
 
-            $controller = new $controllerClass($authUser);
+            // FIX 3: Giải quyết giới hạn của việc khởi tạo class động trong PHP
+            $actualClass = $controllerClass;
+            if (!class_exists($actualClass)) {
+                if (class_exists('\\App\\Controllers\\HRM\\' . $controllerClass)) {
+                    $actualClass = '\\App\\Controllers\\HRM\\' . $controllerClass;
+                } elseif (class_exists('\\App\\Controllers\\' . $controllerClass)) {
+                    $actualClass = '\\App\\Controllers\\' . $controllerClass;
+                }
+            }
+
+            // FIX 4: Tự động Tiêm phụ thuộc (Dependency Injection) bằng Reflection API
+            // Thay vì hardcode $controller = new $actualClass($authUser), ta sẽ soi xét kỹ hàm tạo
+            $reflector = new ReflectionClass($actualClass);
+            $constructor = $reflector->getConstructor();
+            $dependencies = [];
+
+            if ($constructor) {
+                foreach ($constructor->getParameters() as $param) {
+                    $type = $param->getType();
+                    // Nếu tham số bắt buộc phải là PDO, truyền kết nối Database vào
+                    if ($type && $type->getName() === 'PDO') {
+                        $dependencies[] = \Core\Database::getConnection();
+                    } else {
+                        // Nếu không, mặc định truyền thông tin user xác thực
+                        $dependencies[] = $authUser;
+                    }
+                }
+            }
+
+            // Khởi tạo Controller với các tham số đã được chuẩn bị đúng kiểu
+            $controller = $reflector->newInstanceArgs($dependencies);
             $controller->$action(...$matches);
             exit;
         }
@@ -178,6 +210,6 @@ try {
     http_response_code(500);
     echo json_encode([
         "status" => "error",
-        "message" => "Lỗi hệ thống, vui lòng thử lại sau."
+        "message" => "Lỗi HRM: " . $e->getMessage()
     ]);
 }
