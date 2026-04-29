@@ -33,6 +33,7 @@ $dotenv->load();
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
 use App\Controllers\AuthController;
+use App\Controllers\TaskController;
 use App\Controllers\HRM\EmployeeController;
 
 // Ghi chú: Nạp class TaskController của Huy (Không dùng namespace)
