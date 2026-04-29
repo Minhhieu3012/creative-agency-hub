@@ -4,6 +4,7 @@ namespace App\Controllers;
 use App\Services\TaskActivityService;
 use App\Enums\TaskAction;
 use App\Middleware\AuthMiddleware;
+use App\Services\NotificationService;
 require_once __DIR__ . '/../Models/TaskModel.php';
 
 class TaskController {
@@ -90,7 +91,12 @@ class TaskController {
             );
 
             if ($assignee_id) {
-                $this->taskModel->createNotification($assignee_id, "Bạn vừa được giao một công việc mới: " . $input['title']);
+                // Thay notification của Huy bằng notification của Bảo nhé (lưu vào bảng notifications trong DB)
+                // $this->taskModel->createNotification($assignee_id, "Bạn vừa được giao một công việc mới: " . $input['title']);
+                NotificationService::send(
+                    $assignee_id,
+                    "Bạn được giao task: " . $input['title']
+                );
 
                 // get user full_name
                 $stmt = \Core\Database::getConnection()->prepare("SELECT full_name FROM employees WHERE id = ?");
@@ -105,7 +111,10 @@ class TaskController {
                 );
             }
             if ($watcher_id) {
-                $this->taskModel->createNotification($watcher_id, "Bạn được thêm làm người theo dõi cho công việc: " . $input['title']);
+                NotificationService::send(
+                    $watcher_id,
+                    "Bạn được thêm vào vị trí có thể theo dõi task: " . $input['title']
+                );
             }
 
             http_response_code(201);
@@ -187,6 +196,16 @@ class TaskController {
                 $user_id,
                 TaskAction::UPDATE,
                 "{$actor['full_name']} updated task \"{$input['title']}\""
+            );
+            $notifyMsg = "Task '{$input['title']}' vừa được cập nhật";
+
+            NotificationService::sendToMany(
+                array_filter([
+                    $task['assignee_id'],
+                    // $task['assigner_id'], Không cần thông báo cho người update task (manager)
+                    $task['watcher_id']
+                ]),
+                $notifyMsg
             );
 
             echo json_encode([
@@ -273,14 +292,15 @@ class TaskController {
                 "{$actor['full_name']} moved task to \"{$input['status']}\""
             );
 
-            $notifyMsg = "Công việc '" . $task['title'] . "' đã chuyển sang trạng thái: " . $input['status'];
-            
-            if ($task['assignee_id']) {
-                $this->taskModel->createNotification($task['assignee_id'], $notifyMsg);
-            }
-            if ($task['assigner_id']) {
-                $this->taskModel->createNotification($task['assigner_id'], $notifyMsg);
-            }
+            $notifyMsg = "Task '{$task['title']}' đã chuyển trạng thái sang {$input['status']}";
+
+            NotificationService::sendToMany(
+                array_filter([
+                    $task['assignee_id'],
+                    $task['watcher_id']
+                ]),
+                $notifyMsg
+            );
 
             echo json_encode([
                 "status" => "success",

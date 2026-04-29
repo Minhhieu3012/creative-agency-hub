@@ -4,6 +4,7 @@ use App\Services\TaskActivityService;
 use Core\Database;
 use Exception;
 use App\Enums\TaskAction;
+use App\Services\NotificationService;
 
 class TaskAttachmentService {
 
@@ -121,6 +122,17 @@ class TaskAttachmentService {
             TaskAction::UPLOAD,
             "{$actor['full_name']} uploaded file \"{$file['name']}\""
         );
+
+        $notifyMsg = "{$actor['full_name']} đã upload file \"{$file['name']}\"";
+
+        NotificationService::sendToMany(
+            array_filter([
+                $task['assignee_id'],
+                $task['assigner_id'],
+                $task['watcher_id']
+            ]),
+            $notifyMsg
+        );
         return [
             "id" => $conn->lastInsertId(),
             "file_name" => $file['name'],
@@ -209,6 +221,12 @@ class TaskAttachmentService {
                 $userId,
                 TaskAction::DOWNLOAD,
                 "{$actor['full_name']} downloaded file \"{$file['file_name']}\""
+            );
+            $notifyMsg = "{$actor['full_name']} đã tải file \"{$file['file_name']}\"";
+
+            NotificationService::send(
+                $data['assigner_id'],
+                $notifyMsg
             );
 
             // 7. Output file

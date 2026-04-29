@@ -81,15 +81,16 @@ class TaskModel {
         }
     }
 
-    public function createNotification($user_id, $message) {
-        try {
-            $stmt = $this->pdo->prepare("INSERT INTO notifications (user_id, message) VALUES (?, ?)");
-            return $stmt->execute([$user_id, $message]);
-        } catch (\PDOException $e) {
-            error_log("Lỗi Model createNotification: " . $e->getMessage());
-            return false;
-        }
-    }
+// Thay hàm notifi này của Huy bằng logic notification trong service của Bảo 
+    // public function createNotification($user_id, $message) {
+    //     try {
+    //         $stmt = $this->pdo->prepare("INSERT INTO notifications (user_id, message) VALUES (?, ?)");
+    //         return $stmt->execute([$user_id, $message]);
+    //     } catch (\PDOException $e) {
+    //         error_log("Lỗi Model createNotification: " . $e->getMessage());
+    //         return false;
+    //     }
+    // }
 
 }
 ?>
