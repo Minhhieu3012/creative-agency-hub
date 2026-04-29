@@ -10,9 +10,9 @@ $router->get('/', function() {
 
 // business API 
 // AUTH
-$router->post('/api/auth/login', 'AuthController@login');
-$router->post('/api/auth/register', 'AuthController@register');
-$router->get('/api/auth/me', 'AuthController@me');
+// $router->post('/api/auth/login', 'AuthController@login');
+// $router->post('/api/auth/register', 'AuthController@register');
+// $router->get('/api/auth/me', 'AuthController@me');
 // comments
     //get all comments 
 $router->get('/api/tasks/comments', 'TaskCommentController@getAll');

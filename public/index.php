@@ -3,9 +3,6 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// =======================
-// CORS (dev)
-// =======================
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, user_id');
@@ -33,8 +30,23 @@ header('Content-Type: application/json; charset=utf-8');
 require_once BASE_PATH . '/core/Router.php';
 $router = new Router();
 
-
+// load web.php router
 require_once BASE_PATH . '/routes/web.php';
+// load api.php routes
+$apiRoutes = require __DIR__ . '/../routes/api.php';
+foreach ($apiRoutes as $route) {
+
+    if (!is_array($route)) {
+        continue;
+    }
+
+    [$method, $uri, $controller, $action] = $route;
+
+    $router->{strtolower($method)}(
+        $uri,
+        $controller . '@' . $action
+    );
+}
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
