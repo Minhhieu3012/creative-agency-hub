@@ -16,7 +16,7 @@ class TaskController {
     }
 
     public function showBoard() {
-        require_once __DIR__ . '/../Views/tasks/kanban.php';
+        require_once __DIR__ . '/../View/tasks/kanban.php';
     }
 
     public function index() {
