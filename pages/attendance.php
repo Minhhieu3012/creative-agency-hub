@@ -80,8 +80,8 @@ foreach ($raw_details as $row) {
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <title>Chấm Công - Creative Agency Hub</title>
 
-  <link href="../assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
-  <link href="../assets/css/sb-admin-2.min.css" rel="stylesheet">
+  <link href="../public/assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
+  <link href="../public/assets/css/sb-admin-2.min.css" rel="stylesheet">`n  <link href="../public/assets/css/agency-theme.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
   <style>
@@ -390,9 +390,9 @@ foreach ($raw_details as $row) {
     </div>
   </div>
 
-  <script src="../assets/vendor/jquery/jquery.min.js"></script>
-  <script src="../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-  <script src="../assets/js/sb-admin-2.min.js"></script>
+  <script src="../public/assets/vendor/jquery/jquery.min.js"></script>
+  <script src="../public/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="../public/assets/js/sb-admin-2.min.js"></script>
 
   <script>
   function handleAttendance(action) {
