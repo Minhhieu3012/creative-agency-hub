@@ -6,6 +6,7 @@ use PDO;
 use Core\Database;
 use App\Enums\TaskAction;
 use App\Services\TaskActivityService;
+use App\Services\NotificationService;
 
 class TaskApprovalService {
 
@@ -44,6 +45,18 @@ class TaskApprovalService {
             TaskAction::STATUS_CHANGE,
             "{$actor['full_name']} submitted task \"{$task['title']}\" for review"
         );
+
+        // notify assigner
+        $stmt = $conn->prepare("SELECT assigner_id FROM tasks WHERE id = ?");
+        $stmt->execute([$taskId]);
+        $data = $stmt->fetch();
+
+        if ($data && $data['assigner_id']) {
+            NotificationService::send(
+                $data['assigner_id'],
+                "Task \"{$task['title']}\" đã được submit bởi \"{$actor['full_name']}\" để review"
+            );
+        }
 
         return [
             "task_id" => $taskId,
@@ -93,6 +106,17 @@ class TaskApprovalService {
             TaskAction::STATUS_CHANGE,
             "{$actor['full_name']} approved task \"{$task['title']}\" → Done (Assignee: {$task['full_name']})"
         );
+        // lấy assignee_id
+        $stmt = $conn->prepare("SELECT assignee_id FROM tasks WHERE id = ?");
+        $stmt->execute([$taskId]);
+        $data = $stmt->fetch();
+
+        if ($data && $data['assignee_id']) {
+            NotificationService::send(
+                $data['assignee_id'],
+                "Task \"{$task['title']}\" đã được duyệt bởi manager. DONE!"
+            );
+        }
 
         return [
             "task_id" => $taskId,
@@ -142,6 +166,16 @@ class TaskApprovalService {
             TaskAction::STATUS_CHANGE,
             "{$actor['full_name']} rejected task \"{$task['title']}\" → Back to Doing (Assignee: {$task['full_name']})"
         );
+        $stmt = $conn->prepare("SELECT assignee_id FROM tasks WHERE id = ?");
+        $stmt->execute([$taskId]);
+        $data = $stmt->fetch();
+
+        if ($data && $data['assignee_id']) {
+            NotificationService::send(
+                $data['assignee_id'],
+                "Task \"{$task['title']}\" bị từ chối bởi manager \"{$actor['full_name']}\". Yêu cầu làm lại!"
+            );
+        }
 
         return [
             "task_id" => $taskId,

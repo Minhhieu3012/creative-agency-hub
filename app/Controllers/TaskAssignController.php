@@ -1,10 +1,12 @@
 <?php
 namespace App\Controllers;
+
 use App\Middleware\AuthMiddleware;
 use App\Services\TaskAssignService;
 use Exception;
-use App\Controllers\BaseController;
-Class TaskAssignController extends BaseController{
+
+class TaskAssignController extends BaseController {
+
     public function assign($taskId) {
 
         try {
@@ -12,21 +14,21 @@ Class TaskAssignController extends BaseController{
 
             $data = json_decode(file_get_contents("php://input"), true);
 
-            if (!isset($data['assignee_id'])) {
-                return $this->error("Missing assignee_id");
-            }
+            $assigneeId = $data['assignee_id'] ?? null;
+            $watcherId  = $data['watcher_id'] ?? null;
 
-            // watcher có thể null
-            $watcherId = $data['watcher_id'] ?? null;   
+            if (!$assigneeId && !$watcherId) {
+                return $this->error("Phải có ít nhất assignee hoặc watcher");
+            }
 
             $result = TaskAssignService::assign(
                 $taskId,
                 $authUser['id'],
-                $data['assignee_id'],
+                $assigneeId,
                 $watcherId
             );
 
-            return $this->success($result, "Task assigned");
+            return $this->success($result, "Success");
 
         } catch (Exception $e) {
             return $this->error($e->getMessage());
