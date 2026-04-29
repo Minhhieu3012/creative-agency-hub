@@ -5,18 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Kanban Board - Creative Agency Hub</title>
 
-    <link href="assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
-    <link href="assets/css/sb-admin-2.css" rel="stylesheet">
-    <link href="assets/css/task-style.css" rel="stylesheet">
+    <link href="../../../public/assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
+    <link href="../../../public/assets/css/sb-admin-2.css" rel="stylesheet">`n    <link href="../../../public/assets/css/agency-theme.css" rel="stylesheet">
+    <link href="../../../public/assets/css/task-style.css" rel="stylesheet">
 </head>
 
 <body id="page-top">
     <div id="wrapper">
-        <?php include 'components/sidebar.php'; ?>
+        <?php include __DIR__ . '/../../../components/sidebar.php'; ?>
 
         <div id="content-wrapper" class="d-flex flex-column">
             <div id="content">
-                <?php include 'components/navbar.php'; ?>
+                <?php include __DIR__ . '/../../../components/navbar.php'; ?>
 
                 <div class="container-fluid">
                     <div class="d-sm-flex align-items-center justify-content-between mb-4">
@@ -98,7 +98,7 @@
                     </div>
                 </div>
             </div>
-            <?php include 'components/footer.php'; ?>
+            <?php include __DIR__ . '/../../../components/footer.php'; ?>
         </div>
     </div>
 
@@ -201,9 +201,9 @@
         </div>
     </div>
 
-    <script src="assets/vendor/jquery/jquery.min.js"></script>
-    <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-    <script src="assets/js/sb-admin-2.min.js"></script>
-    <script src="assets/js/task-script.js"></script>
+    <script src="../../../public/assets/vendor/jquery/jquery.min.js"></script>
+    <script src="../../../public/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="../../../public/assets/js/sb-admin-2.min.js"></script>
+    <script src="../../../public/assets/js/task-script.js"></script>
 </body>
 </html>
