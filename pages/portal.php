@@ -4,106 +4,68 @@ session_start();
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <title>Internal Portal - Creative Agency Hub</title>
-  <link href="../public/assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
-  <link href="../public/assets/css/sb-admin-2.min.css" rel="stylesheet">`n  <link href="../public/assets/css/agency-theme.css" rel="stylesheet">
-  <style>
-    .card-portal {
-      border: none;
-      border-radius: 1rem;
-      box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.06);
-    }
-    .card-portal .icon {
-      font-size: 2rem;
-    }
-  </style>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Internal Portal - Creative Agency Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    </style>
 </head>
-<body id="page-top" class="bg-light">
-  <div id="wrapper">
-    <?php if (file_exists('../components/sidebar.php')) include('../components/sidebar.php'); ?>
-
-    <div id="content-wrapper" class="d-flex flex-column w-100">
-      <div id="content">
-        <?php if (file_exists('../components/navbar.php')) include('../components/navbar.php'); ?>
-
-        <div class="container-fluid py-4">
-          <div class="d-flex align-items-center justify-content-between mb-4">
-            <h1 class="h3 mb-0 text-gray-800 font-weight-bold">Agency Internal Portal</h1>
-            <span class="text-muted">Chon vai tro de bat dau</span>
-          </div>
-
-          <div class="row">
-            <div class="col-lg-3 col-md-6 mb-4">
-              <div class="card card-portal h-100">
-                <div class="card-body">
-                  <div class="d-flex align-items-center mb-3">
-                    <div class="icon text-primary mr-3"><i class="fas fa-user-shield"></i></div>
-                    <div>
-                      <h6 class="font-weight-bold mb-1">Admin</h6>
-                      <small class="text-muted">Quan ly to chuc</small>
-                    </div>
-                  </div>
-                  <a href="admin_dashboard.php" class="btn btn-primary btn-sm">Vao Dashboard</a>
-                </div>
-              </div>
+<body class="bg-slate-50 font-['Inter'] antialiased flex items-center justify-center min-h-screen">
+    
+    <div class="max-w-5xl w-full p-6">
+        <div class="text-center mb-12">
+            <div class="w-16 h-16 bg-[#107ED2] rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <span class="material-symbols-outlined text-white text-3xl">widgets</span>
             </div>
-
-            <div class="col-lg-3 col-md-6 mb-4">
-              <div class="card card-portal h-100">
-                <div class="card-body">
-                  <div class="d-flex align-items-center mb-3">
-                    <div class="icon text-success mr-3"><i class="fas fa-user-tie"></i></div>
-                    <div>
-                      <h6 class="font-weight-bold mb-1">Manager</h6>
-                      <small class="text-muted">Duyet va giao viec</small>
-                    </div>
-                  </div>
-                  <a href="manager_dashboard.php" class="btn btn-success btn-sm">Vao Dashboard</a>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-lg-3 col-md-6 mb-4">
-              <div class="card card-portal h-100">
-                <div class="card-body">
-                  <div class="d-flex align-items-center mb-3">
-                    <div class="icon text-info mr-3"><i class="fas fa-id-badge"></i></div>
-                    <div>
-                      <h6 class="font-weight-bold mb-1">Employee</h6>
-                      <small class="text-muted">Cham cong va don tu</small>
-                    </div>
-                  </div>
-                  <a href="employee_dashboard.php" class="btn btn-info btn-sm">Vao Dashboard</a>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-lg-3 col-md-6 mb-4">
-              <div class="card card-portal h-100">
-                <div class="card-body">
-                  <div class="d-flex align-items-center mb-3">
-                    <div class="icon text-warning mr-3"><i class="fas fa-user"></i></div>
-                    <div>
-                      <h6 class="font-weight-bold mb-1">Client</h6>
-                      <small class="text-muted">Theo doi du an</small>
-                    </div>
-                  </div>
-                  <a href="../app/View/client-portal/login-client.php" class="btn btn-warning btn-sm">Vao Client Portal</a>
-                </div>
-              </div>
-            </div>
-          </div>
+            <h1 class="text-3xl font-bold text-slate-900">Creative Agency Hub</h1>
+            <p class="text-slate-500 mt-2">Cổng thông tin nội bộ - Chọn không gian làm việc của bạn</p>
         </div>
-      </div>
 
-      <?php if (file_exists('../components/footer.php')) include('../components/footer.php'); ?>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Card Admin -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow flex flex-col items-center text-center group cursor-pointer" onclick="window.location.href='admin_dashboard.php'">
+                <div class="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <span class="material-symbols-outlined text-3xl">admin_panel_settings</span>
+                </div>
+                <h3 class="font-bold text-lg text-slate-900 mb-1">Admin</h3>
+                <p class="text-sm text-slate-500 mb-6">Quản trị toàn hệ thống</p>
+                <a href="admin_dashboard.php" class="w-full py-2 bg-slate-50 text-blue-600 font-medium rounded-lg group-hover:bg-blue-50 group-hover:text-blue-700 transition-colors">Vào Dashboard</a>
+            </div>
+
+            <!-- Card Manager -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow flex flex-col items-center text-center group cursor-pointer" onclick="window.location.href='manager_dashboard.php'">
+                <div class="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <span class="material-symbols-outlined text-3xl">manage_accounts</span>
+                </div>
+                <h3 class="font-bold text-lg text-slate-900 mb-1">Manager</h3>
+                <p class="text-sm text-slate-500 mb-6">Duyệt & giao việc</p>
+                <a href="manager_dashboard.php" class="w-full py-2 bg-slate-50 text-emerald-600 font-medium rounded-lg group-hover:bg-emerald-50 group-hover:text-emerald-700 transition-colors">Vào Dashboard</a>
+            </div>
+
+            <!-- Card Employee -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow flex flex-col items-center text-center group cursor-pointer" onclick="window.location.href='employee_dashboard.php'">
+                <div class="w-16 h-16 rounded-full bg-cyan-50 text-cyan-600 flex items-center justify-center mb-4 group-hover:bg-cyan-600 group-hover:text-white transition-colors">
+                    <span class="material-symbols-outlined text-3xl">badge</span>
+                </div>
+                <h3 class="font-bold text-lg text-slate-900 mb-1">Employee</h3>
+                <p class="text-sm text-slate-500 mb-6">Chấm công & đơn từ</p>
+                <a href="employee_dashboard.php" class="w-full py-2 bg-slate-50 text-cyan-600 font-medium rounded-lg group-hover:bg-cyan-50 group-hover:text-cyan-700 transition-colors">Vào Dashboard</a>
+            </div>
+
+            <!-- Card Client -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow flex flex-col items-center text-center group cursor-pointer" onclick="window.location.href='../app/View/client-portal/login-client.php'">
+                <div class="w-16 h-16 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center mb-4 group-hover:bg-orange-600 group-hover:text-white transition-colors">
+                    <span class="material-symbols-outlined text-3xl">cases</span>
+                </div>
+                <h3 class="font-bold text-lg text-slate-900 mb-1">Client</h3>
+                <p class="text-sm text-slate-500 mb-6">Khách hàng theo dõi</p>
+                <a href="../app/View/client-portal/login-client.php" class="w-full py-2 bg-slate-50 text-orange-600 font-medium rounded-lg group-hover:bg-orange-50 group-hover:text-orange-700 transition-colors">Vào Client Portal</a>
+            </div>
+        </div>
     </div>
-  </div>
-
-  <script src="../public/assets/vendor/jquery/jquery.min.js"></script>
-  <script src="../public/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-  <script src="../public/assets/js/sb-admin-2.min.js"></script>
 </body>
 </html>

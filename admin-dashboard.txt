@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Admin Dashboard - Nexus Work</title>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Theme Config -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+                    "surface-container-highest": "#e0e3e5",
+                    "secondary-fixed-dim": "#bac8dd",
+                    "surface-dim": "#d8dadc",
+                    "on-primary": "#ffffff",
+                    "outline": "#707783",
+                    "background": "#f7f9fb",
+                    "on-tertiary-fixed-variant": "#474646",
+                    "inverse-surface": "#2d3133",
+                    "on-secondary-fixed-variant": "#3a4859",
+                    "secondary-fixed": "#d5e4f9",
+                    "inverse-primary": "#9fcaff",
+                    "on-tertiary-container": "#f7feff",
+                    "on-tertiary": "#ffffff",
+                    "tertiary": "#5d5c5b",
+                    "tertiary-container": "#767474",
+                    "primary": "#005ea1",
+                    "on-primary-fixed": "#001d37",
+                    "surface": "#f7f9fb",
+                    "inverse-on-surface": "#eff1f3",
+                    "on-background": "#191c1e",
+                    "surface-container": "#eceef0",
+                    "secondary": "#525f72",
+                    "on-secondary-fixed": "#0e1c2c",
+                    "on-primary-fixed-variant": "#00497e",
+                    "on-error": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "surface-container-low": "#f2f4f6",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-fixed": "#d2e4ff",
+                    "on-tertiary-fixed": "#1c1b1b",
+                    "error": "#ba1a1a",
+                    "secondary-container": "#d3e1f6",
+                    "surface-variant": "#e0e3e5",
+                    "tertiary-fixed-dim": "#c8c6c5",
+                    "on-surface": "#191c1e",
+                    "surface-bright": "#f7f9fb",
+                    "surface-tint": "#0061a5",
+                    "primary-container": "#0078ca",
+                    "tertiary-fixed": "#e5e2e1",
+                    "primary-fixed-dim": "#9fcaff",
+                    "outline-variant": "#c0c7d3",
+                    "on-surface-variant": "#404752",
+                    "on-error-container": "#93000a",
+                    "surface-container-high": "#e6e8ea",
+                    "on-secondary": "#ffffff",
+                    "on-secondary-container": "#566476",
+                    "on-primary-container": "#fdfcff"
+            },
+            borderRadius: {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            spacing: {
+                    "stack-sm": "8px",
+                    "stack-md": "16px",
+                    "unit": "4px",
+                    "stack-lg": "24px",
+                    "margin": "32px",
+                    "gutter": "24px",
+                    "container-max": "1440px"
+            },
+            fontFamily: {
+                    "body-md": ["Inter"],
+                    "label-md": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "title-sm": ["Inter"],
+                    "code-sm": ["Inter"],
+                    "headline-md": ["Inter"]
+            },
+            fontSize: {
+                    "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                    "label-md": ["13px", { "lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                    "display-lg": ["48px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                    "body-sm": ["14px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                    "title-sm": ["20px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                    "code-sm": ["12px", { "lineHeight": "1.4", "fontWeight": "400" }],
+                    "headline-md": ["32px", { "lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md text-body-md antialiased overflow-hidden">
+<div class="flex h-screen w-full">
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full flex flex-col py-6 w-64 border-r border-white/10 bg-[#000B1A] z-50">
+<!-- Header -->
+<div class="px-6 mb-8 flex flex-col gap-1">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-[#107ED2] flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">widgets</span>
+</div>
+<span class="text-white text-lg font-black tracking-tight font-title-sm text-title-sm">Nexus Work</span>
+</div>
+<span class="text-slate-400 font-label-md text-label-md uppercase tracking-wider ml-11">Creative Agency</span>
+</div>
+<!-- Main Navigation -->
+<div class="flex-1 flex flex-col gap-1 overflow-y-auto px-2">
+<!-- Active Tab -->
+<a class="px-4 py-3 my-1 mx-2 flex items-center gap-3 transition-colors bg-[#107ED2] text-white rounded-md font-['Inter'] text-sm font-medium" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<!-- Inactive Tabs -->
+<a class="px-4 py-3 my-1 mx-2 flex items-center gap-3 transition-colors text-slate-400 hover:text-white hover:bg-white/5 hover:bg-white/10 transition-all duration-200 font-['Inter'] text-sm font-medium rounded-md" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>HRM System</span>
+</a>
+<a class="px-4 py-3 my-1 mx-2 flex items-center gap-3 transition-colors text-slate-400 hover:text-white hover:bg-white/5 hover:bg-white/10 transition-all duration-200 font-['Inter'] text-sm font-medium rounded-md" href="#">
+<span class="material-symbols-outlined">view_kanban</span>
+<span>Project Board</span>
+</a>
+<a class="px-4 py-3 my-1 mx-2 flex items-center gap-3 transition-colors text-slate-400 hover:text-white hover:bg-white/5 hover:bg-white/10 transition-all duration-200 font-['Inter'] text-sm font-medium rounded-md" href="#">
+<span class="material-symbols-outlined">assignment_turned_in</span>
+<span>My Workspace</span>
+</a>
+<a class="px-4 py-3 my-1 mx-2 flex items-center gap-3 transition-colors text-slate-400 hover:text-white hover:bg-white/5 hover:bg-white/10 transition-all duration-200 font-['Inter'] text-sm font-medium rounded-md" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span>Reports</span>
+</a>
+</div>
+<!-- Footer Navigation -->
+<div class="mt-auto flex flex-col gap-1 px-2 pt-4 border-t border-white/10">
+<a class="px-4 py-3 my-1 mx-2 flex items-center gap-3 transition-colors text-slate-400 hover:text-white hover:bg-white/5 hover:bg-white/10 transition-all duration-200 font-['Inter'] text-sm font-medium rounded-md" href="#">
+<span class="material-symbols-outlined">contact_support</span>
+<span>Support</span>
+</a>
+<a class="px-4 py-3 my-1 mx-2 flex items-center gap-3 transition-colors text-slate-400 hover:text-white hover:bg-white/5 hover:bg-white/10 transition-all duration-200 font-['Inter'] text-sm font-medium rounded-md" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 ml-64 flex flex-col min-w-0 h-full overflow-y-auto bg-surface">
+<!-- TopNavBar -->
+<header class="sticky top-0 z-40 flex justify-between items-center px-6 h-16 w-full docked full-width border-b border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flat no shadows font-['Inter'] antialiased text-sm">
+<!-- Search Bar Placeholder -->
+<div class="flex items-center w-96 max-w-full">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-body-sm font-body-sm transition-all" placeholder="Search..." type="text"/>
+</div>
+</div>
+<!-- Product Name / Logo Center (Optional, left aligns with search usually, keeping right side clean) -->
+<div class="hidden md:block absolute left-1/2 -translate-x-1/2">
+<span class="text-xl font-bold text-slate-900 dark:text-white">Nexus Enterprise</span>
+</div>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-2">
+<button class="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors rounded-full cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors rounded-full cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">help</span>
+</button>
+<button class="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors rounded-full cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="h-8 w-px bg-slate-200 mx-2"></div>
+<button class="flex items-center gap-2 hover:bg-slate-50 p-1 pr-3 rounded-full transition-colors cursor-pointer active:opacity-80">
+<img alt="Administrator Profile" class="w-8 h-8 rounded-full border border-outline-variant object-cover" data-alt="professional corporate headshot of a female administrator with neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwPa9CD_MxfdzTe4w5K5hZS0H4Lw2XGBm6Ht-GGSMs9CnvYZhu8FksHV7yMAkTkeL_X0DDzXGyMEWzpZL6RfOrlSwd-ru3AqfxY3b3gAuM_XbCgAG7D_IeEChrYPrWuPnEa9hKv1KBDB6NJYWmA-TRqwr2RHYYmK4_hoqLNdu92aC5sAVXncLjqpED0kLdZN68XwzDxP7crgI9RDR763Jcd-0bku_4VXqIUHbArqxQacAnJBp_DpEMEzAz9WTIS8ipLfPaqVIkbKvl"/>
+</button>
+</div>
+</header>
+<!-- Dashboard Canvas -->
+<div class="p-margin max-w-container-max mx-auto w-full flex flex-col gap-margin pb-24">
+<!-- Page Header -->
+<div class="flex justify-between items-end">
+<div>
+<h1 class="font-headline-md text-headline-md text-on-surface">Overview</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Here's what's happening across the agency today.</p>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 bg-surface-container-lowest border border-outline-variant text-on-surface rounded-md font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">calendar_today</span>
+                            This Month
+                        </button>
+<button class="px-4 py-2 bg-[#107ED2] text-white rounded-md font-label-md text-label-md hover:bg-primary-container transition-colors shadow-sm">
+                            Generate Report
+                        </button>
+</div>
+</div>
+<!-- Key Metrics Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
+<!-- Metric Card 1 -->
+<div class="bg-surface-container-lowest p-stack-lg rounded-xl border border-outline-variant flex flex-col gap-stack-md relative overflow-hidden group">
+<div class="flex justify-between items-start">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Total Employees</span>
+<div class="p-2 bg-primary-fixed/20 text-primary rounded-md">
+<span class="material-symbols-outlined">badge</span>
+</div>
+</div>
+<div class="flex items-baseline gap-3">
+<span class="font-display-lg text-display-lg text-on-surface">142</span>
+<span class="font-label-md text-label-md text-emerald-600 flex items-center">
+<span class="material-symbols-outlined text-sm">trending_up</span> +4
+                            </span>
+</div>
+</div>
+<!-- Metric Card 2 -->
+<div class="bg-surface-container-lowest p-stack-lg rounded-xl border border-outline-variant flex flex-col gap-stack-md relative overflow-hidden group">
+<div class="flex justify-between items-start">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Active Projects</span>
+<div class="p-2 bg-primary-fixed/20 text-primary rounded-md">
+<span class="material-symbols-outlined">rocket_launch</span>
+</div>
+</div>
+<div class="flex items-baseline gap-3">
+<span class="font-display-lg text-display-lg text-on-surface">38</span>
+<span class="font-label-md text-label-md text-emerald-600 flex items-center">
+<span class="material-symbols-outlined text-sm">trending_up</span> +12%
+                            </span>
+</div>
+</div>
+<!-- Metric Card 3 -->
+<div class="bg-surface-container-lowest p-stack-lg rounded-xl border border-outline-variant flex flex-col gap-stack-md relative overflow-hidden group">
+<div class="flex justify-between items-start">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Pending Approvals</span>
+<div class="p-2 bg-error-container/50 text-error rounded-md">
+<span class="material-symbols-outlined">rule_folder</span>
+</div>
+</div>
+<div class="flex items-baseline gap-3">
+<span class="font-display-lg text-display-lg text-on-surface">15</span>
+<span class="font-label-md text-label-md text-on-surface-variant flex items-center">
+                                Requires action
+                            </span>
+</div>
+</div>
+<!-- Metric Card 4 -->
+<div class="bg-surface-container-lowest p-stack-lg rounded-xl border border-outline-variant flex flex-col gap-stack-md relative overflow-hidden group">
+<div class="flex justify-between items-start">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Monthly Revenue</span>
+<div class="p-2 bg-secondary-container/50 text-secondary rounded-md">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+</div>
+</div>
+<div class="flex items-baseline gap-3">
+<span class="font-display-lg text-display-lg text-on-surface">$2.4M</span>
+<span class="font-label-md text-label-md text-emerald-600 flex items-center">
+<span class="material-symbols-outlined text-sm">trending_up</span> +5.2%
+                            </span>
+</div>
+</div>
+</div>
+<!-- Main Content Row -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+<!-- Chart Section (Spans 2 columns) -->
+<div class="lg:col-span-2 bg-surface-container-lowest border border-outline-variant rounded-xl flex flex-col">
+<div class="p-stack-lg border-b border-outline-variant flex justify-between items-center">
+<div>
+<h2 class="font-title-sm text-title-sm text-on-surface">Project Progress</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Completion rates across major departments</p>
+</div>
+<button class="p-2 hover:bg-surface-container-low rounded-md transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="p-stack-lg flex-1 flex flex-col justify-end min-h-[300px] relative">
+<!-- Y-Axis Guides -->
+<div class="absolute inset-0 p-stack-lg flex flex-col justify-between pointer-events-none z-0">
+<div class="w-full h-px bg-outline-variant/30"></div>
+<div class="w-full h-px bg-outline-variant/30"></div>
+<div class="w-full h-px bg-outline-variant/30"></div>
+<div class="w-full h-px bg-outline-variant/30"></div>
+<div class="w-full h-px bg-outline-variant/30"></div>
+</div>
+<!-- Placeholder Bar Chart -->
+<div class="flex justify-between items-end h-full w-full gap-4 relative z-10 pt-8">
+<div class="w-full flex flex-col items-center gap-2">
+<div class="w-12 bg-[#107ED2] rounded-t-sm h-[60%] hover:opacity-80 transition-opacity cursor-pointer"></div>
+<span class="font-label-md text-label-md text-on-surface-variant">Design</span>
+</div>
+<div class="w-full flex flex-col items-center gap-2">
+<div class="w-12 bg-secondary rounded-t-sm h-[85%] hover:opacity-80 transition-opacity cursor-pointer"></div>
+<span class="font-label-md text-label-md text-on-surface-variant">Dev</span>
+</div>
+<div class="w-full flex flex-col items-center gap-2">
+<div class="w-12 bg-[#107ED2] rounded-t-sm h-[40%] hover:opacity-80 transition-opacity cursor-pointer"></div>
+<span class="font-label-md text-label-md text-on-surface-variant">Marketing</span>
+</div>
+<div class="w-full flex flex-col items-center gap-2">
+<div class="w-12 bg-secondary rounded-t-sm h-[70%] hover:opacity-80 transition-opacity cursor-pointer"></div>
+<span class="font-label-md text-label-md text-on-surface-variant">Strategy</span>
+</div>
+<div class="w-full flex flex-col items-center gap-2">
+<div class="w-12 bg-[#107ED2] rounded-t-sm h-[90%] hover:opacity-80 transition-opacity cursor-pointer"></div>
+<span class="font-label-md text-label-md text-on-surface-variant">Content</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Activities List (Spans 1 column) -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl flex flex-col">
+<div class="p-stack-lg border-b border-outline-variant">
+<h2 class="font-title-sm text-title-sm text-on-surface">Recent Activities</h2>
+</div>
+<div class="flex-1 overflow-y-auto">
+<!-- Activity Item -->
+<div class="p-stack-md flex gap-stack-md border-b border-outline-variant/50 last:border-0 hover:bg-surface-container-low transition-colors cursor-pointer">
+<div class="w-10 h-10 rounded-full bg-primary-fixed text-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-sm">edit_document</span>
+</div>
+<div class="flex flex-col">
+<p class="font-body-sm text-body-sm text-on-surface"><span class="font-medium">Sarah Jenkins</span> updated the brand guidelines for <span class="font-medium">Acme Corp</span>.</p>
+<span class="font-label-md text-label-md text-on-surface-variant mt-1">2 hours ago</span>
+</div>
+</div>
+<!-- Activity Item -->
+<div class="p-stack-md flex gap-stack-md border-b border-outline-variant/50 last:border-0 hover:bg-surface-container-low transition-colors cursor-pointer">
+<div class="w-10 h-10 rounded-full bg-secondary-container text-secondary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+</div>
+<div class="flex flex-col">
+<p class="font-body-sm text-body-sm text-on-surface"><span class="font-medium">Mike Ross</span> approved milestone 3 for <span class="font-medium">Project Phoenix</span>.</p>
+<span class="font-label-md text-label-md text-on-surface-variant mt-1">5 hours ago</span>
+</div>
+</div>
+<!-- Activity Item -->
+<div class="p-stack-md flex gap-stack-md border-b border-outline-variant/50 last:border-0 hover:bg-surface-container-low transition-colors cursor-pointer">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface flex items-center justify-center shrink-0">
+<img alt="User" class="w-full h-full rounded-full object-cover" data-alt="headshot of a male creative director with glasses" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqSriVZ0Wf2U8ttnelXCZ0XdwRVxl5CrM0jJbNrlllUDfogC0Xa1pFExviddXFB3SOWhcDMzxn3FzmH5ZSKYeOh164j_fIFHAUyazcoPJ_Augxcpxh6UhWD0N3ywlzcUGFZBaBFNV2gngxHMtkTEJ97upUmdX5agJ_Jm3Z6vu1kfU7huocKNwHyattRrMcFugH6mEI9t0TIvkxPNRV6r3lF_tFCIZ4j_YNWJx4d1TuNxFvlt7zfwghCGlrZq8kF0E3fGwWFT0b-h2E"/>
+</div>
+<div class="flex flex-col">
+<p class="font-body-sm text-body-sm text-on-surface"><span class="font-medium">David Chen</span> left a comment on <span class="font-medium">Q3 Marketing Deck</span>.</p>
+<span class="font-label-md text-label-md text-on-surface-variant mt-1">Yesterday</span>
+</div>
+</div>
+<!-- Activity Item -->
+<div class="p-stack-md flex gap-stack-md border-b border-outline-variant/50 last:border-0 hover:bg-surface-container-low transition-colors cursor-pointer">
+<div class="w-10 h-10 rounded-full bg-error-container/50 text-error flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-sm">warning</span>
+</div>
+<div class="flex flex-col">
+<p class="font-body-sm text-body-sm text-on-surface">Server storage capacity warning for <span class="font-medium">Media Asset Drive</span>.</p>
+<span class="font-label-md text-label-md text-on-surface-variant mt-1">Yesterday</span>
+</div>
+</div>
+</div>
+<div class="p-stack-md border-t border-outline-variant text-center">
+<button class="font-label-md text-label-md text-primary hover:underline">View All Activity</button>
+</div>
+</div>
+</div>
+<!-- Bottom Full Width Area (Upcoming Deadlines) -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl flex flex-col">
+<div class="p-stack-lg border-b border-outline-variant flex justify-between items-center">
+<h2 class="font-title-sm text-title-sm text-on-surface">Upcoming Deadlines</h2>
+<button class="font-label-md text-label-md text-[#107ED2] hover:underline flex items-center gap-1">
+                            Filter <span class="material-symbols-outlined text-sm">filter_list</span>
+</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant bg-surface-container-low/50">
+<th class="p-stack-md font-label-md text-label-md text-on-surface-variant uppercase tracking-wider font-medium">Project</th>
+<th class="p-stack-md font-label-md text-label-md text-on-surface-variant uppercase tracking-wider font-medium">Task</th>
+<th class="p-stack-md font-label-md text-label-md text-on-surface-variant uppercase tracking-wider font-medium">Assignee</th>
+<th class="p-stack-md font-label-md text-label-md text-on-surface-variant uppercase tracking-wider font-medium">Deadline</th>
+<th class="p-stack-md font-label-md text-label-md text-on-surface-variant uppercase tracking-wider font-medium">Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="border-b border-outline-variant/50 hover:bg-surface-container-low transition-colors">
+<td class="p-stack-md font-body-sm text-body-sm text-on-surface font-medium">Nexus Branding Redesign</td>
+<td class="p-stack-md font-body-sm text-body-sm text-on-surface-variant">Final Logo Delivery</td>
+<td class="p-stack-md flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">AJ</div>
+<span class="font-body-sm text-body-sm text-on-surface">Alice Johnson</span>
+</td>
+<td class="p-stack-md font-body-sm text-body-sm text-error font-medium">Today</td>
+<td class="p-stack-md">
+<span class="px-2 py-1 bg-error-container text-error rounded-full font-label-md text-[11px] uppercase tracking-wider font-bold">At Risk</span>
+</td>
+</tr>
+<tr class="border-b border-outline-variant/50 hover:bg-surface-container-low transition-colors">
+<td class="p-stack-md font-body-sm text-body-sm text-on-surface font-medium">Q4 Campaign Launch</td>
+<td class="p-stack-md font-body-sm text-body-sm text-on-surface-variant">Ad Copy Approval</td>
+<td class="p-stack-md flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-white text-xs font-bold">BK</div>
+<span class="font-body-sm text-body-sm text-on-surface">Bob Keller</span>
+</td>
+<td class="p-stack-md font-body-sm text-body-sm text-on-surface">Oct 24, 2023</td>
+<td class="p-stack-md">
+<span class="px-2 py-1 bg-surface-container-highest text-on-surface-variant rounded-full font-label-md text-[11px] uppercase tracking-wider font-bold">Pending</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="p-stack-md font-body-sm text-body-sm text-on-surface font-medium">Client Portal v2</td>
+<td class="p-stack-md font-body-sm text-body-sm text-on-surface-variant">UAT Testing</td>
+<td class="p-stack-md flex items-center gap-2">
+<img alt="Assignee" class="w-6 h-6 rounded-full object-cover" data-alt="headshot of a female software tester" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9Au5oZc-ccZB6gyIgXud5oGyEhU_3mV70oPagvCBeuQtW87UXLYUVxXcq46BcDuEp1SUNbblMfwAPQ6Pe2AlSxuI7QdYp-LDkdTgoGLQ6Pf2JDIezmxtLxHe0BNoUqqMbYqVjKFpRK09IU7FhnVtx5UVA4txvdbXcsZwLam8A3bYrxIiuydOlEjUPNW8SVceuSlvFTHyc4rTevG1EpJxHgImut5jWvlxExILhq2O_sny1iHHM9GN1KAPOsQh4TI9ZJekRluMYBg7E"/>
+<span class="font-body-sm text-body-sm text-on-surface">Diana Prince</span>
+</td>
+<td class="p-stack-md font-body-sm text-body-sm text-on-surface">Oct 28, 2023</td>
+<td class="p-stack-md">
+<span class="px-2 py-1 bg-primary-fixed text-primary rounded-full font-label-md text-[11px] uppercase tracking-wider font-bold">On Track</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>
