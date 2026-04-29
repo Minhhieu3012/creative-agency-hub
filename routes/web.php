@@ -7,9 +7,6 @@ $router->get('/', function() {
     ]);
 });
 
-// api to check server is running(debug)
-$router->get('/api/test', 'HealthController@index');
-
 
 // business API 
 // AUTH
