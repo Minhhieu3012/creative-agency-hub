@@ -13,7 +13,7 @@ class AttendanceController {
     }
 
     // API: POST /api/attendance/checkin
-    public function checkIn() {
+    public function checkin() {
         try {
             // Khởi tạo kết nối PDO từ Singleton Database
             $pdo = Database::getConnection();

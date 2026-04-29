@@ -15,7 +15,7 @@ class LeaveController {
     // API 1: GỬI ĐƠN NGHỈ PHÉP (Dành cho Nhân viên)
     // POST /api/leaves
     // ==========================================
-    public function create() {
+    public function store() {
         try {
             $pdo = Database::getConnection();
             $emp_id = $this->authUser['id'] ?? $this->authUser['employee_id'] ?? null;
