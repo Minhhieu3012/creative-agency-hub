@@ -1,26 +1,102 @@
 <?php
 namespace App\Controllers\Task;
 
-use App\Services\Task\TaskActivityService;
-use App\Enums\TaskAction;
 use App\Middleware\AuthMiddleware;
-use App\Services\Core\NotificationService;
 use App\Models\Task\TaskModel;
 
 class TaskController {
-    private $taskModel;
+    private TaskModel $taskModel;
 
     public function __construct() {
-        $this->taskModel = new TaskModel(); 
+        $this->taskModel = new TaskModel();
     }
 
     public function showBoard() {
-        require_once __DIR__ . '/../View/tasks/kanban.php';
+        require_once __DIR__ . '/../../View/tasks/kanban.php';
     }
 
-    // =========================
-    // GET ALL TASKS (CÓ PHÂN QUYỀN)
-    // =========================
+    private function jsonResponse(array $payload, int $statusCode = 200): void {
+        http_response_code($statusCode);
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    private function getJsonInput(): array {
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true);
+
+        return is_array($input) ? $input : [];
+    }
+
+    private function normalizeNullableInt($value): ?int {
+        if ($value === null || $value === '' || $value === false) {
+            return null;
+        }
+
+        $number = (int) $value;
+        return $number > 0 ? $number : null;
+    }
+
+    private function normalizePriority(?string $priority): string {
+        $priority = ucfirst(strtolower(trim((string) $priority)));
+        $valid = ['Low', 'Medium', 'High'];
+
+        return in_array($priority, $valid, true) ? $priority : 'Medium';
+    }
+
+    private function normalizeStatus(?string $status): string {
+        $status = trim((string) $status);
+
+        $map = [
+            'to do' => 'To do',
+            'todo' => 'To do',
+            'doing' => 'Doing',
+            'review' => 'Review',
+            'done' => 'Done',
+            'completed' => 'Done',
+        ];
+
+        $key = strtolower($status);
+
+        return $map[$key] ?? 'To do';
+    }
+
+    private function ensureCanManageTask(array $task, array $authUser): bool {
+        if (($authUser['role'] ?? '') === 'admin') {
+            return true;
+        }
+
+        if (($authUser['role'] ?? '') === 'manager') {
+            if ((int) ($task['assigner_id'] ?? 0) === (int) $authUser['id']) {
+                return true;
+            }
+
+            if (!empty($task['project_id'])) {
+                return $this->taskModel->isManagerOfProjectByProjectId((int) $task['project_id'], (int) $authUser['id']);
+            }
+        }
+
+        return false;
+    }
+
+    private function ensureCanSeeTask(array $task, array $authUser): bool {
+        if ($this->ensureCanManageTask($task, $authUser)) {
+            return true;
+        }
+
+        if (($authUser['role'] ?? '') === 'employee') {
+            return (int) ($task['assignee_id'] ?? 0) === (int) $authUser['id']
+                || (int) ($task['assigner_id'] ?? 0) === (int) $authUser['id']
+                || (int) ($task['watcher_id'] ?? 0) === (int) $authUser['id'];
+        }
+
+        if (($authUser['role'] ?? '') === 'client') {
+            return true;
+        }
+
+        return false;
+    }
+
     public function index() {
         $authUser = AuthMiddleware::check();
 
@@ -29,207 +105,257 @@ class TaskController {
             'assignee_id' => $_GET['assignee_id'] ?? null,
             'status'      => $_GET['status'] ?? null,
             'deadline'    => $_GET['deadline'] ?? null,
-            'manager_id'  => null
+            'manager_id'  => null,
+            'user_id'     => null,
+            'role'        => $authUser['role'] ?? null,
         ];
 
-        // EMPLOYEE → chỉ thấy task của mình
-        if ($authUser['role'] === 'employee') {
-            $filters['assignee_id'] = $authUser['id'];
+        if (($authUser['role'] ?? '') === 'employee') {
+            $filters['user_id'] = $authUser['id'];
         }
 
-        // MANAGER → chỉ thấy task thuộc project mình
-        if ($authUser['role'] === 'manager') {
+        if (($authUser['role'] ?? '') === 'manager') {
             $filters['manager_id'] = $authUser['id'];
         }
 
         $tasks = $this->taskModel->getAllTasks($filters);
 
-        echo json_encode([
-            "status" => "success",
-            "message" => "Lấy danh sách task thành công",
-            "data" => $tasks
+        $this->jsonResponse([
+            'status' => 'success',
+            'message' => 'Lấy danh sách task thành công',
+            'data' => $tasks
         ]);
-        exit;
     }
 
-    // =========================
-    // CREATE TASK
-    // =========================
     public function store() {
         $authUser = AuthMiddleware::check();
-        $assigner_id = $authUser['id'] ?? null;
 
-        if ($authUser['role'] === 'employee') {
-            http_response_code(403);
-            echo json_encode(["status" => "error", "message" => "Permission denied"]);
-            exit;
+        if (($authUser['role'] ?? '') === 'employee') {
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Permission denied'
+            ], 403);
         }
 
-        $input = json_decode(file_get_contents('php://input'), true);
+        $input = $this->getJsonInput();
 
-        if (empty($input['title']) || empty($input['deadline'])) {
-            http_response_code(400);
-            echo json_encode(["status" => "error", "message" => "Vui lòng nhập Tiêu đề và Deadline"]);
-            exit;
+        $title = trim((string) ($input['title'] ?? ''));
+        $deadline = trim((string) ($input['deadline'] ?? ''));
+
+        if ($title === '' || $deadline === '') {
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Vui lòng nhập Tiêu đề và Deadline'
+            ], 400);
         }
 
-        $project_id = $input['project_id'] ?? null;
+        $projectId = $this->normalizeNullableInt($input['project_id'] ?? null);
+        $assigneeId = $this->normalizeNullableInt($input['assignee_id'] ?? null);
+        $watcherId = $this->normalizeNullableInt($input['watcher_id'] ?? null);
+        $assignerId = (int) ($authUser['id'] ?? 0);
 
-        // MANAGER check project ownership
-        if ($project_id && $authUser['role'] === 'manager') {
-            if (!$this->taskModel->isManagerOfProjectByProjectId($project_id, $authUser['id'])) {
-                http_response_code(403);
-                echo json_encode(["status" => "error", "message" => "Không có quyền tạo task trong project này"]);
-                exit;
+        if (!$projectId && ($authUser['role'] ?? '') === 'manager') {
+            $defaultProject = $this->taskModel->getFirstProjectManagedBy((int) $authUser['id']);
+            $projectId = $defaultProject ? (int) $defaultProject['id'] : null;
+        }
+
+        if ($projectId && ($authUser['role'] ?? '') === 'manager') {
+            if (!$this->taskModel->isManagerOfProjectByProjectId($projectId, (int) $authUser['id'])) {
+                $this->jsonResponse([
+                    'status' => 'error',
+                    'message' => 'Không có quyền tạo task trong project này'
+                ], 403);
             }
         }
 
-        $priority = $input['priority'] ?? 'Medium';
-        $description = $input['description'] ?? '';
-        $assignee_id = $input['assignee_id'] ?? null;
-        $watcher_id  = $input['watcher_id'] ?? null;
-
         $taskId = $this->taskModel->createTask(
-            $input['title'],
-            $description,
-            $priority,
-            $input['deadline'],
-            $assigner_id,
-            $assignee_id,
-            $watcher_id,
-            $project_id
+            $title,
+            trim((string) ($input['description'] ?? '')),
+            $this->normalizePriority($input['priority'] ?? 'Medium'),
+            $deadline,
+            $assignerId,
+            $assigneeId,
+            $watcherId,
+            $projectId
         );
 
-        if ($taskId) {
-            echo json_encode([
-                "status" => "success",
-                "message" => "Tạo Task thành công",
-                "data" => ["id" => $taskId]
-            ]);
-        } else {
-            http_response_code(500);
-            echo json_encode(["status" => "error", "message" => "Lỗi server"]);
+        if (!$taskId) {
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Lỗi server'
+            ], 500);
         }
-        exit;
+
+        $task = $this->taskModel->getTaskById((int) $taskId);
+
+        $this->jsonResponse([
+            'status' => 'success',
+            'message' => 'Tạo Task thành công',
+            'data' => [
+                'id' => (int) $taskId,
+                'task' => $task
+            ]
+        ]);
     }
 
-    // =========================
-    // UPDATE TASK (PARTIAL UPDATE)
-    // =========================
     public function update($taskId) {
         $authUser = AuthMiddleware::check();
-        $user_id = $authUser['id'] ?? null;
+        $task = $this->taskModel->getTaskById((int) $taskId);
 
-        $task = $this->taskModel->getTaskById($taskId);
         if (!$task) {
-            http_response_code(404);
-            echo json_encode(["status" => "error", "message" => "Task không tồn tại"]);
-            exit;
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Task không tồn tại'
+            ], 404);
         }
 
-        // EMPLOYEE → không được update
-        if ($authUser['role'] === 'employee') {
-            http_response_code(403);
-            echo json_encode(["status" => "error", "message" => "Permission denied"]);
-            exit;
+        if (!$this->ensureCanManageTask($task, $authUser)) {
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Không có quyền cập nhật task này'
+            ], 403);
         }
 
-        // MANAGER → chỉ project của mình
-        if ($authUser['role'] === 'manager' &&
-            !$this->taskModel->isManagerOfProject($taskId, $authUser['id'])) {
-            http_response_code(403);
-            echo json_encode(["status" => "error", "message" => "Không có quyền"]);
-            exit;
+        $input = $this->getJsonInput();
+
+        $title = trim((string) ($input['title'] ?? $task['title']));
+        $description = trim((string) ($input['description'] ?? $task['description']));
+        $priority = $this->normalizePriority($input['priority'] ?? $task['priority']);
+        $deadline = trim((string) ($input['deadline'] ?? $task['deadline']));
+
+        $assigneeId = array_key_exists('assignee_id', $input)
+            ? $this->normalizeNullableInt($input['assignee_id'])
+            : $this->normalizeNullableInt($task['assignee_id']);
+
+        $watcherId = array_key_exists('watcher_id', $input)
+            ? $this->normalizeNullableInt($input['watcher_id'])
+            : $this->normalizeNullableInt($task['watcher_id']);
+
+        $projectId = array_key_exists('project_id', $input)
+            ? $this->normalizeNullableInt($input['project_id'])
+            : $this->normalizeNullableInt($task['project_id']);
+
+        if ($projectId && ($authUser['role'] ?? '') === 'manager') {
+            if (!$this->taskModel->isManagerOfProjectByProjectId($projectId, (int) $authUser['id'])) {
+                $this->jsonResponse([
+                    'status' => 'error',
+                    'message' => 'Không có quyền cập nhật task trong project này'
+                ], 403);
+            }
         }
-
-        $input = json_decode(file_get_contents('php://input'), true);
-
-        // ✅ PATCH STYLE
-        $title       = $input['title']       ?? $task['title'];
-        $description = $input['description'] ?? $task['description'];
-        $priority    = $input['priority']    ?? $task['priority'];
-        $deadline    = $input['deadline']    ?? $task['deadline'];
-
-        $assignee_id = array_key_exists('assignee_id', $input) 
-            ? $input['assignee_id'] 
-            : $task['assignee_id'];
-
-        $watcher_id = array_key_exists('watcher_id', $input) 
-            ? $input['watcher_id'] 
-            : $task['watcher_id'];
-
-        $project_id = array_key_exists('project_id', $input) 
-            ? $input['project_id'] 
-            : $task['project_id'];
 
         $success = $this->taskModel->updateTask(
-            $taskId,
+            (int) $taskId,
             $title,
             $description,
             $priority,
             $deadline,
-            $assignee_id,
-            $watcher_id,
-            $project_id
+            $assigneeId,
+            $watcherId,
+            $projectId
         );
 
-        if ($success) {
-            echo json_encode([
-                "status" => "success",
-                "message" => "Cập nhật thành công"
-            ]);
-        } else {
-            http_response_code(500);
-            echo json_encode(["status" => "error", "message" => "Lỗi server"]);
+        if (!$success) {
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Lỗi server'
+            ], 500);
         }
-        exit;
+
+        $updatedTask = $this->taskModel->getTaskById((int) $taskId);
+
+        $this->jsonResponse([
+            'status' => 'success',
+            'message' => 'Cập nhật thành công',
+            'data' => [
+                'task' => $updatedTask
+            ]
+        ]);
     }
 
-    // =========================
-    // UPDATE STATUS
-    // =========================
     public function updateStatus($taskId) {
         $authUser = AuthMiddleware::check();
+        $task = $this->taskModel->getTaskById((int) $taskId);
 
-        $task = $this->taskModel->getTaskById($taskId);
         if (!$task) {
-            http_response_code(404);
-            echo json_encode(["status" => "error", "message" => "Task không tồn tại"]);
-            exit;
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Task không tồn tại'
+            ], 404);
         }
 
-        // EMPLOYEE → chỉ task của mình
-        if ($authUser['role'] === 'employee') {
-            if ($task['assignee_id'] != $authUser['id']) {
-                http_response_code(403);
-                echo json_encode(["status" => "error", "message" => "Không có quyền"]);
-                exit;
-            }
+        if (!$this->ensureCanSeeTask($task, $authUser)) {
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Không có quyền'
+            ], 403);
         }
 
-        // MANAGER
-        if ($authUser['role'] === 'manager' &&
-            !$this->taskModel->isManagerOfProject($taskId, $authUser['id'])) {
-            http_response_code(403);
-            echo json_encode(["status" => "error", "message" => "Không có quyền"]);
-            exit;
-        }
-
-        $input = json_decode(file_get_contents('php://input'), true);
+        $input = $this->getJsonInput();
+        $status = $this->normalizeStatus($input['status'] ?? '');
 
         $validStatuses = ['To do', 'Doing', 'Review', 'Done'];
-        if (!in_array($input['status'], $validStatuses)) {
-            http_response_code(400);
-            echo json_encode(["status" => "error", "message" => "Status không hợp lệ"]);
-            exit;
+
+        if (!in_array($status, $validStatuses, true)) {
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Status không hợp lệ'
+            ], 400);
         }
 
-        $this->taskModel->updateStatus($taskId, $input['status']);
+        $success = $this->taskModel->updateStatus((int) $taskId, $status);
 
-        echo json_encode([
-            "status" => "success",
-            "message" => "Update status thành công"
+        if (!$success) {
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Lỗi server'
+            ], 500);
+        }
+
+        $updatedTask = $this->taskModel->getTaskById((int) $taskId);
+
+        $this->jsonResponse([
+            'status' => 'success',
+            'message' => 'Update status thành công',
+            'data' => [
+                'task' => $updatedTask
+            ]
         ]);
-        exit;
+    }
+
+    public function destroy($taskId) {
+        $authUser = AuthMiddleware::check();
+        $task = $this->taskModel->getTaskById((int) $taskId);
+
+        if (!$task) {
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Task không tồn tại'
+            ], 404);
+        }
+
+        if (!$this->ensureCanManageTask($task, $authUser)) {
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Không có quyền xoá task này'
+            ], 403);
+        }
+
+        $success = $this->taskModel->deleteTask((int) $taskId);
+
+        if (!$success) {
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Không thể xoá task'
+            ], 500);
+        }
+
+        $this->jsonResponse([
+            'status' => 'success',
+            'message' => 'Xoá task thành công',
+            'data' => [
+                'id' => (int) $taskId
+            ]
+        ]);
     }
 }
