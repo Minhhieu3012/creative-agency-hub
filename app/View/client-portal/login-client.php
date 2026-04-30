@@ -34,7 +34,7 @@ ob_start();
             </div>
             <?php endif; ?>
 
-            <form method="POST" action="<?php echo APP_URL; ?>/api/auth/login" data-ui-form data-mock-submit="false"
+            <form method="POST" action="<?php echo APP_URL; ?>/api/auth/login-client" data-ui-form data-mock-submit="false"
                 data-success-message="Đăng nhập thành công!"
                 data-redirect="<?php echo APP_URL; ?>/client-portal/projects.php">
 

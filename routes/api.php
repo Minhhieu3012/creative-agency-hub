@@ -7,18 +7,17 @@
 
 return [
 
-    // ==============================================================================
-    // AUTHENTICATION
-    // ==============================================================================
-    // Public Routes
-    ['POST', '/api/auth/login',    'Auth\\AuthController@login',    null],
-    ['POST', '/api/auth/register', 'Auth\\AuthController@register', null],
-    
-    // Hệ thống xử lý Đăng xuất (Điều hướng về Login)
-    ['GET', '/auth/logout', 'Auth\\LogoutController@index', null],
+    // AUTH (Public)
+    ['POST', '/api/auth/login-internal', 'Auth\\AuthController@loginInternal', null],
+    ['POST', '/api/auth/login-client',   'Auth\\AuthController@loginClient', null],
+    ['POST', '/api/auth/register-client','Auth\\AuthController@registerClient', null],
 
-    // Private Auth Routes
+
+    // AUTH (Private)
     ['GET', '/api/auth/me', 'Auth\\AuthController@me', ['admin', 'manager', 'employee', 'client']],
+
+     // Hệ thống xử lý Đăng xuất (Điều hướng về Login)
+    ['GET', '/auth/logout', 'Auth\\LogoutController@index', null],
 
     // ==============================================================================
     // HRM (QUẢN TRỊ NHÂN SỰ)
