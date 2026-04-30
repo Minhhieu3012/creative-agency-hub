@@ -5,6 +5,9 @@ $pageJs    = ['forms.js'];
 $brandName = 'Creative Agency Hub';
 $bodyClass = 'client-login-body';
 
+$baseUrl = $baseUrl ?? '/creative-agency-hub';
+$viewUrl = $viewUrl ?? ($baseUrl . '/app/View');
+
 $error = $error ?? null;
 ob_start();
 ?>
@@ -14,6 +17,7 @@ ob_start();
 
         <!-- ===== FORM SIDE (left) ===== -->
         <section class="client-login-form">
+
             <a href="<?php echo APP_URL; ?>/client-portal/login-client.php" class="client-login-brand">
                 <span class="brand-mark">CA</span>
                 <span>Creative Agency Hub</span>
@@ -33,6 +37,7 @@ ob_start();
             <form method="POST" action="<?php echo APP_URL; ?>/api/auth/login" data-ui-form data-mock-submit="false"
                 data-success-message="Đăng nhập thành công!"
                 data-redirect="<?php echo APP_URL; ?>/client-portal/projects.php">
+
                 <div class="form-group">
                     <label class="form-label" for="client-email">Email</label>
                     <div class="input-with-icon">
@@ -43,6 +48,7 @@ ob_start();
                 </div>
 
                 <div class="form-group">
+
                     <div class="form-label-row">
                         <label class="form-label" for="client-password">Mật khẩu</label>
                         <a class="form-label-link" href="#">Quên mật khẩu?</a>
@@ -102,6 +108,7 @@ ob_start();
 
         <!-- ===== VISUAL SIDE (right) ===== -->
         <aside class="client-login-visual">
+
             <img class="client-login-visual-image" src="<?php echo APP_URL; ?>/assets/pictures/customerpagelogin.jpg"
                 alt="Creative Agency Hub client portal">
 

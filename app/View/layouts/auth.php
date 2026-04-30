@@ -34,7 +34,7 @@ $assetUrl = APP_URL . '/assets';
 
     <?php foreach ($pageJs as $js): ?>
         <?php if ($js !== 'forms.js'): ?>
-            <script src="<?php echo $assetUrl; ?>/js/<?php echo htmlspecialchars($js); ?>"></script>
+            <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/<?php echo htmlspecialchars($js); ?>"></script>
         <?php endif; ?>
     <?php endforeach; ?>
 </body>

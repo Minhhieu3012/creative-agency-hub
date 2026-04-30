@@ -27,6 +27,18 @@
     min-width: 210px;
 }
 
+.task-filter-bar .btn {
+    min-width: 96px;
+}
+
+.task-filter-bar .btn.is-active {
+    color: var(--primary);
+    background: var(--mint);
+    border-color: rgba(0, 81, 58, 0.12);
+    box-shadow: 0 10px 24px rgba(0, 81, 58, 0.08);
+    font-weight: 900;
+}
+
 .project-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -541,6 +553,7 @@
     .task-top-actions .btn,
     .task-filter-bar .form-select,
     .task-filter-bar .form-control,
+    .task-filter-bar .btn,
     .kanban-view-switch {
         width: 100%;
     }

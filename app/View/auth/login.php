@@ -4,6 +4,9 @@ $pageCss = ['auth.css'];
 $pageJs = ['forms.js'];
 $brandName = 'Creative Agency Hub';
 
+$baseUrl = $baseUrl ?? '/creative-agency-hub';
+$viewUrl = $viewUrl ?? ($baseUrl . '/app/View');
+
 $error = $error ?? null;
 
 ob_start();
@@ -27,8 +30,12 @@ ob_start();
 
             <div class="auth-preview-card">
                 <div class="auth-preview-image-frame">
-                    <img src="/creative-agency-hub/public/assets/pictures/teampagelogin.jpg"
+                    <<<<<<< HEAD <img src="/creative-agency-hub/public/assets/pictures/teampagelogin.jpg"
                         alt="Creative Agency Hub team workspace">
+                        =======
+                        <img src="<?php echo htmlspecialchars($baseUrl); ?>/public/assets/pictures/teampagelogin.jpg"
+                            alt="Creative Agency Hub team workspace">
+                        >>>>>>> ccc7777a98bedbb44367200728c146105f63c457
                 </div>
             </div>
         </aside>
@@ -46,8 +53,10 @@ ob_start();
                 </div>
                 <?php endif; ?>
 
-                <form method="POST" action="/api/auth/login" data-ui-form data-mock-submit="true"
-                    data-success-message="Đăng nhập thành công. Đang chuyển về Dashboard..." data-redirect="/dashboard">
+                <form method="POST" action="<?php echo htmlspecialchars($baseUrl); ?>/public/api/auth/login"
+                    data-ui-form data-auth-login="true"
+                    data-success-message="Đăng nhập thành công. Đang chuyển về Dashboard..."
+                    data-redirect="<?php echo htmlspecialchars($viewUrl); ?>/dashboard/index.php">
                     <div class="form-group">
                         <label class="form-label" for="email">Email</label>
                         <div class="input-with-icon">
@@ -87,27 +96,27 @@ ob_start();
                 <div class="auth-divider">Hoặc tiếp tục với</div>
 
                 <div class="auth-social-grid">
-                    <button class="btn btn-light" type="button">
+                    <button class="btn btn-light" type="button" data-disabled-demo>
                         <span>G</span>
                         <span>Google</span>
                     </button>
 
-                    <button class="btn btn-light" type="button">
+                    <button class="btn btn-light" type="button" data-disabled-demo>
                         <span>▦</span>
                         <span>SSO</span>
                     </button>
                 </div>
 
                 <p class="auth-footer-line">
-                    Chưa có tài khoản? <a href="#">Liên hệ quản trị viên</a>
+                    Chưa có tài khoản? <a href="#" data-disabled-demo>Liên hệ quản trị viên</a>
                 </p>
 
                 <div class="auth-legal">
                     <span>© 2026 Creative Agency Hub</span>
                     <span>
-                        <a href="#">Bảo mật</a>
+                        <a href="#" data-disabled-demo>Bảo mật</a>
                         &nbsp;&nbsp;
-                        <a href="#">Điều khoản</a>
+                        <a href="#" data-disabled-demo>Điều khoản</a>
                     </span>
                 </div>
             </div>

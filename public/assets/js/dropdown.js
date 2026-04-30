@@ -15,10 +15,23 @@
         const trigger = dropdown.querySelector("[data-dropdown-trigger]");
         const menu = dropdown.querySelector("[data-dropdown-menu]");
 
-        trigger?.addEventListener("click", function (event) {
+        if (!trigger || !menu) return;
+
+        trigger.addEventListener("click", function (event) {
+            event.preventDefault();
             event.stopPropagation();
+
+            const isOpen = menu.classList.contains("is-open");
+
             closeAll(dropdown);
-            menu?.classList.toggle("is-open");
+
+            if (!isOpen) {
+                menu.classList.add("is-open");
+            }
+        });
+
+        menu.addEventListener("click", function (event) {
+            event.stopPropagation();
         });
     });
 
@@ -27,6 +40,12 @@
     });
 
     document.addEventListener("keydown", function (event) {
-        if (event.key === "Escape") closeAll();
+        if (event.key === "Escape") {
+            closeAll();
+        }
+    });
+
+    window.addEventListener("resize", function () {
+        closeAll();
     });
 })();
