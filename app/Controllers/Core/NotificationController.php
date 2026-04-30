@@ -1,7 +1,7 @@
 <?php
-namespace App\Controllers;
+namespace App\Controllers\Core;
 
-use App\Services\NotificationService;
+use App\Services\Core\NotificationService;
 use App\Middleware\AuthMiddleware;
 use Exception;
 

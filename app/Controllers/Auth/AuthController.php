@@ -1,7 +1,7 @@
 <?php
-namespace App\Controllers;
+namespace App\Controllers\Auth;
 
-use App\Models\User;
+use App\Models\Auth\User;
 use Core\JwtHandler;
 use Core\Security;
 

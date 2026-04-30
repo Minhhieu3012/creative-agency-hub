@@ -1,8 +1,9 @@
 <?php
-namespace App\Controllers;
+namespace App\Controllers\Task;
 
 use App\Middleware\AuthMiddleware;
-use App\Services\TaskCommentService;
+use App\Services\Task\TaskCommentService;
+use App\Controllers\BaseController;
 
 class TaskCommentController extends BaseController {
 

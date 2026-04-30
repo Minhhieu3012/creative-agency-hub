@@ -1,10 +1,10 @@
 <?php
-namespace App\Services;
-use App\Services\TaskActivityService;
+namespace App\Services\Task;
+use App\Services\Task\TaskActivityService;
 use Core\Database;
 use Exception;
 use App\Enums\TaskAction;
-use App\Services\NotificationService;
+use App\Services\Core\NotificationService;
 
 class TaskAttachmentService {
 

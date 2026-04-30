@@ -1,7 +1,7 @@
 <?php
-namespace App\Controllers;
+namespace App\Controllers\Task;
 
-use App\Services\TaskActivityService;
+use App\Services\Task\TaskActivityService;
 use App\Middleware\AuthMiddleware;
 use Exception;
 

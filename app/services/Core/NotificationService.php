@@ -1,5 +1,5 @@
 <?php
-namespace App\Services;
+namespace App\Services\Core;
 
 use Core\Database;
 use Exception;

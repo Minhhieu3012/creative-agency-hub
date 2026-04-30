@@ -1,5 +1,5 @@
 <?php
-namespace App\Controllers;
+namespace App\Controllers\Payroll;
 
 use Core\Database;
 use Exception;

@@ -36,10 +36,10 @@ use App\Middleware\RoleMiddleware;
 // use App\Controllers\TaskController;
 // use App\Controllers\HRM\EmployeeController;
 
-// Ghi chú: Nạp class TaskController của Huy (Không dùng namespace)
-require_once __DIR__ . '/../app/Controllers/TaskController.php';
-require_once __DIR__ . '/../app/Controllers/AuthController.php';
-require_once __DIR__ . '/../app/Controllers/HRM/EmployeeController.php'; 
+// Ghi chú: Nạp class TaskController của Huy (Không dùng namespace) 
+// require_once __DIR__ . '/../app/Controllers/TaskController.php';
+// require_once __DIR__ . '/../app/Controllers/AuthController.php';
+// require_once __DIR__ . '/../app/Controllers/HRM/EmployeeController.php'; 
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -93,13 +93,25 @@ try {
             [$controllerName, $action] = explode('@', $handler);
 
             // resolve namespace
-            $controllerClass = null;
+            // $controllerClass = null;
 
-            if (class_exists("App\\Controllers\\$controllerName")) {
-                $controllerClass = "App\\Controllers\\$controllerName";
-            } elseif (class_exists("App\\Controllers\\HRM\\$controllerName")) {
+            // if (class_exists("App\\Controllers\\$controllerName")) {
+            //     $controllerClass = "App\\Controllers\\$controllerName";
+            // } elseif (class_exists("App\\Controllers\\HRM\\$controllerName")) {
+            //     $controllerClass = "App\\Controllers\\HRM\\$controllerName";
+            // } else {
+            //     throw new Exception("Controller not found: $controllerName");
+            // }
+            $controllerClass = "App\\Controllers\\$controllerName";
+
+            // thử thêm các module folder
+            if (!class_exists($controllerClass)) {
+                $controllerClass = "App\\Controllers\\Task\\$controllerName";
+            }
+            if (!class_exists($controllerClass)) {
                 $controllerClass = "App\\Controllers\\HRM\\$controllerName";
-            } else {
+            }
+            if (!class_exists($controllerClass)) {
                 throw new Exception("Controller not found: $controllerName");
             }
 

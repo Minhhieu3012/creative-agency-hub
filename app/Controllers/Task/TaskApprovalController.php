@@ -1,8 +1,9 @@
 <?php
-namespace App\Controllers;
+namespace App\Controllers\Task;
 use Exception;
 use App\Middleware\AuthMiddleware;
-use App\Services\TaskApprovalService;
+use App\Services\Task\TaskApprovalService;
+use App\Controllers\BaseController;
 
 class TaskApprovalController extends BaseController {
 

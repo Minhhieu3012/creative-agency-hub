@@ -1,18 +1,17 @@
 <?php
-namespace App\Controllers;
+namespace App\Controllers\Task;
 
-use App\Services\TaskActivityService;
+use App\Services\Task\TaskActivityService;
 use App\Enums\TaskAction;
 use App\Middleware\AuthMiddleware;
-use App\Services\NotificationService;
-
-require_once __DIR__ . '/../Models/TaskModel.php';
+use App\Services\Core\NotificationService;
+use App\Models\Task\TaskModel;
 
 class TaskController {
     private $taskModel;
 
     public function __construct() {
-        $this->taskModel = new \TaskModel(); 
+        $this->taskModel = new TaskModel(); 
     }
 
     public function showBoard() {

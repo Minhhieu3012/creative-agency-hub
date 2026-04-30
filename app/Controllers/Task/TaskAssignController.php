@@ -1,9 +1,10 @@
 <?php
-namespace App\Controllers;
+namespace App\Controllers\Task;
 
 use App\Middleware\AuthMiddleware;
-use App\Services\TaskAssignService;
+use App\Services\Task\TaskAssignService;
 use Exception;
+use App\Controllers\BaseController;
 
 class TaskAssignController extends BaseController {
 

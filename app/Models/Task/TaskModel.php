@@ -1,4 +1,5 @@
 <?php
+namespace App\Models\Task;
 class TaskModel {
     private $pdo;
 

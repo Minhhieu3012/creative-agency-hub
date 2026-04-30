@@ -1,12 +1,12 @@
 <?php
-namespace App\Services;
+namespace App\Services\Task;
 
 use Exception;
 use PDO;
 use Core\Database;
 use App\Enums\TaskAction;
-use App\Services\TaskActivityService;
-use App\Services\NotificationService;
+use App\Services\Task\TaskActivityService;
+use App\Services\Core\NotificationService;
 
 class TaskApprovalService {
 

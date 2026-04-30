@@ -1,9 +1,9 @@
 <?php
-namespace App\Services;
+namespace App\Services\Task;
 
 use Core\Database;
 use Exception;
-use App\Services\TaskActivityService;
+use App\Services\Task\TaskActivityService;
 use App\Enums\TaskAction;
 
 class TaskAssignService {
