@@ -120,12 +120,12 @@ class TaskController {
                 );
             } // FIX: BỔ SUNG DẤU NGOẶC ĐÓNG `}` BỊ MẤT Ở ĐÂY ĐỂ ĐÓNG KHỐI LỆNH LẠI
 
-            // Ghi log hoạt động Tạo mới cho Bảo
-            $this->taskModel->logActivity($taskId, $assigner_id, 'create', 'Tạo công việc mới: ' . $input['title']);
+            // // Ghi log hoạt động Tạo mới cho Bảo
+            // $this->taskModel->logActivity($taskId, $assigner_id, 'create', 'Tạo công việc mới: ' . $input['title']);
 
             if ($assignee_id) {
                 $this->taskModel->createNotification($assignee_id, "Bạn vừa được giao một công việc mới: " . $input['title']);
-                $this->taskModel->logActivity($taskId, $assigner_id, 'assign', 'Giao việc cho nhân viên ID: ' . $assignee_id);
+                // $this->taskModel->logActivity($taskId, $assigner_id, 'assign', 'Giao việc cho nhân viên ID: ' . $assignee_id);
             }
             if ($watcher_id) {
                 $this->taskModel->createNotification($watcher_id, "Bạn được thêm làm người theo dõi cho công việc: " . $input['title']);
@@ -221,8 +221,8 @@ class TaskController {
                 ]),
                 $notifyMsg
             );
-            // Ghi log hoạt động Cập nhật chi tiết cho Bảo
-            $this->taskModel->logActivity($taskId, $user_id, 'update', 'Cập nhật nội dung/chi tiết công việc');
+            // // Ghi log hoạt động Cập nhật chi tiết cho Bảo
+            // $this->taskModel->logActivity($taskId, $user_id, 'update', 'Cập nhật nội dung/chi tiết công việc');
 
             echo json_encode([
                 "status" => "success",
@@ -317,8 +317,8 @@ class TaskController {
                 ]),
                 $notifyMsg
             );
-            // Ghi log hoạt động Đổi trạng thái (kéo thả) cho Bảo
-            $this->taskModel->logActivity($taskId, $user_id, 'status_change', 'Kéo công việc sang cột: ' . $input['status']);
+            // // Ghi log hoạt động Đổi trạng thái (kéo thả) cho Bảo
+            // $this->taskModel->logActivity($taskId, $user_id, 'status_change', 'Kéo công việc sang cột: ' . $input['status']);
 
             $notifyMsg = "Công việc '" . $task['title'] . "' đã chuyển sang trạng thái: " . $input['status'];
             
