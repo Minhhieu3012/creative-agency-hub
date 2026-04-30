@@ -53,6 +53,7 @@ class TaskController {
             'doing' => 'Doing',
             'review' => 'Review',
             'done' => 'Done',
+            'completed' => 'Done',
         ];
 
         $key = strtolower($status);
@@ -60,26 +61,36 @@ class TaskController {
         return $map[$key] ?? 'To do';
     }
 
-    private function ensureCanSeeTask(array $task, array $authUser): bool {
-        if ($authUser['role'] === 'admin') {
+    private function ensureCanManageTask(array $task, array $authUser): bool {
+        if (($authUser['role'] ?? '') === 'admin') {
             return true;
         }
 
-        if ($authUser['role'] === 'manager') {
-            if (empty($task['project_id'])) {
-                return (int) $task['assigner_id'] === (int) $authUser['id'];
+        if (($authUser['role'] ?? '') === 'manager') {
+            if ((int) ($task['assigner_id'] ?? 0) === (int) $authUser['id']) {
+                return true;
             }
 
-            return $this->taskModel->isManagerOfProjectByProjectId((int) $task['project_id'], (int) $authUser['id']);
+            if (!empty($task['project_id'])) {
+                return $this->taskModel->isManagerOfProjectByProjectId((int) $task['project_id'], (int) $authUser['id']);
+            }
         }
 
-        if ($authUser['role'] === 'employee') {
-            return (int) $task['assignee_id'] === (int) $authUser['id']
-                || (int) $task['assigner_id'] === (int) $authUser['id']
-                || (int) $task['watcher_id'] === (int) $authUser['id'];
+        return false;
+    }
+
+    private function ensureCanSeeTask(array $task, array $authUser): bool {
+        if ($this->ensureCanManageTask($task, $authUser)) {
+            return true;
         }
 
-        if ($authUser['role'] === 'client') {
+        if (($authUser['role'] ?? '') === 'employee') {
+            return (int) ($task['assignee_id'] ?? 0) === (int) $authUser['id']
+                || (int) ($task['assigner_id'] ?? 0) === (int) $authUser['id']
+                || (int) ($task['watcher_id'] ?? 0) === (int) $authUser['id'];
+        }
+
+        if (($authUser['role'] ?? '') === 'client') {
             return true;
         }
 
@@ -99,11 +110,11 @@ class TaskController {
             'role'        => $authUser['role'] ?? null,
         ];
 
-        if ($authUser['role'] === 'employee') {
+        if (($authUser['role'] ?? '') === 'employee') {
             $filters['user_id'] = $authUser['id'];
         }
 
-        if ($authUser['role'] === 'manager') {
+        if (($authUser['role'] ?? '') === 'manager') {
             $filters['manager_id'] = $authUser['id'];
         }
 
@@ -157,13 +168,10 @@ class TaskController {
             }
         }
 
-        $priority = $this->normalizePriority($input['priority'] ?? 'Medium');
-        $description = trim((string) ($input['description'] ?? ''));
-
         $taskId = $this->taskModel->createTask(
             $title,
-            $description,
-            $priority,
+            trim((string) ($input['description'] ?? '')),
+            $this->normalizePriority($input['priority'] ?? 'Medium'),
             $deadline,
             $assignerId,
             $assigneeId,
@@ -201,17 +209,10 @@ class TaskController {
             ], 404);
         }
 
-        if (($authUser['role'] ?? '') === 'employee') {
+        if (!$this->ensureCanManageTask($task, $authUser)) {
             $this->jsonResponse([
                 'status' => 'error',
-                'message' => 'Permission denied'
-            ], 403);
-        }
-
-        if (!$this->ensureCanSeeTask($task, $authUser)) {
-            $this->jsonResponse([
-                'status' => 'error',
-                'message' => 'Không có quyền'
+                'message' => 'Không có quyền cập nhật task này'
             ], 403);
         }
 
@@ -283,16 +284,7 @@ class TaskController {
             ], 404);
         }
 
-        if (($authUser['role'] ?? '') === 'employee') {
-            if ((int) $task['assignee_id'] !== (int) $authUser['id']) {
-                $this->jsonResponse([
-                    'status' => 'error',
-                    'message' => 'Không có quyền'
-                ], 403);
-            }
-        }
-
-        if (($authUser['role'] ?? '') === 'manager' && !$this->ensureCanSeeTask($task, $authUser)) {
+        if (!$this->ensureCanSeeTask($task, $authUser)) {
             $this->jsonResponse([
                 'status' => 'error',
                 'message' => 'Không có quyền'
@@ -327,6 +319,42 @@ class TaskController {
             'message' => 'Update status thành công',
             'data' => [
                 'task' => $updatedTask
+            ]
+        ]);
+    }
+
+    public function destroy($taskId) {
+        $authUser = AuthMiddleware::check();
+        $task = $this->taskModel->getTaskById((int) $taskId);
+
+        if (!$task) {
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Task không tồn tại'
+            ], 404);
+        }
+
+        if (!$this->ensureCanManageTask($task, $authUser)) {
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Không có quyền xoá task này'
+            ], 403);
+        }
+
+        $success = $this->taskModel->deleteTask((int) $taskId);
+
+        if (!$success) {
+            $this->jsonResponse([
+                'status' => 'error',
+                'message' => 'Không thể xoá task'
+            ], 500);
+        }
+
+        $this->jsonResponse([
+            'status' => 'success',
+            'message' => 'Xoá task thành công',
+            'data' => [
+                'id' => (int) $taskId
             ]
         ]);
     }

@@ -232,6 +232,41 @@ class TaskModel {
         }
     }
 
+    public function deleteTask($id) {
+        try {
+            $this->pdo->beginTransaction();
+
+            $relatedTables = [
+                'task_comments',
+                'task_attachments',
+                'task_activity_logs'
+            ];
+
+            foreach ($relatedTables as $table) {
+                try {
+                    $stmt = $this->pdo->prepare("DELETE FROM {$table} WHERE task_id = ?");
+                    $stmt->execute([$id]);
+                } catch (\PDOException $e) {
+                    error_log("Bỏ qua delete related {$table}: " . $e->getMessage());
+                }
+            }
+
+            $stmt = $this->pdo->prepare("DELETE FROM tasks WHERE id = ?");
+            $result = $stmt->execute([$id]);
+
+            $this->pdo->commit();
+
+            return $result;
+        } catch (\PDOException $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+
+            error_log("Lỗi Model deleteTask: " . $e->getMessage());
+            return false;
+        }
+    }
+
     public function createNotification($user_id, $message) {
         try {
             $stmt = $this->pdo->prepare("
@@ -247,36 +282,46 @@ class TaskModel {
     }
 
     public function isManagerOfProject($taskId, $userId) {
-        $stmt = $this->pdo->prepare("
-            SELECT
-                t.assigner_id,
-                p.manager_id
-            FROM tasks t
-            LEFT JOIN projects p ON t.project_id = p.id
-            WHERE t.id = ?
-        ");
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT
+                    t.assigner_id,
+                    p.manager_id
+                FROM tasks t
+                LEFT JOIN projects p ON t.project_id = p.id
+                WHERE t.id = ?
+            ");
 
-        $stmt->execute([$taskId]);
-        $project = $stmt->fetch();
+            $stmt->execute([$taskId]);
+            $project = $stmt->fetch();
 
-        if (!$project) {
+            if (!$project) {
+                return false;
+            }
+
+            return (int) ($project['manager_id'] ?? 0) === (int) $userId
+                || (int) ($project['assigner_id'] ?? 0) === (int) $userId;
+        } catch (\PDOException $e) {
+            error_log("Lỗi Model isManagerOfProject: " . $e->getMessage());
             return false;
         }
-
-        return (int) $project['manager_id'] === (int) $userId
-            || (int) $project['assigner_id'] === (int) $userId;
     }
 
     public function isManagerOfProjectByProjectId($projectId, $userId) {
-        $stmt = $this->pdo->prepare("
-            SELECT id
-            FROM projects
-            WHERE id = ? AND manager_id = ?
-        ");
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT id
+                FROM projects
+                WHERE id = ? AND manager_id = ?
+            ");
 
-        $stmt->execute([$projectId, $userId]);
+            $stmt->execute([$projectId, $userId]);
 
-        return $stmt->fetch() ? true : false;
+            return $stmt->fetch() ? true : false;
+        } catch (\PDOException $e) {
+            error_log("Lỗi Model isManagerOfProjectByProjectId: " . $e->getMessage());
+            return false;
+        }
     }
 
     public function getFirstProjectManagedBy($userId) {
