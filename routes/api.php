@@ -10,6 +10,11 @@
 return [
 
     // AUTH (Public)
+
+    // 1. HIỂN THỊ GIAO DIỆN (khi gõ URL trên trình duyệt)
+    ['GET', '/login', 'Auth\\AuthController@showLoginForm', null],
+
+    // 2. XỬ LÝ DỮ LIỆU (khi bấm nút Đăng nhập)
     ['POST', '/api/auth/login',    'Auth\\AuthController@login',    null],
     ['POST', '/api/auth/register', 'Auth\\AuthController@register', null],
 
@@ -65,7 +70,7 @@ return [
 
     // ATTENDANCE & LEAVE
     ['POST',  '/api/attendance/checkin',   'Payroll\\AttendanceController@checkin', ['admin', 'manager', 'employee']],
-    ['POST',  '/api/leaves',               'Payroll\\LeaveController@store',        ['admin', 'manager', 'employee']],
+    ['POST', '/api/tasks/:id/comments', 'Task\\TaskCommentController@store', ['admin','manager','employee','client']],
     ['PATCH', '/api/leaves/:id/approve',   'Payroll\\LeaveController@approve',      ['admin', 'manager']],
 
 ];

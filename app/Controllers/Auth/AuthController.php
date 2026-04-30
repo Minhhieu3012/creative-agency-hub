@@ -4,8 +4,11 @@ namespace App\Controllers\Auth;
 use App\Models\Auth\User;
 use Core\JwtHandler;
 use Core\Security;
+// 1. BỔ SUNG: Nhúng BaseController vào để sử dụng
+use App\Controllers\BaseController; 
 
-class AuthController {
+// 2. BỔ SUNG: Kế thừa BaseController
+class AuthController extends BaseController {
     private $userModel;
     private $jwt;
     private $authUser;
@@ -14,6 +17,13 @@ class AuthController {
         $this->userModel = new User();
         $this->jwt = new JwtHandler();
         $this->authUser = $authUser;
+    }
+
+    // 3. BỔ SUNG: Hàm làm nhiệm vụ hiển thị giao diện Login
+    public function showLoginForm() {
+        // Hàm render này được kế thừa từ BaseController
+        // Nó sẽ tự động trỏ tới file: app/View/auth/login.php
+        return $this->render('auth/login'); 
     }
 
     // Helper: Hỗ trợ đọc cả JSON (từ Frontend) và Form-data (từ Postman)
