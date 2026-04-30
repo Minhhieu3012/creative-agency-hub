@@ -1,0 +1,128 @@
+@media (max-width: 1180px) {
+    :root {
+        --sidebar-width: 250px;
+    }
+
+    .stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 920px) {
+    .desktop-only {
+        display: none !important;
+    }
+
+    .mobile-only {
+        display: initial;
+    }
+
+    .app-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .app-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: min(320px, 86vw);
+        transform: translateX(-105%);
+        transition: transform 0.22s ease;
+        box-shadow: var(--shadow-md);
+    }
+
+    .app-sidebar.is-open {
+        transform: translateX(0);
+    }
+
+    .sidebar-close,
+    .topbar-menu-btn {
+        display: inline-flex;
+    }
+
+    .sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.42);
+        backdrop-filter: blur(4px);
+        z-index: 55;
+    }
+
+    .sidebar-backdrop.is-open {
+        display: block;
+    }
+
+    .app-topbar {
+        padding: 0 18px;
+    }
+
+    .topbar-search {
+        width: min(420px, 44vw);
+    }
+
+    .user-meta {
+        display: none;
+    }
+
+    .app-content {
+        padding: 24px 18px;
+    }
+
+    .page-header {
+        display: grid;
+    }
+}
+
+@media (max-width: 720px) {
+    .stat-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .topbar-search {
+        display: none;
+    }
+
+    .topbar-actions {
+        margin-left: auto;
+    }
+
+    .card-header,
+    .card-body {
+        padding: 20px;
+    }
+
+    .modal-root {
+        padding: 14px;
+    }
+
+    .modal-header {
+        padding: 24px 22px 16px;
+    }
+
+    .modal-body {
+        padding: 22px;
+    }
+}
+
+@media (max-width: 480px) {
+    .app-content {
+        padding: 18px 14px;
+    }
+
+    .btn {
+        min-height: 42px;
+        padding: 0 14px;
+    }
+
+    .page-header h1 {
+        font-size: 30px;
+    }
+
+    .page-header p {
+        font-size: 15px;
+    }
+}

@@ -1,159 +1,121 @@
-<!DOCTYPE html>
-<html lang="vi">
+<?php
+$pageTitle = 'Đăng nhập nội bộ | Creative Agency Hub';
+$pageCss = ['auth.css'];
+$pageJs = ['forms.js'];
+$brandName = 'Creative Agency Hub';
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Cổng đăng nhập nội bộ Creative Agency Hub" />
-    <title>Đăng nhập — Creative Agency Hub</title>
+$error = $error ?? null;
 
-    <!-- Fonts & Icons -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&display=swap"
-        rel="stylesheet" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
-        rel="stylesheet" />
+ob_start();
+?>
 
-    <link rel="stylesheet" href="/creative-agency-hub/public/assets/css/login.css" />
-</head>
-
-<body>
-    <main class="login-card" role="main">
-
-        <!-- ── Form Panel ── -->
-        <section class="form-panel" aria-label="Form đăng nhập">
-
-            <div class="brand">
-                <div class="brand-icon" aria-hidden="true">
-                    <span class="material-symbols-outlined">hub</span>
-                </div>
-                <span class="brand-name">Creative Agency Hub</span>
+<section class="auth-split-wrapper">
+    <div class="auth-split-card">
+        <aside class="auth-hero">
+            <div class="auth-hero-brand">
+                <span class="brand-mark">CA</span>
+                <span>Creative Agency Hub</span>
             </div>
 
-            <div class="form-body">
-                <header>
-                    <h1 class="form-title">Cổng Đăng nhập<br>Nội bộ</h1>
-                    <p class="form-subtitle">
-                        Chào mừng quay trở lại. Vui lòng xác thực danh tính
-                        <strong>(Admin, Manager, Employee)</strong> để truy cập hệ thống.
-                    </p>
-                </header>
-
-                <form id="loginForm" novalidate>
-                    <!-- Email -->
-                    <div class="field">
-                        <label class="field-label" for="email">Địa chỉ Email</label>
-                        <div class="input-wrap">
-                            <span class="input-icon material-symbols-outlined" aria-hidden="true">mail</span>
-                            <input class="text-input" id="email" name="email" type="email"
-                                placeholder="email@creativeagency.com" autocomplete="email" required
-                                aria-describedby="emailError" />
-                        </div>
-                        <span class="field-error" id="emailError" role="alert" aria-live="polite">
-                            <span class="material-symbols-outlined">error</span>
-                            <span id="emailMsg"></span>
-                        </span>
-                    </div>
-
-                    <!-- Password -->
-                    <div class="field">
-                        <div class="field-row">
-                            <label class="field-label" for="password">Mật khẩu</label>
-                            <a class="forgot-link" href="#">Quên mật khẩu?</a>
-                        </div>
-                        <div class="input-wrap">
-                            <span class="input-icon material-symbols-outlined" aria-hidden="true">lock</span>
-                            <input class="text-input has-toggle" id="password" name="password" type="password"
-                                placeholder="••••••••" autocomplete="current-password" required
-                                aria-describedby="passError" />
-                            <button type="button" id="togglePassword" class="input-toggle"
-                                aria-label="Hiện/ẩn mật khẩu">
-                                <span class="material-symbols-outlined" id="toggleIcon">visibility</span>
-                            </button>
-                        </div>
-                        <span class="field-error" id="passError" role="alert" aria-live="polite">
-                            <span class="material-symbols-outlined">error</span>
-                            <span id="passMsg"></span>
-                        </span>
-                    </div>
-
-                    <!-- Remember -->
-                    <div class="field remember-row">
-                        <input class="checkbox" id="remember" name="remember" type="checkbox" />
-                        <label class="remember-label" for="remember">Ghi nhớ đăng nhập trên thiết bị này</label>
-                    </div>
-
-                    <!-- Toast -->
-                    <div id="toast" class="toast" role="alert" aria-live="assertive"></div>
-
-                    <!-- Submit -->
-                    <button type="submit" id="btnSubmit" class="btn-submit">
-                        <span class="btn-text">Đăng nhập hệ thống</span>
-                        <span class="material-symbols-outlined btn-icon" aria-hidden="true">login</span>
-                        <div class="spinner" aria-hidden="true"></div>
-                    </button>
-                </form>
-
-                <div class="form-footer">
-                    Bạn gặp sự cố? <a href="#">Liên hệ IT Support</a>
-                </div>
+            <div class="auth-hero-copy">
+                <h1>Quản trị đội ngũ sáng tạo trong một nền tảng.</h1>
+                <p>
+                    Theo dõi nhân sự, dự án, tiến độ công việc, chấm công và phê duyệt nội bộ
+                    với trải nghiệm gọn gàng, hiện đại và chuẩn doanh nghiệp.
+                </p>
             </div>
 
-            <footer class="panel-footer">
-                <span>© 2026 Creative Agency Hub</span>
-                <nav class="panel-footer-links">
-                    <a href="#">Quy định nội bộ</a>
-                    <a href="#">Bảo mật thông tin</a>
-                </nav>
-            </footer>
-
-        </section>
-
-        <!-- ── Visual Panel ── -->
-        <aside class="visual-panel" aria-hidden="true">
-            <img class="hero-img" loading="lazy" alt=""
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCw9aOEiPjv2Ma43qFE2_zNFVH7uLEkN0405YXz4jVlmQ6ClVTo0zVqq__9ipLsFqAmuhGoYEUrvQK2Y5h15rrRSmnAdjg1aj1xRTpMaHGnbmagWVBwL5xfGN3OjGl0K45Mt2CR2K__ozM9JHjunneekgWNmGTHJEfikqqlNiNu2KVVavxuHekqQxgnzPkqOLkCoLX9y1WdWdU5gtIhDY4YxgbxOseTiRSqzMKHIZyR2rCUCFclLn8xAwd-wjlPRP1MQWOf00RWvULc" />
-            <div class="visual-overlay"></div>
-
-            <div class="deco-dots" aria-hidden="true">
-                <?php for ($i = 0; $i < 25; $i++): ?><span></span><?php endfor; ?>
-            </div>
-
-            <div class="visual-content">
-                <div class="visual-card">
-                    <div class="visual-avatars">
-                        <div class="avatar-stack">
-                            <img alt=""
-                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqPe2_gqFAdBi0X14cbGsRsu5vnj08dq2KvZJElWk1RQ6MMOCVxihcokNWb411TgN4ZLLSDmpPE8wPZ4Isudph1FBDQXLiU_VoxuPH9_B-KQbF73JISn1yv0y0mOSQymelUkgCFlKKZoqGpjwbwctHn_JV0Y170mL9G8DSI9o9XStu9lIMaTnp-J2PWEinfcJ1OGjqctHyZN84YWsYPf6u0cS1lP6uWZeuWXqqxmkBnWX7UHgBk4KHJOXX_7xOrxywu_1b-3UcbyMi" />
-                            <img alt=""
-                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBr-Y_e66qjyg-9RZSXGjIHkCxzh6Sx-vBLPpVrfRwWidm8ObBsoQFxp3SRfj9z93Zp2PP2QAq1EG2f-8NxQZhoN6wgmGJhRJGJakP7tqAvzFvFYLC2BS04GqPB8irgx5PEEE5ZrFKmNq4tf_WaL2QKyk_BzqtzSe0sl06WTUVmmByfYsOHqeNOGJ64PseIkXngEJ7jOcELP9G3hnkxva52f6AoJ9nqED03DHZ7l3dlzHMSOF39WsmcWxjeMBZHA0pTsdhaHwDhx-bz" />
-                        </div>
-                        <span class="avatar-label">Quản trị nguồn nhân lực hiệu quả</span>
-                    </div>
-                    <h2 class="visual-title">Creative Agency Hub</h2>
-                    <p class="visual-desc">
-                        Trải nghiệm hệ thống quản lý chuyên nghiệp, giúp tối ưu hoá quy trình làm việc
-                        và thúc đẩy sự gắn kết trong tổ chức của bạn.
-                    </p>
-                </div>
-
-                <div class="visual-badges">
-                    <div class="badge">
-                        <span class="material-symbols-outlined">verified</span>Bảo mật Nội bộ
-                    </div>
-                    <div class="badge">
-                        <span class="material-symbols-outlined">speed</span>Tốc độ tối ưu
-                    </div>
+            <div class="auth-preview-card">
+                <div class="auth-preview-image-frame">
+                    <img src="/creative-agency-hub/public/assets/pictures/teampagelogin.jpg"
+                        alt="Creative Agency Hub team workspace">
                 </div>
             </div>
         </aside>
 
-    </main>
+        <section class="auth-form-side">
+            <div class="auth-form-box">
+                <div class="auth-form-title">
+                    <h2>Chào mừng trở lại!</h2>
+                    <p>Vui lòng nhập thông tin để truy cập hệ thống quản trị của Creative Agency Hub.</p>
+                </div>
 
-    <script src="/creative-agency-hub/public/assets/js/login.js"></script>
-</body>
+                <?php if (!empty($error)): ?>
+                <div class="form-alert form-alert-danger">
+                    <?php echo htmlspecialchars($error); ?>
+                </div>
+                <?php endif; ?>
 
-</html>
+                <form method="POST" action="/api/auth/login" data-ui-form data-mock-submit="true"
+                    data-success-message="Đăng nhập thành công. Đang chuyển về Dashboard..." data-redirect="/dashboard">
+                    <div class="form-group">
+                        <label class="form-label" for="email">Email</label>
+                        <div class="input-with-icon">
+                            <span class="input-icon">✉</span>
+                            <input id="email" class="form-control" type="email" name="email"
+                                placeholder="name@company.com" autocomplete="email" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="password">
+                            <span>Mật khẩu</span>
+                            <a href="#">Quên mật khẩu?</a>
+                        </label>
+
+                        <div class="input-with-icon">
+                            <span class="input-icon">▣</span>
+                            <input id="password" class="form-control" type="password" name="password"
+                                placeholder="••••••••" autocomplete="current-password" required>
+
+                            <button type="button" class="password-eye" data-password-toggle="#password"
+                                aria-label="Hiện/ẩn mật khẩu">👁</button>
+                        </div>
+                    </div>
+
+                    <label class="checkbox-line">
+                        <input type="checkbox" name="remember">
+                        <span>Ghi nhớ đăng nhập</span>
+                    </label>
+
+                    <button type="submit" class="btn btn-primary auth-submit">
+                        <span>Đăng nhập hệ thống</span>
+                        <span>→</span>
+                    </button>
+                </form>
+
+                <div class="auth-divider">Hoặc tiếp tục với</div>
+
+                <div class="auth-social-grid">
+                    <button class="btn btn-light" type="button">
+                        <span>G</span>
+                        <span>Google</span>
+                    </button>
+
+                    <button class="btn btn-light" type="button">
+                        <span>▦</span>
+                        <span>SSO</span>
+                    </button>
+                </div>
+
+                <p class="auth-footer-line">
+                    Chưa có tài khoản? <a href="#">Liên hệ quản trị viên</a>
+                </p>
+
+                <div class="auth-legal">
+                    <span>© 2026 Creative Agency Hub</span>
+                    <span>
+                        <a href="#">Bảo mật</a>
+                        &nbsp;&nbsp;
+                        <a href="#">Điều khoản</a>
+                    </span>
+                </div>
+            </div>
+        </section>
+    </div>
+</section>
+
+<?php
+$content = ob_get_clean();
+require __DIR__ . '/../layouts/auth.php';
+?>

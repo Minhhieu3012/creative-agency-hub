@@ -1,0 +1,552 @@
+.task-shell {
+    display: grid;
+    gap: 26px;
+}
+
+.task-top-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.task-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: var(--shadow-sm);
+}
+
+.task-filter-bar .form-select,
+.task-filter-bar .form-control {
+    min-width: 210px;
+}
+
+.project-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 22px;
+}
+
+.project-card {
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    gap: 22px;
+    min-height: 260px;
+    padding: 24px;
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    background: #ffffff;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.project-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: rgba(0, 81, 58, 0.18);
+}
+
+.project-card::after {
+    content: "";
+    position: absolute;
+    right: -58px;
+    top: -58px;
+    width: 150px;
+    height: 150px;
+    border-radius: 999px;
+    background: var(--mint);
+}
+
+.project-card-head {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 12px;
+}
+
+.project-card-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.project-card h2 {
+    margin: 0;
+    color: var(--text);
+    font-size: 22px;
+    line-height: 1.2;
+    letter-spacing: -0.04em;
+}
+
+.project-card p {
+    margin: 0;
+    color: var(--text-soft);
+    line-height: 1.65;
+}
+
+.project-card-meta {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 14px;
+}
+
+.project-stat-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.project-mini-stat {
+    padding: 12px;
+    border-radius: 14px;
+    background: #f8fafc;
+    display: grid;
+    gap: 4px;
+}
+
+.project-mini-stat strong {
+    color: var(--text);
+    font-size: 18px;
+}
+
+.project-mini-stat span {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.project-card-footer {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: auto;
+}
+
+.project-status-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    color: var(--primary);
+    background: var(--mint);
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.kanban-shell {
+    display: grid;
+    gap: 24px;
+}
+
+.kanban-view-switch {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: var(--shadow-sm);
+}
+
+.kanban-view-switch a,
+.kanban-view-switch button {
+    min-height: 42px;
+    padding: 0 18px;
+    border-radius: 12px;
+    color: var(--text-soft);
+    background: transparent;
+    font-weight: 800;
+}
+
+.kanban-view-switch .is-active {
+    color: #ffffff;
+    background: var(--primary);
+    box-shadow: var(--shadow-primary);
+}
+
+.kanban-board {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(260px, 1fr));
+    gap: 22px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+}
+
+.kanban-column {
+    min-height: 620px;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 14px;
+    padding: 12px;
+    border: 1px dashed #d6e2ef;
+    border-radius: 22px;
+    background: rgba(248, 250, 252, 0.68);
+}
+
+.kanban-column.is-over {
+    border-color: rgba(0, 81, 58, 0.42);
+    background: var(--mint-2);
+}
+
+.kanban-column-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 4px 4px 0;
+}
+
+.kanban-column-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text);
+    font-weight: 850;
+    letter-spacing: -0.02em;
+}
+
+.kanban-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: #94a3b8;
+}
+
+.kanban-dot.todo {
+    background: #94a3b8;
+}
+
+.kanban-dot.doing {
+    background: #3b82f6;
+}
+
+.kanban-dot.review {
+    background: #f59e0b;
+}
+
+.kanban-dot.done {
+    background: var(--emerald);
+}
+
+.kanban-count {
+    min-width: 28px;
+    height: 26px;
+    padding: 0 9px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    background: var(--mint);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.kanban-column-menu {
+    color: #8a99ad;
+    background: transparent;
+    font-weight: 900;
+    font-size: 18px;
+}
+
+.kanban-card-list {
+    display: grid;
+    align-content: start;
+    gap: 14px;
+    min-height: 420px;
+}
+
+.task-card {
+    display: grid;
+    gap: 16px;
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: #ffffff;
+    box-shadow: var(--shadow-sm);
+    cursor: grab;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.task-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(0, 81, 58, 0.18);
+    box-shadow: var(--shadow-md);
+}
+
+.task-card:active {
+    cursor: grabbing;
+}
+
+.task-card.is-dragging {
+    opacity: 0.55;
+    transform: rotate(2deg) scale(0.98);
+}
+
+.task-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.task-card-title {
+    margin: 0;
+    color: var(--text);
+    font-size: 17px;
+    line-height: 1.38;
+    letter-spacing: -0.02em;
+}
+
+.task-card-desc {
+    margin: -6px 0 0;
+    color: var(--text-soft);
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.task-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    color: #8190a6;
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.task-card-meta-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.task-card-progress {
+    display: grid;
+    gap: 8px;
+}
+
+.task-card-progress small {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.task-assignee-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.task-assignee {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-soft);
+    font-size: 13px;
+    font-weight: 750;
+}
+
+.task-avatar {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--primary), var(--emerald));
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.task-add-card {
+    min-height: 54px;
+    border: 1px dashed #cad5e3;
+    border-radius: 16px;
+    color: #8190a6;
+    background: transparent;
+    font-weight: 800;
+}
+
+.task-add-card:hover {
+    color: var(--primary);
+    border-color: rgba(0, 81, 58, 0.32);
+    background: var(--mint-2);
+}
+
+.gantt-card {
+    overflow: hidden;
+}
+
+.gantt-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.gantt-legend {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.gantt-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-soft);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.gantt-legend i {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.gantt-legend .done {
+    background: var(--primary);
+}
+
+.gantt-legend .running {
+    background: #60a5fa;
+}
+
+.gantt-legend .planned {
+    background: #d8e0eb;
+}
+
+.gantt-table-wrap {
+    overflow-x: auto;
+}
+
+.gantt-table {
+    min-width: 980px;
+    width: 100%;
+    border-top: 1px solid var(--line);
+}
+
+.gantt-table th,
+.gantt-table td {
+    padding: 18px;
+    border-bottom: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    text-align: left;
+}
+
+.gantt-table th {
+    color: #65748b;
+    background: #f8fafc;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.gantt-table th:first-child,
+.gantt-table td:first-child {
+    min-width: 260px;
+    color: var(--text);
+    font-weight: 750;
+}
+
+.gantt-timeline-cell {
+    position: relative;
+    height: 58px;
+    min-width: 120px;
+}
+
+.gantt-bar {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    top: 50%;
+    height: 28px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    border-radius: 999px;
+    color: #ffffff;
+    background: var(--primary);
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+    box-shadow: 0 12px 26px rgba(0, 81, 58, 0.18);
+}
+
+.gantt-bar.running {
+    background: #60a5fa;
+    box-shadow: 0 12px 26px rgba(96, 165, 250, 0.22);
+}
+
+.gantt-bar.planned {
+    color: #64748b;
+    background: #d8e0eb;
+    box-shadow: none;
+}
+
+.task-modal-form {
+    display: grid;
+    gap: 16px;
+}
+
+.task-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+@media (max-width: 1180px) {
+    .project-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .kanban-board {
+        grid-template-columns: repeat(4, minmax(280px, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .project-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .task-top-actions,
+    .task-filter-bar {
+        align-items: stretch;
+    }
+
+    .task-top-actions .btn,
+    .task-filter-bar .form-select,
+    .task-filter-bar .form-control,
+    .kanban-view-switch {
+        width: 100%;
+    }
+
+    .kanban-view-switch {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

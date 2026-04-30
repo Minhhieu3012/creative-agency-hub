@@ -7,36 +7,87 @@ class TaskModel {
         $this->pdo = \Core\Database::getConnection();
     }
 
+    // public function getAllTasks($filters = []) {
+    //     try {
+    //         $sql = "SELECT id, title, description, status, priority, deadline, project_id, assigner_id, assignee_id, watcher_id FROM tasks WHERE 1=1";
+    //         $params = [];
+
+    //         if (!empty($filters['project_id'])) {
+    //             $sql .= " AND project_id = ?";
+    //             $params[] = $filters['project_id'];
+    //         }
+    //         if (!empty($filters['assignee_id'])) {
+    //             $sql .= " AND assignee_id = ?";
+    //             $params[] = $filters['assignee_id'];
+    //         }
+    //         if (!empty($filters['status'])) {
+    //             $sql .= " AND status = ?";
+    //             $params[] = $filters['status'];
+    //         }
+    //         if (!empty($filters['deadline'])) {
+    //             $sql .= " AND deadline <= ?";
+    //             $params[] = $filters['deadline'];
+    //         }
+
+    //         $sql .= " ORDER BY id DESC";
+
+    //         $stmt = $this->pdo->prepare($sql);
+    //         $stmt->execute($params);
+    //         return $stmt->fetchAll();
+    //     } catch (\PDOException $e) {
+    //         error_log("Lỗi Model getAllTasks: " . $e->getMessage());
+    //         return []; 
+    //     }
+    // }
     public function getAllTasks($filters = []) {
         try {
-            $sql = "SELECT id, title, description, status, priority, deadline, project_id, assigner_id, assignee_id, watcher_id FROM tasks WHERE 1=1";
+            $sql = "
+                SELECT t.id, t.title, t.description, t.status, t.priority, t.deadline,
+                    t.project_id, t.assigner_id, t.assignee_id, t.watcher_id
+                FROM tasks t
+                LEFT JOIN projects p ON t.project_id = p.id
+                WHERE 1=1
+            ";
+
             $params = [];
 
             if (!empty($filters['project_id'])) {
-                $sql .= " AND project_id = ?";
+                $sql .= " AND t.project_id = ?";
                 $params[] = $filters['project_id'];
             }
+
             if (!empty($filters['assignee_id'])) {
-                $sql .= " AND assignee_id = ?";
+                $sql .= " AND t.assignee_id = ?";
                 $params[] = $filters['assignee_id'];
             }
+
             if (!empty($filters['status'])) {
-                $sql .= " AND status = ?";
+                $sql .= " AND t.status = ?";
                 $params[] = $filters['status'];
             }
+
             if (!empty($filters['deadline'])) {
-                $sql .= " AND deadline <= ?";
+                $sql .= " AND t.deadline <= ?";
                 $params[] = $filters['deadline'];
             }
 
-            $sql .= " ORDER BY id DESC";
+            if (!empty($filters['manager_id'])) {
+                $sql .= " AND project_id IN (
+                    SELECT id FROM projects WHERE manager_id = ?
+                )";
+                $params[] = $filters['manager_id'];
+            }
+
+            $sql .= " ORDER BY t.id DESC";
 
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute($params);
+
             return $stmt->fetchAll();
+
         } catch (\PDOException $e) {
             error_log("Lỗi Model getAllTasks: " . $e->getMessage());
-            return []; 
+            return [];
         }
     }
 
@@ -90,6 +141,26 @@ class TaskModel {
             error_log("Lỗi Model createNotification: " . $e->getMessage());
             return false;
         }
+    }
+    public function isManagerOfProject($taskId, $userId) {
+        $stmt = $this->pdo->prepare("
+            SELECT p.manager_id 
+            FROM tasks t
+            JOIN projects p ON t.project_id = p.id
+            WHERE t.id = ?
+        ");
+        $stmt->execute([$taskId]);
+        $project = $stmt->fetch();
+
+        return $project && $project['manager_id'] == $userId;
+    }
+    public function isManagerOfProjectByProjectId($projectId, $userId) {
+        $stmt = $this->pdo->prepare("
+            SELECT id FROM projects 
+            WHERE id = ? AND manager_id = ?
+        ");
+        $stmt->execute([$projectId, $userId]);
+        return $stmt->fetch() ? true : false;
     }
 }
 ?>
