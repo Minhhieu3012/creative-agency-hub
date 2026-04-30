@@ -29,9 +29,44 @@ $userInitial = strtoupper(mb_substr($currentUser['name'] ?? 'U', 0, 1, 'UTF-8'))
     </div>
 
     <div class="topbar-actions">
-        <button class="icon-btn has-dot" type="button" aria-label="Thông báo" data-dropdown-trigger-standalone="notifications">
-            ♢
-        </button>
+        <div class="topbar-notification" data-dropdown data-notification-dropdown>
+            <button
+                class="icon-btn has-dot"
+                type="button"
+                aria-label="Thông báo"
+                data-dropdown-trigger
+                data-notification-trigger
+            >
+                ♢
+                <span class="notification-badge" data-notification-count hidden>0</span>
+            </button>
+
+            <div class="dropdown-menu notification-dropdown" data-dropdown-menu>
+                <div class="notification-dropdown-head">
+                    <div>
+                        <strong>Thông báo</strong>
+                        <p>Cập nhật mới nhất từ task và hệ thống</p>
+                    </div>
+
+                    <button class="btn btn-light btn-sm" type="button" data-notification-refresh>
+                        Làm mới
+                    </button>
+                </div>
+
+                <div class="notification-list" data-notification-list>
+                    <div class="notification-empty">
+                        <strong>Đang tải thông báo...</strong>
+                        <p>Vui lòng chờ trong giây lát.</p>
+                    </div>
+                </div>
+
+                <div class="notification-dropdown-foot">
+                    <a href="<?php echo htmlspecialchars($viewUrl); ?>/payroll/manager_approvals.php">
+                        Mở trung tâm phê duyệt →
+                    </a>
+                </div>
+            </div>
+        </div>
 
         <button class="icon-btn desktop-only" type="button" aria-label="Lịch sử">
             ↺
@@ -65,7 +100,7 @@ $userInitial = strtoupper(mb_substr($currentUser['name'] ?? 'U', 0, 1, 'UTF-8'))
                 <a href="<?php echo htmlspecialchars($viewUrl); ?>/hrm/profile.php">Hồ sơ cá nhân</a>
                 <a href="<?php echo htmlspecialchars($viewUrl); ?>/payroll/attendance.php">Chấm công hôm nay</a>
                 <a href="<?php echo htmlspecialchars($viewUrl); ?>/client-portal/projects.php">Client Portal</a>
-                <a href="<?php echo htmlspecialchars($viewUrl); ?>/auth/login.php" class="text-danger">Đăng xuất</a>
+                <a href="<?php echo htmlspecialchars($viewUrl); ?>/auth/login.php" class="text-danger" data-logout>Đăng xuất</a>
             </div>
         </div>
     </div>

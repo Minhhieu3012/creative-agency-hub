@@ -6,33 +6,6 @@ $activeMenu = 'approvals';
 $topbarTitle = 'Manager Approvals';
 $brandName = 'Creative Agency Hub';
 
-$taskApprovals = $taskApprovals ?? [
-    [
-        'initials' => 'PA',
-        'title' => 'Duyệt hoàn thành: Thiết kế UI Login',
-        'desc' => 'Phạm Anh đã submit task hoàn thành, cần Manager kiểm tra kết quả trước khi chuyển Done.',
-        'project' => 'NexusHR Web',
-        'deadline' => 'Hôm nay',
-        'priority' => 'Cao',
-    ],
-    [
-        'initials' => 'HB',
-        'title' => 'Duyệt hoàn thành: Fix Auth API',
-        'desc' => 'Hiếu Backend đã gửi yêu cầu review task liên quan đăng nhập và session.',
-        'project' => 'Creative Agency Hub',
-        'deadline' => 'Ngày mai',
-        'priority' => 'Critical',
-    ],
-    [
-        'initials' => 'TM',
-        'title' => 'Yêu cầu làm lại: Nội dung hợp đồng mẫu',
-        'desc' => 'Cần kiểm tra lại nội dung hợp đồng mẫu trước khi chuyển sang trạng thái hoàn thành.',
-        'project' => 'HRM Module',
-        'deadline' => '2 ngày tới',
-        'priority' => 'Trung bình',
-    ],
-];
-
 $leaveApprovals = $leaveApprovals ?? [
     [
         'initials' => 'LM',
@@ -57,18 +30,21 @@ ob_start();
 
 <?php
 $pageHeading = 'Trung tâm Phê duyệt';
-$pageSubtitle = 'Xử lý các yêu cầu duyệt task hoàn thành, nghỉ phép và nghiệp vụ nội bộ từ nhân viên.';
-$pageAction = '<button class="btn btn-light" type="button" data-payroll-action="mock-save">⇩ Xuất báo cáo</button><button class="btn btn-primary" type="button" data-payroll-action="mock-save">Làm mới dữ liệu</button>';
+$pageSubtitle = 'Xử lý task đang chờ review, đơn nghỉ phép và các nghiệp vụ nội bộ từ nhân viên.';
+$pageAction = '
+<button class="btn btn-light" type="button" data-payroll-action="mock-save">⇩ Xuất báo cáo</button>
+<button class="btn btn-primary" type="button" data-payroll-action="refresh-approvals">Làm mới dữ liệu</button>
+';
 require __DIR__ . '/../components/page-header.php';
 ?>
 
-<section class="payroll-shell">
+<section class="payroll-shell" data-approval-page>
     <div class="stat-grid">
         <article class="stat-card">
             <div class="stat-card-icon">☑</div>
             <div class="stat-card-body">
                 <span>Task chờ duyệt</span>
-                <strong><?php echo count($taskApprovals); ?></strong>
+                <strong data-approval-stat="tasks">0</strong>
                 <small>Cần kiểm tra</small>
             </div>
         </article>
@@ -77,7 +53,7 @@ require __DIR__ . '/../components/page-header.php';
             <div class="stat-card-icon">✦</div>
             <div class="stat-card-body">
                 <span>Đơn nghỉ phép</span>
-                <strong><?php echo count($leaveApprovals); ?></strong>
+                <strong data-approval-stat="leaves"><?php echo count($leaveApprovals); ?></strong>
                 <small>Đang chờ phản hồi</small>
             </div>
         </article>
@@ -94,8 +70,8 @@ require __DIR__ . '/../components/page-header.php';
         <article class="stat-card stat-card-danger">
             <div class="stat-card-icon">!</div>
             <div class="stat-card-body">
-                <span>Yêu cầu quá hạn</span>
-                <strong>01</strong>
+                <span>Task quá hạn</span>
+                <strong data-approval-stat="overdue">0</strong>
                 <small>Cần xử lý ngay</small>
             </div>
         </article>
@@ -105,7 +81,9 @@ require __DIR__ . '/../components/page-header.php';
         <div class="card-header dashboard-card-title-row">
             <div>
                 <h2>Danh sách yêu cầu</h2>
-                <p class="section-subtitle">Chuyển tab để xem từng nhóm phê duyệt.</p>
+                <p class="section-subtitle">
+                    Dữ liệu duyệt task được đồng bộ trực tiếp từ Kanban qua API.
+                </p>
             </div>
 
             <div class="approval-tabs">
@@ -120,35 +98,12 @@ require __DIR__ . '/../components/page-header.php';
 
         <div class="card-body">
             <section class="approval-panel is-active" data-approval-panel="tasks">
-                <div class="approval-list">
-                    <?php foreach ($taskApprovals as $item): ?>
-                        <article class="approval-card" data-approval-card>
-                            <div class="approval-avatar"><?php echo htmlspecialchars($item['initials']); ?></div>
-
-                            <div class="approval-content">
-                                <h3><?php echo htmlspecialchars($item['title']); ?></h3>
-                                <p><?php echo htmlspecialchars($item['desc']); ?></p>
-
-                                <div class="approval-meta">
-                                    <span class="badge badge-primary"><?php echo htmlspecialchars($item['project']); ?></span>
-                                    <span class="badge badge-info"><?php echo htmlspecialchars($item['deadline']); ?></span>
-                                    <span class="badge badge-warning"><?php echo htmlspecialchars($item['priority']); ?></span>
-                                </div>
-                            </div>
-
-                            <div class="approval-actions">
-                                <button class="btn btn-danger-soft" type="button" data-payroll-action="reject">
-                                    Từ chối
-                                </button>
-                                <button class="btn btn-light" type="button" data-payroll-action="mock-save">
-                                    Yêu cầu làm lại
-                                </button>
-                                <button class="btn btn-primary" type="button" data-payroll-action="approve">
-                                    Duyệt
-                                </button>
-                            </div>
-                        </article>
-                    <?php endforeach; ?>
+                <div class="approval-list" data-approval-task-list>
+                    <div class="approval-empty-state">
+                        <div class="approval-empty-icon">◌</div>
+                        <strong>Đang tải task chờ duyệt...</strong>
+                        <p>Hệ thống đang đồng bộ danh sách task có trạng thái Review.</p>
+                    </div>
                 </div>
             </section>
 
@@ -170,10 +125,10 @@ require __DIR__ . '/../components/page-header.php';
                             </div>
 
                             <div class="approval-actions">
-                                <button class="btn btn-danger-soft" type="button" data-payroll-action="reject">
+                                <button class="btn btn-danger-soft" type="button" data-payroll-action="reject-leave">
                                     Từ chối
                                 </button>
-                                <button class="btn btn-primary" type="button" data-payroll-action="approve">
+                                <button class="btn btn-primary" type="button" data-payroll-action="approve-leave">
                                     Duyệt phép
                                 </button>
                             </div>

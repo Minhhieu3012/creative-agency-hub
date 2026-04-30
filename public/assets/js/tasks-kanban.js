@@ -877,6 +877,27 @@
     }
 
     async function approvalAction(taskId, action) {
+        const currentUser = getCurrentUser();
+        const role = String(currentUser?.role || "").toLowerCase();
+
+        if (action === "submit" && (role === "manager" || role === "admin")) {
+            await CAHApi.patch(`/api/tasks/${taskId}/status`, { status: "Review" }, {
+                loading: true,
+                loadingMessage: "Đang chuyển task sang trạng thái kiểm tra..."
+            });
+
+            if (window.CAHToast) {
+                CAHToast.success("Đã chuyển sang kiểm tra", "Task đã được đưa vào cột Đang kiểm tra để manager phê duyệt.");
+            }
+
+            if (window.CAHModal) {
+                CAHModal.close();
+            }
+
+            await loadTasksFromApi();
+            return;
+        }
+
         const endpointMap = {
             submit: `/api/tasks/${taskId}/submit`,
             approve: `/api/tasks/${taskId}/approve`,
