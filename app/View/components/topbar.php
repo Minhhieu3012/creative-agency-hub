@@ -6,6 +6,10 @@ $currentUser = $currentUser ?? [
 ];
 
 $topbarTitle = $topbarTitle ?? '';
+$baseUrl = $baseUrl ?? '/creative-agency-hub';
+$viewUrl = $viewUrl ?? ($baseUrl . '/app/View');
+
+$userInitial = strtoupper(mb_substr($currentUser['name'] ?? 'U', 0, 1, 'UTF-8'));
 ?>
 
 <header class="app-topbar">
@@ -25,40 +29,43 @@ $topbarTitle = $topbarTitle ?? '';
     </div>
 
     <div class="topbar-actions">
-        <button class="icon-btn has-dot" type="button" aria-label="Thông báo">
+        <button class="icon-btn has-dot" type="button" aria-label="Thông báo" data-dropdown-trigger-standalone="notifications">
             ♢
         </button>
 
-        <button class="icon-btn" type="button" aria-label="Lịch sử">
+        <button class="icon-btn desktop-only" type="button" aria-label="Lịch sử">
             ↺
         </button>
 
-        <button class="icon-btn" type="button" aria-label="Trợ giúp">
+        <button class="icon-btn desktop-only" type="button" aria-label="Trợ giúp">
             ?
         </button>
 
         <div class="topbar-divider"></div>
 
         <div class="user-menu" data-dropdown>
-            <button class="user-menu-trigger" type="button" data-dropdown-trigger>
+            <button class="user-menu-trigger" type="button" data-dropdown-trigger aria-label="Menu người dùng">
                 <span class="user-meta">
                     <strong><?php echo htmlspecialchars($currentUser['name']); ?></strong>
                     <small><?php echo htmlspecialchars($currentUser['role']); ?></small>
                 </span>
 
                 <?php if (!empty($currentUser['avatar'])): ?>
-                    <img src="<?php echo htmlspecialchars($currentUser['avatar']); ?>" alt="<?php echo htmlspecialchars($currentUser['name']); ?>" class="user-avatar">
+                    <img
+                        src="<?php echo htmlspecialchars($currentUser['avatar']); ?>"
+                        alt="<?php echo htmlspecialchars($currentUser['name']); ?>"
+                        class="user-avatar"
+                    >
                 <?php else: ?>
-                    <span class="user-avatar">
-                        <?php echo strtoupper(mb_substr($currentUser['name'], 0, 1, 'UTF-8')); ?>
-                    </span>
+                    <span class="user-avatar"><?php echo htmlspecialchars($userInitial); ?></span>
                 <?php endif; ?>
             </button>
 
             <div class="dropdown-menu user-dropdown" data-dropdown-menu>
-                <a href="/hrm/profile">Hồ sơ cá nhân</a>
-                <a href="#">Cài đặt tài khoản</a>
-                <a href="/logout" class="text-danger">Đăng xuất</a>
+                <a href="<?php echo htmlspecialchars($viewUrl); ?>/hrm/profile.php">Hồ sơ cá nhân</a>
+                <a href="<?php echo htmlspecialchars($viewUrl); ?>/payroll/attendance.php">Chấm công hôm nay</a>
+                <a href="<?php echo htmlspecialchars($viewUrl); ?>/client-portal/projects.php">Client Portal</a>
+                <a href="<?php echo htmlspecialchars($viewUrl); ?>/auth/login.php" class="text-danger">Đăng xuất</a>
             </div>
         </div>
     </div>

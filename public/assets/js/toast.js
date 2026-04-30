@@ -1,6 +1,19 @@
 (function () {
     "use strict";
 
+    function escapeHtml(value) {
+        if (window.CAHApp && typeof CAHApp.escapeHtml === "function") {
+            return CAHApp.escapeHtml(value);
+        }
+
+        return String(value || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
     function getStack() {
         let stack = document.querySelector("[data-toast-stack]");
 
@@ -20,8 +33,8 @@
 
         toast.className = `toast toast-${type}`;
         toast.innerHTML = `
-            <strong>${title || "Thông báo"}</strong>
-            <p>${message || ""}</p>
+            <strong>${escapeHtml(title || "Thông báo")}</strong>
+            <p>${escapeHtml(message || "")}</p>
         `;
 
         stack.appendChild(toast);
@@ -37,9 +50,11 @@
         success(title, message) {
             show("success", title, message);
         },
+
         error(title, message) {
-            show("danger", title, message);
+            show("danger", title, message, 5200);
         },
+
         info(title, message) {
             show("info", title, message);
         }
