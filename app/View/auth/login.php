@@ -11,20 +11,21 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-        href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&display=swap"
         rel="stylesheet" />
     <link
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
         rel="stylesheet" />
 
-    <!-- Nhúng CSS chuẩn hóa -->
     <link rel="stylesheet" href="/creative-agency-hub/public/assets/css/login.css" />
 </head>
 
 <body>
     <main class="login-card" role="main">
+
         <!-- ── Form Panel ── -->
         <section class="form-panel" aria-label="Form đăng nhập">
+
             <div class="brand">
                 <div class="brand-icon" aria-hidden="true">
                     <span class="material-symbols-outlined">hub</span>
@@ -37,7 +38,7 @@
                     <h1 class="form-title">Cổng Đăng nhập<br>Nội bộ</h1>
                     <p class="form-subtitle">
                         Chào mừng quay trở lại. Vui lòng xác thực danh tính
-                        <strong>(Admin, Manager, Employee)</strong> để truy cập không gian làm việc.
+                        <strong>(Admin, Manager, Employee)</strong> để truy cập hệ thống.
                     </p>
                 </header>
 
@@ -46,13 +47,13 @@
                     <div class="field">
                         <label class="field-label" for="email">Địa chỉ Email</label>
                         <div class="input-wrap">
+                            <span class="input-icon material-symbols-outlined" aria-hidden="true">mail</span>
                             <input class="text-input" id="email" name="email" type="email"
                                 placeholder="email@creativeagency.com" autocomplete="email" required
                                 aria-describedby="emailError" />
-                            <span class="input-icon material-symbols-outlined" aria-hidden="true">mail</span>
                         </div>
                         <span class="field-error" id="emailError" role="alert" aria-live="polite">
-                            <span class="material-symbols-outlined" style="font-size:14px">error</span>
+                            <span class="material-symbols-outlined">error</span>
                             <span id="emailMsg"></span>
                         </span>
                     </div>
@@ -64,23 +65,23 @@
                             <a class="forgot-link" href="#">Quên mật khẩu?</a>
                         </div>
                         <div class="input-wrap">
+                            <span class="input-icon material-symbols-outlined" aria-hidden="true">lock</span>
                             <input class="text-input has-toggle" id="password" name="password" type="password"
                                 placeholder="••••••••" autocomplete="current-password" required
                                 aria-describedby="passError" />
-                            <span class="input-icon material-symbols-outlined" aria-hidden="true">lock</span>
                             <button type="button" id="togglePassword" class="input-toggle"
                                 aria-label="Hiện/ẩn mật khẩu">
                                 <span class="material-symbols-outlined" id="toggleIcon">visibility</span>
                             </button>
                         </div>
                         <span class="field-error" id="passError" role="alert" aria-live="polite">
-                            <span class="material-symbols-outlined" style="font-size:14px">error</span>
+                            <span class="material-symbols-outlined">error</span>
                             <span id="passMsg"></span>
                         </span>
                     </div>
 
                     <!-- Remember -->
-                    <div class="remember-row field">
+                    <div class="field remember-row">
                         <input class="checkbox" id="remember" name="remember" type="checkbox" />
                         <label class="remember-label" for="remember">Ghi nhớ đăng nhập trên thiết bị này</label>
                     </div>
@@ -97,8 +98,7 @@
                 </form>
 
                 <div class="form-footer">
-                    Bạn gặp sự cố?
-                    <a href="#">Liên hệ IT Support</a>
+                    Bạn gặp sự cố? <a href="#">Liên hệ IT Support</a>
                 </div>
             </div>
 
@@ -109,6 +109,7 @@
                     <a href="#">Bảo mật thông tin</a>
                 </nav>
             </footer>
+
         </section>
 
         <!-- ── Visual Panel ── -->
@@ -138,15 +139,20 @@
                         và thúc đẩy sự gắn kết trong tổ chức của bạn.
                     </p>
                 </div>
+
                 <div class="visual-badges">
-                    <div class="badge"><span class="material-symbols-outlined">verified</span>Bảo mật Nội bộ</div>
-                    <div class="badge"><span class="material-symbols-outlined">speed</span>Tốc độ tối ưu</div>
+                    <div class="badge">
+                        <span class="material-symbols-outlined">verified</span>Bảo mật Nội bộ
+                    </div>
+                    <div class="badge">
+                        <span class="material-symbols-outlined">speed</span>Tốc độ tối ưu
+                    </div>
                 </div>
             </div>
         </aside>
+
     </main>
 
-    <!-- Nhúng Javascript xử lý Logic -->
     <script src="/creative-agency-hub/public/assets/js/login.js"></script>
 </body>
 
