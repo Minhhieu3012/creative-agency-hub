@@ -6,51 +6,41 @@ $activeMenu = 'approvals';
 $topbarTitle = 'Manager Approvals';
 $brandName = 'Creative Agency Hub';
 
-$taskApprovals = $taskApprovals ?? [
-    [
-        'initials' => 'PA',
-        'title' => 'Duyệt hoàn thành: Thiết kế UI Login',
-        'desc' => 'Phạm Anh đã submit task hoàn thành, cần Manager kiểm tra kết quả trước khi chuyển Done.',
-        'project' => 'NexusHR Web',
-        'deadline' => 'Hôm nay',
-        'priority' => 'Cao',
-    ],
-    [
-        'initials' => 'HB',
-        'title' => 'Duyệt hoàn thành: Fix Auth API',
-        'desc' => 'Hiếu Backend đã gửi yêu cầu review task liên quan đăng nhập và session.',
-        'project' => 'Creative Agency Hub',
-        'deadline' => 'Ngày mai',
-        'priority' => 'Critical',
-    ],
-    [
-        'initials' => 'TM',
-        'title' => 'Yêu cầu làm lại: Nội dung hợp đồng mẫu',
-        'desc' => 'Cần kiểm tra lại nội dung hợp đồng mẫu trước khi chuyển sang trạng thái hoàn thành.',
-        'project' => 'HRM Module',
-        'deadline' => '2 ngày tới',
-        'priority' => 'Trung bình',
-    ],
-];
+$baseUrl = $baseUrl ?? (function () {
+    $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+    if (strpos($scriptName, '/public/') !== false) {
+        return substr($scriptName, 0, strpos($scriptName, '/public'));
+    }
+    if (strpos($scriptName, '/app/View/') !== false) {
+        return substr($scriptName, 0, strpos($scriptName, '/app/View'));
+    }
+    $dir = dirname($scriptName);
+    return $dir === '/' ? '' : $dir;
+})();
 
-$leaveApprovals = $leaveApprovals ?? [
-    [
-        'initials' => 'LM',
-        'title' => 'Đơn nghỉ phép: Lê Thị Mai',
-        'desc' => 'Xin nghỉ 02 ngày từ 22/10/2026 đến 23/10/2026 vì việc gia đình.',
-        'balance' => 'Còn 08 ngày phép',
-        'type' => 'Nghỉ phép năm',
-        'duration' => '02 ngày',
-    ],
-    [
-        'initials' => 'PA',
-        'title' => 'Đơn nghỉ phép: Phạm Duy Anh',
-        'desc' => 'Xin nghỉ buổi sáng ngày 25/10/2026 để khám sức khỏe định kỳ.',
-        'balance' => 'Còn 04 ngày phép',
-        'type' => 'Nghỉ nửa ngày',
-        'duration' => '0.5 ngày',
-    ],
-];
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+require_once __DIR__ . '/../../../config/db_connect.php';
+
+$leaveApprovals = [];
+
+try {
+    $stmt = $pdo->prepare(
+        "SELECT lr.id, lr.employee_id, e.full_name, e.email, lr.start_date, lr.end_date, lr.reason, lr.status, lr.created_at, e.remaining_leave_days " .
+        "FROM leave_requests lr " .
+        "JOIN employees e ON lr.employee_id = e.id " .
+        "WHERE lr.status = 'Pending' " .
+        "ORDER BY lr.created_at DESC"
+    );
+    $stmt->execute();
+    $leaveApprovals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log('Manager approvals view DB error: ' . $e->getMessage());
+}
+
+$taskApprovals = $taskApprovals ?? [];
 
 ob_start();
 ?>
@@ -154,18 +144,22 @@ require __DIR__ . '/../components/page-header.php';
 
             <section class="approval-panel" data-approval-panel="leaves">
                 <div class="approval-list">
+                    <?php if (empty($leaveApprovals)): ?>
+                        <p style="text-align: center; color: #666; padding: 20px;">Không có đơn nào đang chờ phê duyệt.</p>
+                    <?php endif; ?>
+
                     <?php foreach ($leaveApprovals as $item): ?>
                         <article class="approval-card" data-approval-card>
-                            <div class="approval-avatar"><?php echo htmlspecialchars($item['initials']); ?></div>
+                            <div class="approval-avatar"><?php echo htmlspecialchars(strtoupper(substr($item['full_name'], 0, 1) . (strpos($item['full_name'], ' ') !== false ? substr($item['full_name'], strpos($item['full_name'], ' ') + 1, 1) : ''))); ?></div>
 
                             <div class="approval-content">
-                                <h3><?php echo htmlspecialchars($item['title']); ?></h3>
-                                <p><?php echo htmlspecialchars($item['desc']); ?></p>
+                                <h3>Đơn nghỉ phép: <?php echo htmlspecialchars($item['full_name']); ?></h3>
+                                <p><?php echo nl2br(htmlspecialchars($item['reason'])); ?></p>
 
                                 <div class="approval-meta">
-                                    <span class="badge badge-primary"><?php echo htmlspecialchars($item['type']); ?></span>
-                                    <span class="badge badge-info"><?php echo htmlspecialchars($item['duration']); ?></span>
-                                    <span class="badge badge-success"><?php echo htmlspecialchars($item['balance']); ?></span>
+                                    <span class="badge badge-primary">Từ <?php echo htmlspecialchars(date('d/m/Y', strtotime($item['start_date']))); ?></span>
+                                    <span class="badge badge-info">Đến <?php echo htmlspecialchars(date('d/m/Y', strtotime($item['end_date']))); ?></span>
+                                    <span class="badge badge-success">Còn <?php echo htmlspecialchars((string) $item['remaining_leave_days']); ?> ngày phép</span>
                                 </div>
                             </div>
 

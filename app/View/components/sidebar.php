@@ -2,41 +2,53 @@
 $activeMenu = $activeMenu ?? 'dashboard';
 $brandName = $brandName ?? 'Creative Agency Hub';
 
+$baseUrl = $baseUrl ?? (function () {
+    $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+    if (strpos($scriptName, '/public/') !== false) {
+        return substr($scriptName, 0, strpos($scriptName, '/public'));
+    }
+    if (strpos($scriptName, '/app/View/') !== false) {
+        return substr($scriptName, 0, strpos($scriptName, '/app/View'));
+    }
+    $dir = dirname($scriptName);
+    return $dir === '/' ? '' : $dir;
+})();
+
 $menus = [
     [
         'key' => 'dashboard',
         'label' => 'Bảng điều khiển',
-        'href' => '/dashboard',
+        'href' => '/app/View/dashboard/index.php',
         'icon' => '▦',
     ],
     [
         'key' => 'departments',
         'label' => 'Tổ chức',
-        'href' => '/hrm/departments',
+        'href' => '/app/View/hrm/departments.php',
         'icon' => '▤',
     ],
     [
         'key' => 'employees',
         'label' => 'Nhân sự',
-        'href' => '/hrm/employees',
+        'href' => '/app/View/hrm/employees.php',
         'icon' => '◉',
     ],
     [
         'key' => 'projects',
         'label' => 'Dự án',
-        'href' => '/tasks/projects',
+        'href' => '/app/View/tasks/projects.php',
         'icon' => '▣',
     ],
     [
         'key' => 'kanban',
         'label' => 'Bảng Kanban',
-        'href' => '/tasks/kanban',
+        'href' => '/app/View/tasks/kanban.php',
         'icon' => '☑',
     ],
     [
         'key' => 'gantt',
         'label' => 'Gantt Chart',
-        'href' => '/tasks/gantt',
+        'href' => '/app/View/tasks/gantt.php',
         'icon' => '▥',
     ],
     [
@@ -66,7 +78,7 @@ $menus = [
     [
         'key' => 'profile',
         'label' => 'Hồ sơ cá nhân',
-        'href' => '/hrm/profile',
+        'href' => '/app/View/hrm/profile.php',
         'icon' => '◌',
     ],
 ];
