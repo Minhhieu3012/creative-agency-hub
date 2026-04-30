@@ -26,6 +26,13 @@ return [
     ['POST',   '/api/employees/:id/adjust-leave', 'HRM\\EmployeeController@adjustLeave',  ['admin', 'manager']],
     ['POST',   '/api/employees/:id/avatar',       'HRM\\EmployeeController@uploadAvatar', ['admin', 'manager', 'employee']],
     
+    // PROJECT
+    ['GET',    '/api/projects',        'ProjectController@index', ['admin','manager']],
+    ['GET',    '/api/projects/:id',    'ProjectController@show', ['admin','manager']],
+    ['POST',   '/api/projects',        'ProjectController@store', ['admin','manager']],
+    ['PUT',    '/api/projects/:id',    'ProjectController@update', ['admin','manager']],
+    ['DELETE', '/api/projects/:id',    'ProjectController@delete', ['admin', 'manager']],
+
     // TASK
     ['GET',   '/api/tasks',               'Task\\TaskController@index',        ['admin', 'manager', 'employee', 'client']],
     ['POST',  '/api/tasks',               'Task\\TaskController@store',        ['admin', 'manager']],
