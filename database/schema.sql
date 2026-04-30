@@ -130,10 +130,12 @@ CREATE TABLE projects (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     manager_id INT NULL,  
+    client_id INT NULL,  
     status ENUM('Active', 'Completed', 'Archived') DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (manager_id) REFERENCES employees(id) ON DELETE SET NULL
+    FOREIGN KEY (manager_id) REFERENCES employees(id) ON DELETE SET NULL,
+    FOREIGN KEY (client_id) REFERENCES employees(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 7. BẢNG CÔNG VIỆC (Tasks) - Owner: Huy
