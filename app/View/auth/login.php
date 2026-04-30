@@ -4,6 +4,22 @@ $pageCss = ['auth.css'];
 $pageJs = ['forms.js'];
 $brandName = 'Creative Agency Hub';
 
+// Compute baseUrl before using it
+$baseUrl = $baseUrl ?? (function () {
+    $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+
+    if (strpos($scriptName, '/public/') !== false) {
+        return substr($scriptName, 0, strpos($scriptName, '/public'));
+    }
+
+    if (strpos($scriptName, '/app/View/') !== false) {
+        return substr($scriptName, 0, strpos($scriptName, '/app/View'));
+    }
+
+    $dir = dirname($scriptName);
+    return $dir === '/' ? '' : $dir;
+})();
+
 $error = $error ?? null;
 
 ob_start();
@@ -110,22 +126,8 @@ ob_start();
                     </button>
                 </form>
 
-                <div class="auth-divider">Hoặc tiếp tục với</div>
-
-                <div class="auth-social-grid">
-                    <button class="btn btn-light" type="button">
-                        <span>G</span>
-                        <span>Google</span>
-                    </button>
-
-                    <button class="btn btn-light" type="button">
-                        <span>▦</span>
-                        <span>SSO</span>
-                    </button>
-                </div>
-
                 <p class="auth-footer-line">
-                    Chưa có tài khoản? <a href="#">Liên hệ quản trị viên</a>
+                    Chưa có tài khoản? <a href="./register.php" class="text-primary">Đăng ký ngay</a>
                 </p>
 
                 <div class="auth-legal">
