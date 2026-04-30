@@ -100,6 +100,18 @@ $resources = $resources ?? [
     ['label' => 'QA/QC', 'value' => 72],
 ];
 
+$baseUrl = $baseUrl ?? (function () {
+    $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+    if (strpos($scriptName, '/public/') !== false) {
+        return substr($scriptName, 0, strpos($scriptName, '/public'));
+    }
+    if (strpos($scriptName, '/app/View/') !== false) {
+        return substr($scriptName, 0, strpos($scriptName, '/app/View'));
+    }
+    $dir = dirname($scriptName);
+    return $dir === '/' ? '' : $dir;
+})();
+
 ob_start();
 ?>
 
@@ -167,6 +179,31 @@ require __DIR__ . '/../components/page-header.php';
                         </div>
                     </div>
                 <?php endforeach; ?>
+            </div>
+        </article>
+
+        <article class="card payroll-quick-links-card">
+            <div class="card-header dashboard-card-title-row">
+                <h2>Thanh toán & Payroll</h2>
+                <a href="<?php echo htmlspecialchars($baseUrl); ?>/app/View/payroll/payroll_summary.php">Xem báo cáo</a>
+            </div>
+
+            <div class="card-body payroll-quick-links">
+                <div class="quick-link-item">
+                    <a href="<?php echo htmlspecialchars($baseUrl); ?>/app/View/payroll/attendance.php" class="btn btn-primary btn-block">
+                        Chấm công
+                    </a>
+                </div>
+                <div class="quick-link-item">
+                    <a href="<?php echo htmlspecialchars($baseUrl); ?>/app/View/payroll/leave_request.php" class="btn btn-soft btn-block">
+                        Yêu cầu nghỉ phép
+                    </a>
+                </div>
+                <div class="quick-link-item">
+                    <a href="<?php echo htmlspecialchars($baseUrl); ?>/app/View/payroll/payroll_summary.php" class="btn btn-emerald btn-block">
+                        Bảng lương
+                    </a>
+                </div>
             </div>
         </article>
 

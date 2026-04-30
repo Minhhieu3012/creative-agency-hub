@@ -42,25 +42,25 @@ $menus = [
     [
         'key' => 'attendance',
         'label' => 'Chấm công',
-        'href' => '/payroll/attendance',
+        'href' => '/app/View/payroll/attendance.php',
         'icon' => '◴',
     ],
     [
         'key' => 'leave_request',
         'label' => 'Nghỉ phép',
-        'href' => '/payroll/leave-request',
+        'href' => '/app/View/payroll/leave_request.php',
         'icon' => '✦',
     ],
     [
         'key' => 'approvals',
         'label' => 'Phê duyệt',
-        'href' => '/payroll/approvals',
+        'href' => '/app/View/payroll/manager_approvals.php',
         'icon' => '☷',
     ],
     [
         'key' => 'payroll',
         'label' => 'Bảng lương',
-        'href' => '/payroll/summary',
+        'href' => '/app/View/payroll/payroll_summary.php',
         'icon' => '▧',
     ],
     [
@@ -90,7 +90,7 @@ $menus = [
     <nav class="sidebar-nav" aria-label="Điều hướng chính">
         <?php foreach ($menus as $menu): ?>
             <a
-                href="<?php echo htmlspecialchars($menu['href']); ?>"
+                href="<?php echo htmlspecialchars($baseUrl . $menu['href']); ?>"
                 class="sidebar-link <?php echo $activeMenu === $menu['key'] ? 'is-active' : ''; ?>"
             >
                 <span class="sidebar-icon"><?php echo htmlspecialchars($menu['icon']); ?></span>

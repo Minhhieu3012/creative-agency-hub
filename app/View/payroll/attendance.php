@@ -6,12 +6,53 @@ $activeMenu = 'attendance';
 $topbarTitle = 'Web Check-in';
 $brandName = 'Creative Agency Hub';
 
-$history = $history ?? [
-    ['date' => '21/10/2026', 'checkin' => '08:02', 'checkout' => '17:35', 'status' => 'Đúng giờ', 'tone' => 'success'],
-    ['date' => '20/10/2026', 'checkin' => '08:16', 'checkout' => '17:42', 'status' => 'Đi muộn', 'tone' => 'warning'],
-    ['date' => '19/10/2026', 'checkin' => '07:58', 'checkout' => '17:31', 'status' => 'Đúng giờ', 'tone' => 'success'],
-    ['date' => '18/10/2026', 'checkin' => '--', 'checkout' => '--', 'status' => 'Nghỉ phép', 'tone' => 'info'],
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+require_once __DIR__ . '/../../../config/db_connect.php';
+
+$employeeId = (int) ($_SESSION['user_id'] ?? $_SESSION['employee_id'] ?? 1);
+
+$history = [];
+$attendanceStat = [
+    'present_days' => 0,
+    'late' => 0,
+    'missing_checkout' => 0,
+    'status_today' => 'Chưa có dữ liệu',
 ];
+
+try {
+    $today = date('Y-m-d');
+    $month = date('m');
+    $year = date('Y');
+
+    $stmt = $pdo->prepare("SELECT work_date, check_in_time, check_out_time, status FROM attendances WHERE employee_id = ? ORDER BY work_date DESC LIMIT 10");
+    $stmt->execute([$employeeId]);
+    $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM attendances WHERE employee_id = ? AND MONTH(work_date) = ? AND YEAR(work_date) = ? AND status <> 'Absent'");
+    $stmt->execute([$employeeId, $month, $year]);
+    $attendanceStat['present_days'] = (int) $stmt->fetchColumn();
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM attendances WHERE employee_id = ? AND MONTH(work_date) = ? AND YEAR(work_date) = ? AND status = 'Late'");
+    $stmt->execute([$employeeId, $month, $year]);
+    $attendanceStat['late'] = (int) $stmt->fetchColumn();
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM attendances WHERE employee_id = ? AND MONTH(work_date) = ? AND YEAR(work_date) = ? AND check_out_time IS NULL");
+    $stmt->execute([$employeeId, $month, $year]);
+    $attendanceStat['missing_checkout'] = (int) $stmt->fetchColumn();
+
+    $stmt = $pdo->prepare("SELECT status FROM attendances WHERE employee_id = ? AND work_date = ? LIMIT 1");
+    $stmt->execute([$employeeId, $today]);
+    $todayRecord = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($todayRecord) {
+        $attendanceStat['status_today'] = $todayRecord['status'] === 'Late' ? 'Đi muộn' : ($todayRecord['status'] === 'Present' ? 'Đúng giờ' : $todayRecord['status']);
+    }
+} catch (PDOException $e) {
+    error_log('Attendance view DB error: ' . $e->getMessage());
+}
 
 ob_start();
 ?>
@@ -45,7 +86,7 @@ ob_start();
             <div class="attendance-status">
                 <div class="attendance-status-item">
                     <span>Trạng thái hôm nay</span>
-                    <strong data-checkin-status>Chưa check-in</strong>
+                    <strong data-checkin-status><?php echo htmlspecialchars($attendanceStat['status_today']); ?></strong>
                 </div>
 
                 <div class="attendance-status-item">
@@ -61,8 +102,8 @@ ob_start();
             <div class="stat-card-icon">◷</div>
             <div class="stat-card-body">
                 <span>Ngày công tháng này</span>
-                <strong>21</strong>
-                <small>Trên tổng 22 ngày</small>
+                <strong><?php echo htmlspecialchars((string) $attendanceStat['present_days']); ?></strong>
+                <small>Đã ghi nhận</small>
             </div>
         </article>
 
@@ -70,8 +111,8 @@ ob_start();
             <div class="stat-card-icon">✓</div>
             <div class="stat-card-body">
                 <span>Đúng giờ</span>
-                <strong>18</strong>
-                <small>Tỷ lệ 86%</small>
+                <strong><?php echo htmlspecialchars((string) max(0, $attendanceStat['present_days'] - $attendanceStat['late'])); ?></strong>
+                <small>Tỷ lệ theo tháng</small>
             </div>
         </article>
 
@@ -79,7 +120,7 @@ ob_start();
             <div class="stat-card-icon">△</div>
             <div class="stat-card-body">
                 <span>Đi muộn</span>
-                <strong>02</strong>
+                <strong><?php echo htmlspecialchars((string) $attendanceStat['late']); ?></strong>
                 <small>Cần cải thiện</small>
             </div>
         </article>
@@ -88,7 +129,7 @@ ob_start();
             <div class="stat-card-icon">!</div>
             <div class="stat-card-body">
                 <span>Thiếu checkout</span>
-                <strong>01</strong>
+                <strong><?php echo htmlspecialchars((string) $attendanceStat['missing_checkout']); ?></strong>
                 <small>Cần bổ sung</small>
             </div>
         </article>
@@ -120,17 +161,33 @@ ob_start();
                     </thead>
 
                     <tbody>
+                        <?php if (empty($history)): ?>
+                            <tr>
+                                <td colspan="5">Chưa có dữ liệu chấm công.</td>
+                            </tr>
+                        <?php endif; ?>
+
                         <?php foreach ($history as $row): ?>
                             <tr>
-                                <td><?php echo htmlspecialchars($row['date']); ?></td>
-                                <td><strong><?php echo htmlspecialchars($row['checkin']); ?></strong></td>
-                                <td><strong><?php echo htmlspecialchars($row['checkout']); ?></strong></td>
+                                <td><?php echo htmlspecialchars(date('d/m/Y', strtotime($row['work_date']))); ?></td>
+                                <td><strong><?php echo htmlspecialchars(date('H:i', strtotime($row['check_in_time']))); ?></strong></td>
+                                <td><strong><?php echo $row['check_out_time'] ? htmlspecialchars(date('H:i', strtotime($row['check_out_time']))) : '--'; ?></strong></td>
                                 <td>
-                                    <span class="badge badge-<?php echo htmlspecialchars($row['tone']); ?>">
-                                        <?php echo htmlspecialchars($row['status']); ?>
+                                    <?php
+                                        $tone = 'info';
+                                        if ($row['status'] === 'Late') {
+                                            $tone = 'warning';
+                                        } elseif ($row['status'] === 'Present') {
+                                            $tone = 'success';
+                                        } elseif ($row['status'] === 'Absent') {
+                                            $tone = 'danger';
+                                        }
+                                    ?>
+                                    <span class="badge badge-<?php echo htmlspecialchars($tone); ?>">
+                                        <?php echo htmlspecialchars($row['status'] === 'Present' ? 'Đúng giờ' : $row['status']); ?>
                                     </span>
                                 </td>
-                                <td>Ghi nhận từ Web Check-in</td>
+                                <td><?php echo $row['check_out_time'] ? 'Ghi nhận từ Web Check-in' : 'Chưa checkout'; ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>

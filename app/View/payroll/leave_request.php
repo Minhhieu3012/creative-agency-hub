@@ -6,11 +6,45 @@ $activeMenu = 'leave_request';
 $topbarTitle = 'Leave Request';
 $brandName = 'Creative Agency Hub';
 
-$leaveHistory = $leaveHistory ?? [
-    ['title' => 'Nghỉ phép năm', 'date' => '12/10/2026 - 13/10/2026', 'status' => 'Đã duyệt', 'tone' => 'success'],
-    ['title' => 'Nghỉ nửa ngày', 'date' => '05/10/2026', 'status' => 'Đã duyệt', 'tone' => 'success'],
-    ['title' => 'Nghỉ việc cá nhân', 'date' => '25/10/2026', 'status' => 'Chờ duyệt', 'tone' => 'warning'],
-];
+$baseUrl = $baseUrl ?? (function () {
+    $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+    if (strpos($scriptName, '/public/') !== false) {
+        return substr($scriptName, 0, strpos($scriptName, '/public'));
+    }
+    if (strpos($scriptName, '/app/View/') !== false) {
+        return substr($scriptName, 0, strpos($scriptName, '/app/View'));
+    }
+    $dir = dirname($scriptName);
+    return $dir === '/' ? '' : $dir;
+})();
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+require_once __DIR__ . '/../../../config/db_connect.php';
+
+$employeeId = (int) ($_SESSION['user_id'] ?? $_SESSION['employee_id'] ?? 1);
+
+$leaveHistory = [];
+$leaveBalance = ['total' => 12, 'remaining' => 12.0];
+
+try {
+    $stmt = $pdo->prepare("SELECT total_leave_days, remaining_leave_days FROM employees WHERE id = ? LIMIT 1");
+    $stmt->execute([$employeeId]);
+    $balance = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($balance) {
+        $leaveBalance['total'] = (int) $balance['total_leave_days'];
+        $leaveBalance['remaining'] = (float) $balance['remaining_leave_days'];
+    }
+
+    $stmt = $pdo->prepare("SELECT start_date, end_date, reason, status, created_at FROM leave_requests WHERE employee_id = ? ORDER BY created_at DESC LIMIT 10");
+    $stmt->execute([$employeeId]);
+    $leaveHistory = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log('Leave request view DB error: ' . $e->getMessage());
+}
 
 ob_start();
 ?>
@@ -18,7 +52,7 @@ ob_start();
 <?php
 $pageHeading = 'Xin Nghỉ phép';
 $pageSubtitle = 'Gửi đơn nghỉ trực tuyến, theo dõi quỹ phép còn lại và lịch sử phê duyệt.';
-$pageAction = '<a class="btn btn-light" href="/creative-agency-hub/app/View/payroll/manager_approvals.php">Xem phê duyệt</a>';
+$pageAction = '<a class="btn btn-light" href="' . htmlspecialchars($baseUrl) . '/app/View/payroll/manager_approvals.php">Xem phê duyệt</a>';
 require __DIR__ . '/../components/page-header.php';
 ?>
 
@@ -29,12 +63,12 @@ require __DIR__ . '/../components/page-header.php';
                 <h2>Quỹ phép còn lại</h2>
 
                 <div class="leave-balance-number">
-                    <strong>08</strong>
+                    <strong><?php echo htmlspecialchars((string) $leaveBalance['remaining']); ?></strong>
                     <span>ngày</span>
                 </div>
 
                 <p>
-                    Tổng phép năm: 12 ngày • Đã sử dụng: 04 ngày • Đang chờ duyệt: 01 ngày.
+                    Tổng phép năm: <?php echo htmlspecialchars((string) $leaveBalance['total']); ?> ngày • Còn lại: <?php echo htmlspecialchars(number_format($leaveBalance['remaining'], 1)); ?> ngày.
                 </p>
             </div>
 
@@ -51,14 +85,30 @@ require __DIR__ . '/../components/page-header.php';
 
             <div class="card-body">
                 <div class="leave-history">
+                    <?php if (empty($leaveHistory)): ?>
+                        <p>Chưa có yêu cầu nghỉ phép nào.</p>
+                    <?php endif; ?>
+
                     <?php foreach ($leaveHistory as $leave): ?>
                         <div class="leave-history-item">
                             <div>
-                                <h3><?php echo htmlspecialchars($leave['title']); ?></h3>
-                                <p><?php echo htmlspecialchars($leave['date']); ?></p>
+                                <h3>Đơn nghỉ phép</h3>
+                                <p><?php echo htmlspecialchars(date('d/m/Y', strtotime($leave['start_date']))); ?> - <?php echo htmlspecialchars(date('d/m/Y', strtotime($leave['end_date']))); ?></p>
+                                <p><?php echo nl2br(htmlspecialchars($leave['reason'])); ?></p>
                             </div>
 
-                            <span class="badge badge-<?php echo htmlspecialchars($leave['tone']); ?>">
+                            <?php
+                                $tone = 'info';
+                                if ($leave['status'] === 'Approved') {
+                                    $tone = 'success';
+                                } elseif ($leave['status'] === 'Rejected') {
+                                    $tone = 'danger';
+                                } elseif ($leave['status'] === 'Pending') {
+                                    $tone = 'warning';
+                                }
+                            ?>
+
+                            <span class="badge badge-<?php echo htmlspecialchars($tone); ?>">
                                 <?php echo htmlspecialchars($leave['status']); ?>
                             </span>
                         </div>

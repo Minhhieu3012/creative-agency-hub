@@ -6,60 +6,68 @@ $activeMenu = 'payroll';
 $topbarTitle = 'Payroll Summary';
 $brandName = 'Creative Agency Hub';
 
-$rows = $rows ?? [
-    [
-        'name' => 'Nguyễn Văn An',
-        'email' => 'an.nguyen@agency.vn',
-        'department' => 'Ban Giám đốc',
-        'working_days' => 22,
-        'late' => 0,
-        'kpi' => 96,
-        'base' => '38.000.000đ',
-        'net' => '41.200.000đ',
-        'status' => 'Đã tính',
-        'tone' => 'success',
-        'initials' => 'NA',
-    ],
-    [
-        'name' => 'Lê Thị Mai',
-        'email' => 'mai.lt@agency.vn',
-        'department' => 'Kỹ thuật',
-        'working_days' => 21,
-        'late' => 1,
-        'kpi' => 88,
-        'base' => '24.000.000đ',
-        'net' => '25.100.000đ',
-        'status' => 'Đã tính',
-        'tone' => 'success',
-        'initials' => 'LM',
-    ],
-    [
-        'name' => 'Phạm Duy Anh',
-        'email' => 'anh.pd@agency.vn',
-        'department' => 'Design',
-        'working_days' => 20,
-        'late' => 2,
-        'kpi' => 82,
-        'base' => '18.000.000đ',
-        'net' => '18.250.000đ',
-        'status' => 'Chờ duyệt',
-        'tone' => 'warning',
-        'initials' => 'PA',
-    ],
-    [
-        'name' => 'Trần Minh Huy',
-        'email' => 'huy.tm@agency.vn',
-        'department' => 'Marketing',
-        'working_days' => 18,
-        'late' => 3,
-        'kpi' => 76,
-        'base' => '16.000.000đ',
-        'net' => '15.600.000đ',
-        'status' => 'Cần kiểm tra',
-        'tone' => 'danger',
-        'initials' => 'TH',
-    ],
-];
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+require_once __DIR__ . '/../../../config/db_connect.php';
+
+$rows = [];
+
+try {
+    $month = date('m');
+    $year = date('Y');
+
+    $stmt = $pdo->query(
+        "SELECT e.id, e.full_name, e.email, e.role, e.total_leave_days, e.remaining_leave_days, d.name AS department_name, c.salary AS base_salary " .
+        "FROM employees e " .
+        "LEFT JOIN employee_contracts c ON e.id = c.employee_id AND c.status = 'active' " .
+        "LEFT JOIN departments d ON e.department_id = d.id " .
+        "ORDER BY e.full_name ASC"
+    );
+    $employees = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $stmtAtt = $pdo->prepare("SELECT COUNT(*) AS total, SUM(status = 'Late') AS late_count FROM attendances WHERE employee_id = ? AND MONTH(work_date) = ? AND YEAR(work_date) = ?");
+    $stmtKpi = $pdo->prepare("SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND status = 'Done' AND MONTH(updated_at) = ? AND YEAR(updated_at) = ?");
+
+    foreach ($employees as $emp) {
+        $employeeId = (int) $emp['id'];
+        $baseSalary = floatval($emp['base_salary'] ?? 0);
+
+        $stmtAtt->execute([$employeeId, $month, $year]);
+        $attendanceData = $stmtAtt->fetch(PDO::FETCH_ASSOC);
+        $workingDays = (int) ($attendanceData['total'] ?? 0);
+        $lateCount = (int) ($attendanceData['late_count'] ?? 0);
+
+        $stmtKpi->execute([$employeeId, $month, $year]);
+        $completedTasks = (int) $stmtKpi->fetchColumn();
+        $targetTasks = 5;
+        $kpiPercent = $targetTasks > 0 ? round(($completedTasks / $targetTasks) * 100) : 0;
+
+        $standardDays = 24;
+        $salaryPerDay = $standardDays > 0 ? $baseSalary / $standardDays : 0;
+        $actualSalary = $salaryPerDay * $workingDays;
+        $bonus = $kpiPercent > 100 ? $baseSalary * (($kpiPercent - 100) / 100) : 0;
+        $penalty = $lateCount * 50000;
+        $netSalary = max(0, round($actualSalary + $bonus - $penalty));
+
+        $rows[] = [
+            'name' => $emp['full_name'],
+            'email' => $emp['email'],
+            'department' => $emp['department_name'] ?? 'Chưa phân bộ',
+            'working_days' => $workingDays,
+            'late' => $lateCount,
+            'kpi' => $kpiPercent,
+            'base' => number_format($baseSalary, 0, ',', '.') . 'đ',
+            'net' => number_format($netSalary, 0, ',', '.') . 'đ',
+            'status' => $netSalary > 0 ? 'Đã tính' : 'Chờ kiểm tra',
+            'tone' => $netSalary > 0 ? 'success' : 'warning',
+            'initials' => strtoupper(substr($emp['full_name'], 0, 1) . (strpos($emp['full_name'], ' ') !== false ? substr($emp['full_name'], strpos($emp['full_name'], ' ') + 1, 1) : '')),
+        ];
+    }
+} catch (PDOException $e) {
+    error_log('Payroll summary view DB error: ' . $e->getMessage());
+}
 
 ob_start();
 ?>
