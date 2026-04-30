@@ -80,4 +80,17 @@ return [
     ['POST', '/api/tasks/:id/comments', 'Task\\TaskCommentController@store', ['admin','manager','employee','client']],
     ['PATCH', '/api/leaves/:id/approve',   'Payroll\\LeaveController@approve',      ['admin', 'manager']],
 
+    // GIAO DIỆN TRANG TĨNH & AUTH BỔ SUNG
+    // HIỂN THỊ GIAO DIỆN (Clean URLs)
+    ['GET', '/client-portal/forgot-password', 'Auth\\AuthController@showForgotPasswordForm', null],
+    ['GET', '/client-portal/contact',         'Core\\PageController@showContact', null],
+    ['GET', '/privacy',                       'Core\\PageController@showPrivacy', null],
+    ['GET', '/terms',                         'Core\\PageController@showTerms', null],
+    ['GET', '/client-portal/login-client', 'Auth\\AuthController@showClientLoginForm', null],
+
+    // API XỬ LÝ DỮ LIỆU
+    ['POST', '/api/auth/forgot-password', 'Auth\\AuthController@forgotPassword', null],
+    ['POST', '/api/contact/send',          'Core\\PageController@handleContact', null],
+    
+    ['GET', '/forgot-password', 'Auth\\AuthController@showForgotPasswordForm', null],
 ];

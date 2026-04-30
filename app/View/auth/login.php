@@ -30,12 +30,8 @@ ob_start();
 
             <div class="auth-preview-card">
                 <div class="auth-preview-image-frame">
-                    <<<<<<< HEAD <img src="/creative-agency-hub/public/assets/pictures/teampagelogin.jpg"
+                    <img src="<?php echo htmlspecialchars($baseUrl); ?>/public/assets/pictures/teampagelogin.jpg"
                         alt="Creative Agency Hub team workspace">
-                        =======
-                        <img src="<?php echo htmlspecialchars($baseUrl); ?>/public/assets/pictures/teampagelogin.jpg"
-                            alt="Creative Agency Hub team workspace">
-                        >>>>>>> ccc7777a98bedbb44367200728c146105f63c457
                 </div>
             </div>
         </aside>
@@ -57,6 +53,7 @@ ob_start();
                     data-ui-form data-auth-login="true"
                     data-success-message="Đăng nhập thành công. Đang chuyển về Dashboard..."
                     data-redirect="<?php echo htmlspecialchars($viewUrl); ?>/dashboard/index.php">
+                    <input type="hidden" name="portal" value="internal">
                     <div class="form-group">
                         <label class="form-label" for="email">Email</label>
                         <div class="input-with-icon">
@@ -69,7 +66,6 @@ ob_start();
                     <div class="form-group">
                         <label class="form-label" for="password">
                             <span>Mật khẩu</span>
-                            <a href="#">Quên mật khẩu?</a>
                         </label>
 
                         <div class="input-with-icon">
@@ -85,6 +81,9 @@ ob_start();
                     <label class="checkbox-line">
                         <input type="checkbox" name="remember">
                         <span>Ghi nhớ đăng nhập</span>
+                        <a class="form-label-link"
+                            href="<?php echo APP_URL; ?>/client-portal/forgot-password?portal=internal">Quên mật
+                            khẩu?</a>
                     </label>
 
                     <button type="submit" class="btn btn-primary auth-submit">
@@ -102,21 +101,27 @@ ob_start();
                     </button>
 
                     <button class="btn btn-light" type="button" data-disabled-demo>
-                        <span>▦</span>
-                        <span>SSO</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 21 21"
+                            aria-hidden="true">
+                            <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+                            <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+                            <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+                            <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+                        </svg>
+                        <span>Microsoft</span>
                     </button>
                 </div>
 
                 <p class="auth-footer-line">
-                    Chưa có tài khoản? <a href="#" data-disabled-demo>Liên hệ quản trị viên</a>
+                    Chưa có tài khoản? <a href="mailto:admin@company.com">Liên hệ quản trị viên</a>
                 </p>
 
                 <div class="auth-legal">
                     <span>© 2026 Creative Agency Hub</span>
                     <span>
-                        <a href="#" data-disabled-demo>Bảo mật</a>
+                        <a href="<?php echo APP_URL; ?>/privacy">Bảo mật</a>
                         &nbsp;&nbsp;
-                        <a href="#" data-disabled-demo>Điều khoản</a>
+                        <a href="<?php echo APP_URL; ?>/terms">Điều khoản</a>
                     </span>
                 </div>
             </div>

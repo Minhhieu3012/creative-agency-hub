@@ -36,11 +36,10 @@ class AuthController {
         
         $input = $this->getInputData();
 
-        // QUAN TRỌNG: Với Login, không nên dùng Security::escape cho Email 
-        // vì nó có thể làm thay đổi chuỗi tìm kiếm trong Database.
-        // Chỉ dùng trim() để xóa khoảng trắng dư thừa.
         $email    = isset($input['email']) ? trim($input['email']) : '';
         $password = isset($input['password']) ? $input['password'] : '';
+        // Nhận diện xem request đến từ cổng nào (mặc định là rỗng nếu không có)
+        $portal   = isset($input['portal']) ? $input['portal'] : '';
 
         if (empty($email) || empty($password)) {
             http_response_code(400);
@@ -48,15 +47,36 @@ class AuthController {
             return;
         }
 
-        // Tìm user trong DB (Đảm bảo Model User.php đã trỏ vào bảng 'users')
         $user = $this->userModel->findByEmail($email);
 
-        // Kiểm tra mật khẩu
         if ($user && password_verify($password, $user['password'])) {
+            $role = $user['role'];
+
+            // ==========================================
+            // LOGIC KIỂM TRA QUYỀN TRUY CẬP TỪNG PORTAL
+            // ==========================================
+            
+            // 1. Nếu đăng nhập ở cổng Quản trị (internal) nhưng role là client
+            if ($portal === 'internal' && $role === 'client') {
+                http_response_code(403);
+                echo json_encode(["status" => "error", "message" => "Tài khoản khách hàng không thể truy cập cổng quản trị nội bộ."]);
+                return;
+            }
+
+            // 2. Nếu đăng nhập ở cổng Khách hàng (client) nhưng role là nội bộ
+            $internalRoles = ['admin', 'manager', 'employee'];
+            if ($portal === 'client' && in_array($role, $internalRoles)) {
+                http_response_code(403);
+                echo json_encode(["status" => "error", "message" => "Tài khoản nhân sự vui lòng đăng nhập tại cổng quản trị nội bộ."]);
+                return;
+            }
+            // ==========================================
+
+            // Nếu vượt qua bài test phân quyền thì mới cấp Token
             $payload = [
                 'id'    => $user['id'],
                 'email' => $user['email'],
-                'role'  => $user['role']
+                'role'  => $role
             ];
 
             $token = $this->jwt->encode($payload);
@@ -69,14 +89,12 @@ class AuthController {
                     "user"  => [
                         "id"        => $user['id'],
                         "full_name" => $user['full_name'] ?? '',
-                        "role"      => $user['role']
+                        "role"      => $role
                     ]
                 ]
             ]);
         } else {
-            // Log lỗi để bạn kiểm tra trong php_error_log nếu cần
             error_log("Login failed for email: " . $email);
-            
             http_response_code(401);
             echo json_encode(["status" => "error", "message" => "Email hoặc mật khẩu không chính xác"]);
         }
@@ -119,5 +137,34 @@ class AuthController {
             http_response_code(500);
             echo json_encode(["status" => "error", "message" => "Lỗi server"]);
         }
+    }
+
+    /**
+     * Hiển thị giao diện Quên mật khẩu
+     */
+    public function showForgotPasswordForm() {
+    // Nhận diện portal từ URL (mặc định là client nếu không có)
+    $portal = $_GET['portal'] ?? 'client'; 
+    
+    // Truyền biến $portal vào view
+    require BASE_PATH . '/app/View/client-portal/forgot-password.php';
+}
+
+    /**
+     * Xử lý API gửi yêu cầu khôi phục mật khẩu
+     */
+    public function forgotPassword() {
+        header('Content-Type: application/json; charset=utf-8');
+        
+        // Logic thực tế: Kiểm tra email tồn tại -> Tạo token reset -> Gửi email
+        
+        echo json_encode([
+            "status" => "success", 
+            "message" => "Nếu email hợp lệ, hướng dẫn khôi phục sẽ được gửi tới hộp thư của bạn trong giây lát."
+        ]);
+    }
+
+    public function showClientLoginForm() {
+        require BASE_PATH . '/app/View/client-portal/login-client.php';
     }
 }

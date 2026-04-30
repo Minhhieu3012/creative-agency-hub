@@ -24,7 +24,7 @@ ob_start();
             </a>
 
             <div class="client-login-title">
-                <h1>Cổng thông tin<br>Khách hàng</h1>
+                <h1>Cổng thông tin Khách hàng</h1>
                 <p>Theo dõi tiến độ dự án, xem báo cáo và gửi phản hồi trực tiếp tới đội ngũ sáng tạo của chúng tôi.</p>
             </div>
 
@@ -51,7 +51,6 @@ ob_start();
 
                     <div class="form-label-row">
                         <label class="form-label" for="client-password">Mật khẩu</label>
-                        <a class="form-label-link" href="#">Quên mật khẩu?</a>
                     </div>
                     <div class="input-with-icon">
                         <span class="input-icon">▣</span>
@@ -65,6 +64,9 @@ ob_start();
                 <label class="checkbox-line">
                     <input type="checkbox" name="remember">
                     <span>Ghi nhớ đăng nhập</span>
+                    <a class="form-label-link"
+                        href="<?php echo APP_URL; ?>/client-portal/forgot-password?portal=internal">Quên mật
+                        khẩu?</a>
                 </label>
 
                 <button type="submit" class="btn btn-primary auth-submit">
@@ -76,11 +78,11 @@ ob_start();
             <div class="auth-divider">Hoặc tiếp tục với</div>
 
             <div class="auth-social-grid">
-                <button class="btn btn-light" type="button">
+                <button class="btn btn-light" type="button" data-disabled-demo>
                     <span>G</span>
                     <span>Google</span>
                 </button>
-                <button class="btn btn-light" type="button">
+                <button class="btn btn-light" type="button" data-disabled-demo>
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 21 21"
                         aria-hidden="true">
                         <rect x="1" y="1" width="9" height="9" fill="#f25022" />
@@ -93,15 +95,15 @@ ob_start();
             </div>
 
             <p class="auth-footer-line">
-                Chưa có tài khoản? <a href="#">Liên hệ với chúng tôi</a>
+                Chưa có tài khoản? <a href="<?php echo APP_URL; ?>/client-portal/contact">Liên hệ với chúng tôi</a>
             </p>
 
             <div class="auth-legal">
                 <span>© 2026 Creative Agency Hub</span>
                 <span>
-                    <a href="#">Bảo mật</a>
+                    <a href="<?php echo APP_URL; ?>/privacy">Bảo mật</a>
                     &nbsp;&nbsp;
-                    <a href="#">Điều khoản</a>
+                    <a href="<?php echo APP_URL; ?>/terms">Điều khoản</a>
                 </span>
             </div>
         </section>

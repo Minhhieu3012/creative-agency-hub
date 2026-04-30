@@ -1,20 +1,18 @@
 .auth-body {
-    min-height: 100dvh;
-    overflow: hidden;
-    background:
-        radial-gradient(circle at 20% 12%, rgba(34, 199, 160, 0.12), transparent 26%),
-        radial-gradient(circle at 86% 18%, rgba(0, 81, 58, 0.08), transparent 32%),
-        #f4f6f8;
+  min-height: 100dvh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 12%, rgba(34, 199, 160, 0.12), transparent 26%),
+    radial-gradient(circle at 86% 18%, rgba(0, 81, 58, 0.08), transparent 32%), #f4f6f8;
 }
 
 .client-login-body {
-    min-height: 100dvh;
-    overflow: hidden;
-    background: #f4f7fb;
+  min-height: 100dvh;
+  background: #f4f7fb;
 }
 
 .auth-page-shell {
-    min-height: 100dvh;
+  min-height: 100dvh;
 }
 
 /* =========================
@@ -22,216 +20,233 @@
    ========================= */
 
 .auth-split-wrapper {
-    min-height: 100dvh;
-    height: 100dvh;
-    padding: 24px;
-    display: grid;
-    place-items: center;
-    overflow: hidden;
+  min-height: 100dvh;
+  height: 100dvh;
+  padding: 24px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
 }
 
 .auth-split-card {
-    width: min(1440px, calc(100vw - 48px));
-    height: min(800px, calc(100dvh - 48px));
-    min-height: 0;
-    display: grid;
-    grid-template-columns: 1.05fr 0.95fr;
-    overflow: hidden;
-    border-radius: 22px;
-    background: #ffffff;
-    box-shadow: 0 28px 80px rgba(15, 23, 42, 0.14);
+  width: min(1440px, calc(100vw - 48px));
+  height: min(800px, calc(100dvh - 48px));
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  overflow: hidden;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.14);
 }
 
 .auth-hero {
-    position: relative;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    padding: clamp(30px, 3.6vw, 58px);
-    color: #073f30;
-    background:
-        radial-gradient(circle at 95% 0%, rgba(0, 81, 58, 0.12), transparent 22%),
-        radial-gradient(circle at 0% 100%, rgba(255, 255, 255, 0.18), transparent 28%),
-        linear-gradient(135deg, #22c7a0, #1fc69a);
-    overflow: hidden;
+  position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(30px, 3.6vw, 58px);
+  color: #073f30;
+  background:
+    radial-gradient(circle at 95% 0%, rgba(0, 81, 58, 0.12), transparent 22%),
+    radial-gradient(circle at 0% 100%, rgba(255, 255, 255, 0.18), transparent 28%),
+    linear-gradient(135deg, #22c7a0, #1fc69a);
+  overflow: hidden;
 }
 
 .auth-hero-brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 14px;
-    font-weight: 850;
-    font-size: 20px;
-    color: #063829;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-weight: 850;
+  font-size: 20px;
+  color: #063829;
 }
 
 .auth-hero-brand .brand-mark {
-    background: rgba(0, 81, 58, 0.96);
+  background: rgba(0, 81, 58, 0.96);
 }
 
 .auth-hero-copy {
-    margin-top: clamp(30px, 4.4vh, 54px);
-    max-width: 690px;
+  margin-top: clamp(30px, 4.4vh, 54px);
+  max-width: 690px;
 }
 
 .auth-hero-copy h1 {
-    margin: 0;
-    font-size: clamp(38px, 3.85vw, 62px);
-    line-height: 1.02;
-    letter-spacing: -0.075em;
-    color: #003c2b;
+  margin: 0;
+  font-size: clamp(38px, 3.85vw, 62px);
+  line-height: 1.02;
+  letter-spacing: -0.075em;
+  color: #003c2b;
 }
 
 .auth-hero-copy p {
-    margin: 18px 0 0;
-    max-width: 680px;
-    color: rgba(0, 60, 43, 0.78);
-    font-size: 17px;
-    line-height: 1.6;
+  margin: 18px 0 0;
+  max-width: 680px;
+  color: rgba(0, 60, 43, 0.78);
+  font-size: 17px;
+  line-height: 1.6;
 }
 
 /* Team image card - bigger visual */
 .auth-preview-card {
-    position: relative;
-    margin-top: auto;
-    min-height: 0;
-    height: clamp(380px, 46vh, 520px);
-    padding: clamp(18px, 2.2vw, 30px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(255, 255, 255, 0.34);
-    border-radius: 24px;
-    background: rgba(255, 255, 255, 0.22);
-    box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.16),
-        0 24px 54px rgba(0, 81, 58, 0.22);
-    backdrop-filter: blur(16px);
+  position: relative;
+  margin-top: auto;
+  min-height: 0;
+  height: clamp(380px, 46vh, 520px);
+  padding: clamp(18px, 2.2vw, 30px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    0 24px 54px rgba(0, 81, 58, 0.22);
+  backdrop-filter: blur(16px);
 }
 
 .auth-preview-image-frame {
-    width: min(760px, 100%);
-    height: 100%;
-    border-radius: 22px;
-    overflow: hidden;
-    position: relative;
-    display: grid;
-    place-items: center;
-    box-shadow: 0 24px 48px rgba(0, 60, 43, 0.28);
-    background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.20)),
-        rgba(255, 255, 255, 0.30);
+  width: min(760px, 100%);
+  height: 100%;
+  border-radius: 22px;
+  overflow: hidden;
+  position: relative;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 24px 48px rgba(0, 60, 43, 0.28);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.2)), rgba(255, 255, 255, 0.3);
 }
 
 .auth-preview-image-frame img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center center;
-    padding: 0;
-    filter: saturate(0.98) contrast(0.98);
-    transform: scale(1.01);
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  padding: 0;
+  filter: saturate(0.98) contrast(0.98);
+  transform: scale(1.01);
 }
 
 .auth-preview-image-frame::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background:
-        linear-gradient(180deg, rgba(0, 81, 58, 0.02), rgba(0, 81, 58, 0.08)),
-        radial-gradient(circle at 18% 78%, rgba(255, 255, 255, 0.10), transparent 26%);
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(0, 81, 58, 0.02), rgba(0, 81, 58, 0.08)),
+    radial-gradient(circle at 18% 78%, rgba(255, 255, 255, 0.1), transparent 26%);
 }
 
 .auth-form-side {
-    min-height: 0;
-    display: grid;
-    align-content: center;
-    overflow: hidden;
-    padding: clamp(28px, 4vw, 70px) clamp(32px, 6vw, 96px);
+  min-height: 0;
+  display: grid;
+  align-content: center;
+  overflow: hidden;
+  padding: clamp(28px, 4vw, 70px) clamp(32px, 6vw, 96px);
 }
 
 .auth-form-box {
-    width: min(480px, 100%);
-    max-height: 100%;
-    margin: 0 auto;
+  width: min(480px, 100%);
+  max-height: 100%;
+  margin: 0 auto;
 }
 
 .auth-form-title {
-    margin-bottom: 32px;
+  margin-bottom: 32px;
 }
 
 .auth-form-title h2 {
-    margin: 0;
-    color: var(--text);
-    font-size: 30px;
-    letter-spacing: -0.045em;
+  margin: 0;
+  color: var(--text);
+  font-size: 30px;
+  letter-spacing: -0.045em;
 }
 
 .auth-form-title p {
-    margin: 12px 0 0;
-    color: var(--text-soft);
-    font-size: 17px;
-    line-height: 1.65;
+  margin: 12px 0 0;
+  color: var(--text-soft);
+  font-size: 17px;
+  line-height: 1.65;
 }
 
 .auth-submit {
-    width: 100%;
-    height: 58px;
-    margin-top: 12px;
-    font-size: 16px;
+  width: 100%;
+  height: 58px;
+  margin-top: 12px;
+  font-size: 16px;
 }
 
 .auth-divider {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin: 32px 0;
-    color: var(--text-muted);
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 32px 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 800;
 }
 
 .auth-divider::before,
 .auth-divider::after {
-    content: "";
-    flex: 1;
-    height: 1px;
-    background: var(--line);
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
 }
 
 .auth-social-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .auth-footer-line {
-    margin-top: 32px;
-    color: var(--text-soft);
-    text-align: center;
+  margin-top: 24px; /* Tách biệt với khối Social Buttons */
+  margin-bottom: 24px; /* Tạo không gian thở trước khi đến phần Legal */
+  color: var(--text-soft, #64748b);
+  text-align: center;
+  font-size: 14px;
 }
 
 .auth-footer-line a {
-    color: var(--primary);
-    font-weight: 800;
+  color: var(--primary, #00513a);
+  font-weight: 700;
+  text-decoration: none;
+  margin-left: 4px;
 }
 
+.auth-footer-line a:hover {
+  text-decoration: underline;
+}
+
+/* 2. Tối ưu Footer (Bản quyền & Điều khoản) */
 .auth-legal {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    margin-top: 30px;
-    color: #9aa5b5;
-    font-size: 12px;
-    text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: auto; /* Giữ nguyên Safe-Centering từ bước trước */
+  padding-top: 16px; /* Tạo không gian bên trong */
+  border-top: 1px solid #e2e8f0; /* THÊM ĐƯỜNG KẺ MỎNG ĐỂ PHÂN CÁCH RÕ RÀNG */
+  color: #9aa5b5;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em; /* Kéo giãn chữ hoa ra một chút cho sang trọng */
 }
 
 .auth-legal a {
-    font-weight: 700;
+  color: #9aa5b5;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.auth-legal a:hover {
+  color: var(--primary, #00513a); /* Đổi màu khi hover */
 }
 
 /* =========================
@@ -239,147 +254,166 @@
    ========================= */
 
 .client-login-wrapper {
-    min-height: 100dvh;
-    height: 100dvh;
-    padding: 24px;
-    display: grid;
-    place-items: center;
-    overflow: hidden;
+  min-height: 100dvh;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .client-login-card {
-    width: min(1440px, calc(100vw - 48px));
-    height: min(800px, calc(100dvh - 48px));
-    min-height: 0;
-    display: grid;
-    grid-template-columns: 0.98fr 1.02fr;
-    overflow: hidden;
-    border-radius: 22px;
-    background: #ffffff;
-    box-shadow: 0 28px 80px rgba(15, 23, 42, 0.12);
+  width: min(1440px, calc(100vw - 48px));
+  min-height: 650px; /* Đảm bảo form không bị ép nát */
+  height: clamp(650px, calc(100dvh - 48px), 800px); /* Dùng clamp thay cho min() */
+  display: grid;
+  grid-template-columns: 0.98fr 1.02fr;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.12);
+  overflow: hidden; /* Giữ lại để bo góc cho hình ảnh bên phải */
 }
 
 .client-login-form {
-    position: relative;
-    min-height: 0;
-    display: grid;
-    align-content: center;
-    overflow: hidden;
-    padding: clamp(34px, 5vw, 70px);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(20px, 3vh, 50px) clamp(34px, 5vw, 70px);
+  overflow-y: auto;
 }
 
+/* Đảm bảo thẻ bọc là flexbox và chiếm toàn bộ chiều ngang */
+.checkbox-line {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* Đẩy thẻ link sát sang lề phải */
+.checkbox-line .form-label-link {
+  margin-left: auto;
+  font-size: 14px; /* Có thể tuỳ chỉnh kích thước cho phù hợp */
+  font-weight: 600;
+  color: var(--primary, #00513a); /* Màu sắc đồng bộ với theme của bạn */
+  text-decoration: none;
+}
+
+.checkbox-line .form-label-link:hover {
+  text-decoration: underline;
+}
+
+/* 2. Xử lý Logo: Thu hẹp khoảng cách với khối Title bên dưới */
 .client-login-brand {
-    position: static;
-    display: inline-flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: clamp(34px, 7vh, 72px);
-    color: var(--primary);
-    font-size: 24px;
-    font-weight: 850;
-    letter-spacing: -0.04em;
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 0; /* Bỏ margin-top: auto của bước trước */
+  margin-bottom: clamp(20px, 4vh, 40px); /* Giảm margin-bottom để tiết kiệm không gian */
+  color: var(--primary);
+  font-size: 24px;
+  font-weight: 850;
+  letter-spacing: -0.04em;
 }
 
 .client-login-title h1 {
-    margin: 0;
-    font-size: clamp(36px, 4vw, 54px);
-    line-height: 1.06;
-    letter-spacing: -0.065em;
-    color: var(--text);
+  margin: 0;
+  font-size: clamp(36px, 4vw, 54px);
+  line-height: 1.06;
+  letter-spacing: -0.065em;
+  color: var(--text);
 }
 
 .client-login-title p {
-    margin: 14px 0 34px;
-    max-width: 520px;
-    color: var(--text-soft);
-    font-size: 17px;
-    line-height: 1.75;
+  margin: 14px 0 34px;
+  max-width: 520px;
+  color: var(--text-soft);
+  font-size: 17px;
+  line-height: 1.75;
 }
 
 .client-login-visual {
-    position: relative;
-    min-height: 0;
-    overflow: hidden;
-    background: #003c2b;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .client-login-visual-image {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center center;
-    filter: saturate(0.9) contrast(0.96);
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  filter: saturate(0.9) contrast(0.96);
 }
 
 .client-login-visual::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    background:
-        linear-gradient(180deg, rgba(0, 81, 58, 0.12), rgba(0, 60, 43, 0.76)),
-        radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.32), transparent 28%);
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(0, 81, 58, 0.12), rgba(0, 60, 43, 0.76)),
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.32), transparent 28%);
 }
 
 .client-glass-panel {
-    position: absolute;
-    left: 54px;
-    right: 54px;
-    bottom: 58px;
-    z-index: 2;
-    padding: 34px;
-    border-radius: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.26);
-    background: rgba(0, 60, 43, 0.38);
-    backdrop-filter: blur(18px);
-    color: #ffffff;
-    box-shadow: 0 24px 60px rgba(0, 60, 43, 0.28);
+  position: absolute;
+  left: 54px;
+  right: 54px;
+  bottom: 58px;
+  z-index: 2;
+  padding: 34px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  background: rgba(0, 60, 43, 0.38);
+  backdrop-filter: blur(18px);
+  color: #ffffff;
+  box-shadow: 0 24px 60px rgba(0, 60, 43, 0.28);
 }
 
 .client-glass-panel h2 {
-    margin: 16px 0 12px;
-    font-size: clamp(30px, 3.4vw, 44px);
-    letter-spacing: -0.06em;
-    line-height: 1.1;
+  margin: 16px 0 12px;
+  font-size: clamp(30px, 3.4vw, 44px);
+  letter-spacing: -0.06em;
+  line-height: 1.1;
 }
 
 .client-glass-panel p {
-    margin: 0;
-    color: rgba(255, 255, 255, 0.84);
-    line-height: 1.7;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.84);
+  line-height: 1.7;
 }
 
 .client-trust-line {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    color: rgba(255, 255, 255, 0.86);
-    font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.86);
+  font-weight: 800;
 }
 
 .client-trust-line .brand-mark {
-    background: rgba(0, 81, 58, 0.92);
+  background: rgba(0, 81, 58, 0.92);
 }
 
 .client-pill-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 26px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
 }
 
 .client-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 42px;
-    padding: 0 14px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.18);
-    color: #ffffff;
-    font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-weight: 700;
 }
 
 /* =========================
@@ -387,19 +421,19 @@
    ========================= */
 
 .password-eye {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    width: 36px;
-    height: 36px;
-    transform: translateY(-50%);
-    border-radius: 10px;
-    color: #5f6f84;
-    background: transparent;
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 36px;
+  height: 36px;
+  transform: translateY(-50%);
+  border-radius: 10px;
+  color: #5f6f84;
+  background: transparent;
 }
 
 .password-eye:hover {
-    background: rgba(0, 81, 58, 0.08);
+  background: rgba(0, 81, 58, 0.08);
 }
 
 /* =========================
@@ -407,71 +441,152 @@
    ========================= */
 
 @media (max-height: 820px) and (min-width: 1181px) {
-    .auth-split-wrapper,
-    .client-login-wrapper {
-        padding: 18px;
-    }
+  .auth-split-wrapper,
+  .client-login-wrapper {
+    padding: 18px;
+  }
 
-    .auth-split-card,
-    .client-login-card {
-        width: min(1380px, calc(100vw - 36px));
-        height: calc(100dvh - 36px);
-    }
+  .auth-split-card,
+  .client-login-card {
+    width: min(1380px, calc(100vw - 36px));
+    height: calc(100dvh - 36px);
+  }
 
-    .auth-hero {
-        padding: 30px 52px;
-    }
+  .auth-hero {
+    padding: 30px 52px;
+  }
 
-    .auth-hero-copy {
-        margin-top: 28px;
-    }
+  .auth-hero-copy {
+    margin-top: 28px;
+  }
 
-    .auth-hero-copy h1 {
-        font-size: clamp(36px, 3.5vw, 54px);
-    }
+  .auth-hero-copy h1 {
+    font-size: clamp(36px, 3.5vw, 54px);
+  }
 
-    .auth-hero-copy p {
-        margin-top: 14px;
-        font-size: 16px;
-        line-height: 1.55;
-    }
+  .auth-hero-copy p {
+    margin-top: 14px;
+    font-size: 16px;
+    line-height: 1.55;
+  }
 
-    .auth-preview-card {
-        height: clamp(330px, 44vh, 430px);
-        padding: 22px;
-    }
+  .auth-preview-card {
+    height: clamp(330px, 44vh, 430px);
+    padding: 22px;
+  }
 
-    .auth-form-title {
-        margin-bottom: 22px;
-    }
+  .auth-form-title {
+    margin-bottom: 22px;
+  }
 
-    .form-group {
-        margin-bottom: 13px;
-    }
+  .form-group {
+    margin-bottom: 13px;
+  }
 
-    .auth-divider {
-        margin: 22px 0;
-    }
+  .auth-divider {
+    margin: 22px 0;
+  }
 
-    .auth-footer-line {
-        margin-top: 22px;
-    }
+  .auth-footer-line {
+    margin-top: 22px;
+  }
 
-    .auth-legal {
-        margin-top: 22px;
-    }
+  .auth-legal {
+    margin-top: 22px;
+  }
 
-    .client-login-brand {
-        margin-bottom: 40px;
-    }
+  .client-login-brand {
+    margin-bottom: 40px;
+  }
 
-    .client-login-title p {
-        margin-bottom: 24px;
-    }
+  .client-login-title p {
+    margin-bottom: 24px;
+  }
 
-    .client-glass-panel {
-        bottom: 36px;
-    }
+  .client-glass-panel {
+    bottom: 36px;
+  }
+
+  .client-login-form {
+    padding: 24px 44px; /* Thu hẹp padding của khung */
+  }
+
+  /* Kỹ thuật Safe Centering: Đẩy logo xuống giữa NẾU dư chỗ, sát đỉnh NẾU thiếu chỗ */
+  .client-login-brand {
+    margin-top: auto;
+    margin-bottom: 12px; /* Ép khoảng cách dưới */
+    font-size: 20px;
+  }
+
+  .client-login-title h1 {
+    font-size: 32px;
+  }
+
+  .client-login-title p {
+    margin: 8px 0 16px; /* Ép khoảng cách đoạn văn */
+    font-size: 14.5px;
+    line-height: 1.5;
+  }
+
+  .auth-submit {
+    height: 48px; /* Giảm nhẹ chiều cao nút bấm */
+  }
+
+  .auth-divider {
+    margin: 16px 0; /* Ép khoảng cách của đường kẻ "Hoặc tiếp tục với" */
+  }
+
+  .auth-footer-line {
+    margin-top: 16px;
+    font-size: 13px;
+  }
+
+  /* Kỹ thuật Safe Centering: Đẩy footer lên trên NẾU thiếu chỗ */
+  .auth-legal {
+    margin-top: 8px;
+    margin-bottom: auto;
+  }
+}
+
+/* =========================
+   SINGLE COLUMN & DOCUMENT PAGES
+   ========================= */
+
+/* Dành cho thẻ Card chứa Form nhỏ (Quên mật khẩu) */
+.client-single-card {
+  display: block !important; /* Tắt chế độ 2 cột của Grid */
+  width: 100% !important;
+  max-width: 520px;
+  height: auto !important; /* Cho phép chiều cao co giãn theo nội dung */
+  min-height: 0 !important;
+  padding: clamp(30px, 4vw, 40px);
+  margin: 0 auto;
+}
+
+/* Dành cho thẻ Card chứa Văn bản dài (Điều khoản, Bảo mật) */
+.client-document-card {
+  display: block !important;
+  width: 100% !important;
+  max-width: 860px; /* Rộng hơn để dễ đọc chữ */
+  height: auto !important;
+  min-height: 0 !important;
+  padding: clamp(30px, 5vw, 60px);
+  margin: 0 auto;
+}
+
+/* Đẩy card văn bản lên trên thay vì căn giữa màn hình */
+.client-document-wrapper {
+  align-items: flex-start !important;
+  padding-top: 40px !important;
+  padding-bottom: 40px !important;
+  height: auto !important;
+}
+
+/* Reset lại padding bên trong form cho các trang này */
+.form-reset-padding {
+  padding: 0 !important;
+  justify-content: flex-start !important;
+  overflow: visible !important;
 }
 
 /* =========================
@@ -479,106 +594,106 @@
    ========================= */
 
 @media (max-width: 1180px) {
-    .auth-body,
-    .client-login-body {
-        overflow: auto;
-    }
+  .auth-body,
+  .client-login-body {
+    overflow: auto;
+  }
 
-    .auth-split-wrapper,
-    .client-login-wrapper {
-        min-height: 100dvh;
-        height: auto;
-        padding: 22px;
-        overflow: visible;
-    }
+  .auth-split-wrapper,
+  .client-login-wrapper {
+    min-height: 100dvh;
+    height: auto;
+    padding: 22px;
+    overflow: visible;
+  }
 
-    .auth-split-card,
-    .client-login-card {
-        width: min(760px, 100%);
-        height: auto;
-        min-height: auto;
-        grid-template-columns: 1fr;
-    }
+  .auth-split-card,
+  .client-login-card {
+    width: min(760px, 100%);
+    height: auto;
+    min-height: auto;
+    grid-template-columns: 1fr;
+  }
 
-    .auth-hero,
-    .client-login-visual {
-        display: none;
-    }
+  .auth-hero,
+  .client-login-visual {
+    display: none;
+  }
 
-    .auth-form-side,
-    .client-login-form {
-        padding: 44px 34px;
-    }
+  .auth-form-side,
+  .client-login-form {
+    padding: 44px 34px;
+  }
 
-    .client-login-brand {
-        margin-bottom: 36px;
-    }
+  .client-login-brand {
+    margin-bottom: 36px;
+  }
 }
 
 @media (max-width: 640px) {
-    .auth-split-wrapper,
-    .client-login-wrapper {
-        padding: 12px;
-        place-items: start center;
-    }
+  .auth-split-wrapper,
+  .client-login-wrapper {
+    padding: 12px;
+    place-items: start center;
+  }
 
-    .auth-split-card,
-    .client-login-card {
-        width: 100%;
-        border-radius: 18px;
-        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.12);
-    }
+  .auth-split-card,
+  .client-login-card {
+    width: 100%;
+    border-radius: 18px;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.12);
+  }
 
-    .auth-form-side,
-    .client-login-form {
-        padding: 28px 20px;
-    }
+  .auth-form-side,
+  .client-login-form {
+    padding: 28px 20px;
+  }
 
-    .auth-form-title h2,
-    .client-login-title h1 {
-        font-size: 30px;
-        line-height: 1.12;
-    }
+  .auth-form-title h2,
+  .client-login-title h1 {
+    font-size: 30px;
+    line-height: 1.12;
+  }
 
-    .auth-form-title p,
-    .client-login-title p {
-        font-size: 15px;
-    }
+  .auth-form-title p,
+  .client-login-title p {
+    font-size: 15px;
+  }
 
-    .form-control,
-    .form-select,
-    .form-textarea {
-        min-height: 48px;
-    }
+  .form-control,
+  .form-select,
+  .form-textarea {
+    min-height: 48px;
+  }
 
-    .auth-submit {
-        height: 52px;
-    }
+  .auth-submit {
+    height: 52px;
+  }
 
-    .auth-social-grid {
-        grid-template-columns: 1fr;
-    }
+  .auth-social-grid {
+    grid-template-columns: 1fr;
+  }
 
-    .auth-legal {
-        display: grid;
-        justify-items: center;
-        text-align: center;
-        gap: 8px;
-    }
+  .auth-legal {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+    gap: 8px;
+  }
 }
 
 @media (max-width: 390px) {
-    .auth-form-side,
-    .client-login-form {
-        padding: 24px 16px;
-    }
+  .auth-form-side,
+  .client-login-form {
+    padding: 24px 16px;
+  }
 
-    .brand-mark {
-        width: 38px;
-        height: 38px;
-    }
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+  }
 
-    .client-login-brand {
-        font-size: 20px;
-    }
+  .client-login-brand {
+    font-size: 20px;
+  }
 }
