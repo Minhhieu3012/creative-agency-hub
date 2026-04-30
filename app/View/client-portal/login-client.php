@@ -1,4 +1,5 @@
-<?php
+<!-- Trang số 2 -->
+ <?php
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -12,17 +13,53 @@ if (isset($_SESSION['token']) || isset($_SESSION['client_id'])) {
 $error = '';
 $email = '';
 
-// Tạm thời giữ lại luồng xử lý lỗi của ông, ông nhớ điều chỉnh phần gọi API cho đúng sau nhé.
+// Xử lý form POST: gọi API backend /api/auth/login (JSON)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'], $_POST['password'])) {
     $email = trim($_POST['email']);
     $password = $_POST['password'];
-    
+
     if (empty($email) || empty($password)) {
         $error = 'Vui lòng nhập email và mật khẩu';
     } else {
-        // Form này sẽ POST về auth-client.php của đồ án để xử lý
-        header("Location: auth-client.php");
-        exit;
+        $apiUrl = 'http://localhost/creative-agency-hub/public/api/auth/login';
+        $payload = json_encode([
+            'email' => $email,
+            'password' => $password
+        ]);
+
+        $opts = [
+            'http' => [
+                'method' => 'POST',
+                'header' => "Content-Type: application/json\r\n",
+                'content' => $payload,
+                'timeout' => 10
+            ]
+        ];
+
+        $context = stream_context_create($opts);
+        $response = @file_get_contents($apiUrl, false, $context);
+
+        if ($response === false) {
+            $error = 'Lỗi kết nối đến server. Vui lòng thử lại sau.';
+        } else {
+            $data = json_decode($response, true);
+            if (isset($data['status']) && $data['status'] === 'success' && isset($data['data']['token'])) {
+                // Lưu token và thông tin user vào session
+                $_SESSION['token'] = $data['data']['token'];
+                $_SESSION['client_name'] = $data['data']['user']['full_name'] ?? $data['data']['user']['full_name'] ?? 'Khách hàng';
+                $_SESSION['client_id'] = $data['data']['user']['id'] ?? null;
+
+                // Nếu người dùng chọn "remember", đặt cookie ngắn (tùy ý)
+                if (!empty($_POST['remember'])) {
+                    setcookie('cah_remember', $_SESSION['token'], time() + (30 * 24 * 60 * 60), '/');
+                }
+
+                header('Location: projects.php');
+                exit;
+            } else {
+                $error = $data['message'] ?? 'Đăng nhập thất bại. Kiểm tra email và mật khẩu.';
+            }
+        }
     }
 }
 ?>
@@ -101,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'], $_POST['pass
             <?php endif; ?>
             
             <!-- Form Action -->
-            <form action="auth-client.php" method="POST" class="space-y-6">
+            <form action="" method="POST" class="space-y-6">
                 <div class="space-y-2">
                     <label class="font-label-bold text-sm font-semibold text-on-surface-variant block" for="email">Email liên hệ</label>
                     <div class="relative">
@@ -135,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'], $_POST['pass
             <!-- ĐÃ BỎ PHẦN ĐĂNG NHẬP NỘI BỘ, CHỈ CÒN ĐĂNG KÝ -->
             <div class="mt-8 pt-8 border-t border-surface-container-highest flex flex-col gap-4 text-center">
                 <p class="font-body-sm text-on-surface-variant bg-surface-container-low p-4 rounded-lg border border-outline-variant/30">
-                    Chưa có tài khoản ? <br>
+                    Chưa có tài khoản đối tác? <br>
                     <a class="text-primary font-label-bold font-bold hover:underline inline-block mt-1" href="register-client.php">Đăng ký tài khoản mới</a>
                 </p>
             </div>
