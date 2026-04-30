@@ -5,6 +5,9 @@ $pageJs = ['forms.js'];
 $brandName = 'Creative Agency Hub';
 $bodyClass = 'client-login-body';
 
+$baseUrl = $baseUrl ?? '/creative-agency-hub';
+$viewUrl = $viewUrl ?? ($baseUrl . '/app/View');
+
 $error = $error ?? null;
 
 ob_start();
@@ -13,7 +16,7 @@ ob_start();
 <section class="client-login-wrapper">
     <div class="client-login-card">
         <section class="client-login-form">
-            <a href="/creative-agency-hub/app/View/client-portal/login-client.php" class="client-login-brand">
+            <a href="<?php echo htmlspecialchars($viewUrl); ?>/client-portal/login-client.php" class="client-login-brand">
                 <span class="brand-mark">CA</span>
                 <span>Creative Agency Hub</span>
             </a>
@@ -34,11 +37,11 @@ ob_start();
 
             <form
                 method="POST"
-                action="/api/client/login"
+                action="<?php echo htmlspecialchars($baseUrl); ?>/public/api/auth/login"
                 data-ui-form
-                data-mock-submit="true"
+                data-auth-login="true"
                 data-success-message="Đăng nhập Client Portal thành công."
-                data-redirect="/client/projects"
+                data-redirect="<?php echo htmlspecialchars($viewUrl); ?>/client-portal/projects.php"
             >
                 <div class="form-group">
                     <label class="form-label" for="client_email">Địa chỉ Email</label>
@@ -59,7 +62,7 @@ ob_start();
                 <div class="form-group">
                     <label class="form-label" for="client_password">
                         <span>Mật khẩu</span>
-                        <a href="#">Quên mật khẩu?</a>
+                        <a href="#" data-disabled-demo>Quên mật khẩu?</a>
                     </label>
 
                     <div class="input-with-icon">
@@ -96,15 +99,15 @@ ob_start();
 
             <p class="auth-footer-line">
                 Bạn gặp sự cố khi truy cập?
-                <a href="#">Liên hệ hỗ trợ kỹ thuật</a>
+                <a href="#" data-disabled-demo>Liên hệ hỗ trợ kỹ thuật</a>
             </p>
 
             <div class="auth-legal">
                 <span>© 2026 Creative Agency Hub</span>
                 <span>
-                    <a href="#">Quy định bảo mật</a>
+                    <a href="#" data-disabled-demo>Quy định bảo mật</a>
                     &nbsp;&nbsp;
-                    <a href="#">Điều khoản sử dụng</a>
+                    <a href="#" data-disabled-demo>Điều khoản sử dụng</a>
                 </span>
             </div>
         </section>
@@ -112,7 +115,7 @@ ob_start();
         <aside class="client-login-visual">
             <img
                 class="client-login-visual-image"
-                src="/creative-agency-hub/public/assets/pictures/customerpagelogin.jpg"
+                src="<?php echo htmlspecialchars($baseUrl); ?>/public/assets/pictures/customerpagelogin.jpg"
                 alt="Client collaboration portal"
             >
 
