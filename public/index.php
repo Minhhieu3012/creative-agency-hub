@@ -65,7 +65,9 @@ header('Content-Type: application/json; charset=utf-8');
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
 
-$base = '/creative-agency-hub/public';
+$scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+$base = dirname($scriptName);
+$base = $base === '/' ? '' : $base;
 
 $path = str_replace($base, '', $uri);
 

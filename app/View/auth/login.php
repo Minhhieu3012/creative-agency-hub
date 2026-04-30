@@ -28,7 +28,7 @@ ob_start();
             <div class="auth-preview-card">
                 <div class="auth-preview-image-frame">
                     <img
-                        src="/creative-agency-hub/public/assets/pictures/teampagelogin.jpg"
+                        src="<?php echo $baseUrl; ?>/public/assets/pictures/teampagelogin.jpg"
                         alt="Creative Agency Hub team workspace"
                     >
                 </div>
@@ -50,11 +50,11 @@ ob_start();
 
                 <form
                     method="POST"
-                    action="/api/auth/login"
+                    action="<?php echo $baseUrl; ?>/public/api/auth/login"
                     data-ui-form
                     data-mock-submit="true"
                     data-success-message="Đăng nhập thành công. Đang chuyển về Dashboard..."
-                    data-redirect="/dashboard"
+                    data-redirect="<?php echo $baseUrl; ?>/app/View/dashboard/index.php"
                 >
                     <div class="form-group">
                         <label class="form-label" for="email">Email</label>

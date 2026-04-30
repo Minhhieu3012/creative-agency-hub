@@ -15,7 +15,20 @@ $brandName = $brandName ?? 'Creative Agency Hub';
 | thì đổi thành:
 | $baseUrl = '';
 */
-$baseUrl = $baseUrl ?? '/creative-agency-hub';
+$baseUrl = $baseUrl ?? (function () {
+    $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+
+    if (strpos($scriptName, '/public/') !== false) {
+        return substr($scriptName, 0, strpos($scriptName, '/public'));
+    }
+
+    if (strpos($scriptName, '/app/View/') !== false) {
+        return substr($scriptName, 0, strpos($scriptName, '/app/View'));
+    }
+
+    $dir = dirname($scriptName);
+    return $dir === '/' ? '' : $dir;
+})();
 $assetUrl = $baseUrl . '/public/assets';
 ?>
 <meta charset="UTF-8">
