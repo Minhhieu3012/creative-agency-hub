@@ -5,10 +5,20 @@
     if (!board) return;
 
     const STATUS_TO_COLUMN = {
-        "To do": "todo",
-        "Doing": "doing",
-        "Review": "review",
-        "Done": "done"
+        "to do": "todo",
+        "todo": "todo",
+        "cần làm": "todo",
+
+        "doing": "doing",
+        "in_progress": "doing",
+        "đang thực hiện": "doing",
+
+        "review": "review",
+        "đang kiểm tra": "review",
+
+        "done": "done",
+        "completed": "done",
+        "hoàn thành": "done"
     };
 
     const COLUMN_TO_STATUS = {
@@ -28,11 +38,19 @@
     const PRIORITY_TONE = {
         Low: "info",
         Medium: "primary",
-        High: "danger"
+        High: "danger",
+        low: "info",
+        medium: "primary",
+        high: "danger"
     };
+
+    const DEFAULT_PROJECT_ID = 1;
+    const DEFAULT_ASSIGNEE_ID = 2;
+    const DEFAULT_WATCHER_ID = 1;
 
     let draggedCard = null;
     let previousDropState = null;
+    let latestTasks = [];
 
     function escapeHtml(value) {
         return window.CAHApp?.escapeHtml
@@ -40,12 +58,74 @@
             : String(value || "");
     }
 
+    function toNumberOrNull(value) {
+        if (value === undefined || value === null || value === "") return null;
+
+        const number = Number(value);
+        return Number.isFinite(number) && number > 0 ? number : null;
+    }
+
+    function normalizeStatus(status) {
+        const key = String(status || "To do").trim().toLowerCase();
+        return STATUS_TO_COLUMN[key] ? getStatusByColumn(STATUS_TO_COLUMN[key]) : "To do";
+    }
+
     function getColumnByStatus(status) {
-        return STATUS_TO_COLUMN[status] || "todo";
+        const key = String(status || "To do").trim().toLowerCase();
+        return STATUS_TO_COLUMN[key] || "todo";
     }
 
     function getStatusByColumn(column) {
         return COLUMN_TO_STATUS[column] || "To do";
+    }
+
+    function getSelectedProjectId() {
+        const selectors = [
+            "[data-project-filter]",
+            "[name='project_id_filter']",
+            "[name='project_id']",
+            "[data-task-project-id]"
+        ];
+
+        for (const selector of selectors) {
+            const element = document.querySelector(selector);
+            if (!element) continue;
+
+            const value = element.dataset.taskProjectId || element.value;
+            const number = toNumberOrNull(value);
+
+            if (number) return number;
+        }
+
+        const projectSelects = Array.from(document.querySelectorAll("select"));
+        for (const select of projectSelects) {
+            const text = String(select.options?.[select.selectedIndex]?.textContent || "").toLowerCase();
+
+            if (text.includes("nexus") || text.includes("project") || text.includes("dự án")) {
+                const number = toNumberOrNull(select.value);
+                if (number) return number;
+            }
+        }
+
+        return DEFAULT_PROJECT_ID;
+    }
+
+    function getCurrentUserId() {
+        const user = window.CAHAuth?.getUser?.();
+
+        return toNumberOrNull(user?.id)
+            || toNumberOrNull(user?.employee_id)
+            || DEFAULT_WATCHER_ID;
+    }
+
+    function getFallbackAssigneeId() {
+        const user = window.CAHAuth?.getUser?.();
+
+        if (user?.role === "employee") {
+            return getCurrentUserId();
+        }
+
+        return DEFAULT_ASSIGNEE_ID;
     }
 
     function updateColumnCounts() {
@@ -86,17 +166,20 @@
     }
 
     function normalizeTask(task) {
+        const normalizedStatus = normalizeStatus(task?.status);
+
         return {
-            id: task.id,
-            title: task.title || "Chưa có tiêu đề",
-            description: task.description || "Chưa có mô tả.",
-            status: task.status || "To do",
-            priority: task.priority || "Medium",
-            deadline: task.deadline || "",
-            assignee_id: task.assignee_id || "",
-            assigner_id: task.assigner_id || "",
-            watcher_id: task.watcher_id || "",
-            project_id: task.project_id || ""
+            id: task?.id,
+            title: task?.title || "Chưa có tiêu đề",
+            description: task?.description || "Chưa có mô tả.",
+            status: normalizedStatus,
+            priority: task?.priority || "Medium",
+            deadline: task?.deadline || "",
+            assignee_id: task?.assignee_id || "",
+            assignee_name: task?.assignee_name || "",
+            assigner_id: task?.assigner_id || "",
+            watcher_id: task?.watcher_id || "",
+            project_id: task?.project_id || ""
         };
     }
 
@@ -117,10 +200,13 @@
                 data-status="${escapeHtml(columnKey)}"
                 data-title="${escapeHtml(task.title)}"
                 data-description="${escapeHtml(task.description)}"
+                data-project-id="${escapeHtml(task.project_id)}"
+                data-assignee-id="${escapeHtml(task.assignee_id)}"
+                data-watcher-id="${escapeHtml(task.watcher_id)}"
             >
                 <div class="task-card-top">
                     <span class="badge badge-${escapeHtml(priorityTone)}">
-                        ${escapeHtml(task.priority)}
+                        ${escapeHtml(String(task.priority).toUpperCase())}
                     </span>
 
                     <button class="kanban-column-menu" type="button">⋮</button>
@@ -160,7 +246,9 @@
     function renderTasks(tasks) {
         clearBoard();
 
-        if (!Array.isArray(tasks) || tasks.length === 0) {
+        latestTasks = Array.isArray(tasks) ? tasks.map(normalizeTask) : [];
+
+        if (latestTasks.length === 0) {
             const todoList = document.querySelector('[data-kanban-column][data-status="todo"] [data-kanban-list]');
 
             if (todoList) {
@@ -179,16 +267,31 @@
             return;
         }
 
-        tasks.forEach((task) => {
-            const normalized = normalizeTask(task);
-            const columnKey = getColumnByStatus(normalized.status);
+        latestTasks.forEach((task) => {
+            const columnKey = getColumnByStatus(task.status);
             const list = document.querySelector(`[data-kanban-column][data-status="${columnKey}"] [data-kanban-list]`);
 
             if (list) {
-                list.insertAdjacentHTML("beforeend", renderTaskCard(normalized));
+                list.insertAdjacentHTML("beforeend", renderTaskCard(task));
             }
         });
 
+        updateColumnCounts();
+    }
+
+    function appendTaskToBoard(task) {
+        const normalized = normalizeTask(task);
+        const columnKey = getColumnByStatus(normalized.status);
+        const list = document.querySelector(`[data-kanban-column][data-status="${columnKey}"] [data-kanban-list]`);
+
+        if (!list) return;
+
+        const emptyState = list.querySelector(".ui-empty-state");
+        if (emptyState) {
+            emptyState.remove();
+        }
+
+        list.insertAdjacentHTML("afterbegin", renderTaskCard(normalized));
         updateColumnCounts();
     }
 
@@ -218,49 +321,95 @@
         if (!window.CAHModal) return;
 
         const isCreate = mode === "create";
+        const task = taskData ? normalizeTask(taskData) : null;
+        const selectedProjectId = getSelectedProjectId();
+        const fallbackAssigneeId = getFallbackAssigneeId();
+        const fallbackWatcherId = getCurrentUserId();
+
         const title = isCreate ? "Tạo công việc mới" : "Chi tiết công việc";
         const subtitle = isCreate
-            ? "Task sẽ được gửi đến API /api/tasks nếu bạn đã đăng nhập."
-            : "Xem nhanh thông tin task và cập nhật giao diện.";
+            ? "Task sẽ được lưu vào database và tự đồng bộ lại Kanban."
+            : "Xem nhanh thông tin task và trạng thái hiện tại.";
 
         const body = `
-            <form class="task-modal-form" data-task-create-form>
+            <form class="task-modal-form" data-task-create-form="${isCreate ? "true" : "false"}">
                 <div class="form-group">
                     <label class="form-label">Tên công việc</label>
-                    <input class="form-control" type="text" name="title" value="${escapeHtml(taskData?.title || "")}" placeholder="Nhập tên công việc" required>
+                    <input
+                        class="form-control"
+                        type="text"
+                        name="title"
+                        value="${escapeHtml(task?.title || "")}"
+                        placeholder="Nhập tên công việc"
+                        ${isCreate ? "required" : "readonly"}
+                    >
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Độ ưu tiên</label>
-                        <select class="form-select" name="priority">
-                            <option value="Low">Thấp</option>
-                            <option value="Medium" selected>Trung bình</option>
-                            <option value="High">Cao</option>
+                        <select class="form-select" name="priority" ${isCreate ? "" : "disabled"}>
+                            <option value="Low" ${task?.priority === "Low" ? "selected" : ""}>Thấp</option>
+                            <option value="Medium" ${!task || task?.priority === "Medium" ? "selected" : ""}>Trung bình</option>
+                            <option value="High" ${task?.priority === "High" ? "selected" : ""}>Cao</option>
                         </select>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Deadline</label>
-                        <input class="form-control" type="date" name="deadline" required>
+                        <input
+                            class="form-control"
+                            type="date"
+                            name="deadline"
+                            value="${escapeHtml(task?.deadline || "")}"
+                            ${isCreate ? "required" : "readonly"}
+                        >
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Project ID</label>
-                        <input class="form-control" type="number" name="project_id" placeholder="Có thể để trống">
+                        <input
+                            class="form-control"
+                            type="number"
+                            name="project_id"
+                            value="${escapeHtml(task?.project_id || selectedProjectId)}"
+                            min="1"
+                        >
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Assignee ID</label>
-                        <input class="form-control" type="number" name="assignee_id" placeholder="Có thể để trống">
+                        <input
+                            class="form-control"
+                            type="number"
+                            name="assignee_id"
+                            value="${escapeHtml(task?.assignee_id || fallbackAssigneeId)}"
+                            min="1"
+                        >
                     </div>
                 </div>
 
                 <div class="form-group">
+                    <label class="form-label">Watcher ID</label>
+                    <input
+                        class="form-control"
+                        type="number"
+                        name="watcher_id"
+                        value="${escapeHtml(task?.watcher_id || fallbackWatcherId)}"
+                        min="1"
+                    >
+                </div>
+
+                <div class="form-group">
                     <label class="form-label">Mô tả</label>
-                    <textarea class="form-textarea" name="description" placeholder="Mô tả ngắn về công việc">${escapeHtml(taskData?.description || "")}</textarea>
+                    <textarea
+                        class="form-textarea"
+                        name="description"
+                        placeholder="Mô tả ngắn về công việc"
+                        ${isCreate ? "" : "readonly"}
+                    >${escapeHtml(task?.description || "")}</textarea>
                 </div>
 
                 <div class="task-modal-footer">
@@ -292,6 +441,8 @@
             if (window.CAHToast) {
                 CAHToast.success("Đã cập nhật", `Task đã chuyển sang trạng thái ${STATUS_LABELS[newColumnKey]}.`);
             }
+
+            await loadTasksFromApi();
         } catch (error) {
             if (previousDropState?.list && previousDropState?.nextSibling !== undefined) {
                 previousDropState.list.insertBefore(card, previousDropState.nextSibling);
@@ -310,28 +461,38 @@
         }
 
         const data = window.CAHApp?.formToObject ? CAHApp.formToObject(form) : {};
+
         const payload = {
             title: data.title,
             description: data.description || "",
             priority: data.priority || "Medium",
             deadline: data.deadline,
-            project_id: data.project_id || null,
-            assignee_id: data.assignee_id || null,
-            watcher_id: data.watcher_id || null
+            project_id: toNumberOrNull(data.project_id) || getSelectedProjectId(),
+            assignee_id: toNumberOrNull(data.assignee_id) || getFallbackAssigneeId(),
+            watcher_id: toNumberOrNull(data.watcher_id) || getCurrentUserId()
         };
 
         try {
-            await CAHApi.post("/api/tasks", payload, {
+            const response = await CAHApi.post("/api/tasks", payload, {
                 loading: true,
                 loadingMessage: "Đang tạo task mới..."
             });
 
-            if (window.CAHToast) {
-                CAHToast.success("Tạo task thành công", "Task mới đã được lưu vào database.");
-            }
+            const createdTask = response?.data?.task || response?.data || {
+                id: response?.data?.id,
+                ...payload,
+                status: "To do",
+                assigner_id: getCurrentUserId()
+            };
 
             if (window.CAHModal) {
                 CAHModal.close();
+            }
+
+            appendTaskToBoard(createdTask);
+
+            if (window.CAHToast) {
+                CAHToast.success("Tạo task thành công", "Task mới đã hiển thị trên Kanban.");
             }
 
             await loadTasksFromApi();
@@ -416,15 +577,23 @@
         }
 
         if (card && !event.target.closest("button")) {
-            openTaskModal("view", {
+            const taskId = card.dataset.taskId;
+            const task = latestTasks.find((item) => String(item.id) === String(taskId));
+
+            openTaskModal("view", task || {
+                id: taskId,
                 title: card.dataset.title || "",
-                description: card.dataset.description || ""
+                description: card.dataset.description || "",
+                project_id: card.dataset.projectId || "",
+                assignee_id: card.dataset.assigneeId || "",
+                watcher_id: card.dataset.watcherId || "",
+                status: getStatusByColumn(card.dataset.status || "todo")
             });
         }
     });
 
     document.addEventListener("submit", function (event) {
-        const form = event.target.closest("[data-task-create-form]");
+        const form = event.target.closest("[data-task-create-form='true']");
         if (!form) return;
 
         event.preventDefault();
