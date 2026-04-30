@@ -1,10 +1,59 @@
+@media (max-width: 1280px) {
+    .stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .project-grid,
+    .client-project-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dashboard-grid,
+    .payroll-grid,
+    .client-detail-layout,
+    .org-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-side-column {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 @media (max-width: 1180px) {
     :root {
         --sidebar-width: 250px;
     }
 
-    .stat-grid {
+    .page-header {
+        display: grid;
+        gap: 18px;
+    }
+
+    .page-header-action {
+        justify-content: flex-start;
+    }
+
+    .hrm-profile-hero,
+    .hrm-two-column,
+    .attendance-hero,
+    .client-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-actions {
+        min-width: 0;
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .kanban-board {
+        grid-template-columns: repeat(4, minmax(290px, 1fr));
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+    }
+
+    .kanban-column {
+        scroll-snap-align: start;
     }
 }
 
@@ -68,13 +117,76 @@
         padding: 24px 18px;
     }
 
-    .page-header {
+    .card-header,
+    .card-body {
+        padding: 22px;
+    }
+
+    .modal-root {
+        padding: 14px;
+    }
+
+    .modal-header {
+        padding: 24px 22px 16px;
+    }
+
+    .modal-body {
+        padding: 22px;
+    }
+
+    .client-shell {
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .client-topbar {
+        position: relative;
         display: grid;
+        grid-template-columns: 1fr;
+        justify-items: start;
+        gap: 16px;
+        padding: 22px;
+    }
+
+    .client-nav {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-radius: 18px;
+    }
+
+    .client-nav-link {
+        justify-content: center;
+        padding: 0 10px;
+    }
+
+    .client-user {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .client-content {
+        width: min(100% - 28px, 1240px);
+        padding: 24px 0 42px;
+    }
+
+    .client-hero {
+        padding: 28px 22px;
+        border-radius: 22px;
+    }
+
+    .client-hero h1 {
+        font-size: 38px;
     }
 }
 
-@media (max-width: 720px) {
-    .stat-grid {
+@media (max-width: 760px) {
+    .stat-grid,
+    .project-grid,
+    .client-project-grid,
+    .dashboard-side-column,
+    .payroll-two-column,
+    .info-grid,
+    .document-grid {
         grid-template-columns: 1fr;
     }
 
@@ -90,27 +202,222 @@
         margin-left: auto;
     }
 
-    .card-header,
-    .card-body {
-        padding: 20px;
+    .topbar-title {
+        max-width: 160px;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    .modal-root {
-        padding: 14px;
+    .page-header h1 {
+        font-size: 32px;
     }
 
-    .modal-header {
-        padding: 24px 22px 16px;
+    .page-header p {
+        font-size: 15px;
     }
 
-    .modal-body {
+    .page-header-action,
+    .task-top-actions,
+    .task-filter-bar,
+    .payroll-filter,
+    .toolbar,
+    .toolbar-filter-group,
+    .client-filter-row,
+    .approval-actions,
+    .attendance-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .page-header-action .btn,
+    .task-top-actions .btn,
+    .task-filter-bar .btn,
+    .task-filter-bar .form-select,
+    .task-filter-bar .form-control,
+    .payroll-filter .btn,
+    .payroll-filter .form-select,
+    .payroll-filter .form-control,
+    .toolbar .btn,
+    .toolbar-filter-group .form-select,
+    .toolbar-search,
+    .client-filter-row .btn,
+    .client-filter-row .form-select,
+    .client-filter-row .form-control,
+    .approval-actions .btn,
+    .attendance-actions .btn {
+        width: 100%;
+    }
+
+    .kanban-view-switch,
+    .approval-tabs {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .approval-tabs {
+        grid-template-columns: 1fr;
+    }
+
+    .kanban-view-switch a,
+    .kanban-view-switch button,
+    .approval-tab {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .kanban-board {
+        grid-template-columns: repeat(4, minmax(280px, 280px));
+        gap: 16px;
+        margin-left: -4px;
+        margin-right: -4px;
+        padding: 0 4px 10px;
+    }
+
+    .kanban-column {
+        min-height: 560px;
+    }
+
+    .task-card {
+        padding: 16px;
+    }
+
+    .gantt-table,
+    .data-table,
+    .payroll-summary-table {
+        min-width: 860px;
+    }
+
+    .table-responsive,
+    .gantt-table-wrap {
+        border-radius: 18px;
+    }
+
+    .profile-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .hrm-profile-hero {
+        padding: 26px 22px;
+    }
+
+    .profile-avatar-large {
+        width: 112px;
+        height: 112px;
+        border-radius: 22px;
+    }
+
+    .profile-main-info h1 {
+        font-size: 32px;
+    }
+
+    .attendance-hero {
+        padding: 26px 20px;
+        min-height: auto;
+    }
+
+    .attendance-copy h1 {
+        font-size: 38px;
+    }
+
+    .attendance-clock-card {
         padding: 22px;
+    }
+
+    .attendance-clock strong {
+        font-size: 48px;
+    }
+
+    .approval-card {
+        grid-template-columns: 1fr;
+    }
+
+    .client-progress-big {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        text-align: center;
+    }
+
+    .client-task-item {
+        grid-template-columns: 1fr;
+    }
+
+    .client-section-header {
+        display: grid;
+    }
+
+    .client-project-footer {
+        display: grid;
+    }
+
+    .client-project-footer .btn {
+        width: 100%;
+    }
+
+    .auth-social-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .toast-stack {
+        right: 14px;
+        bottom: 14px;
     }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 560px) {
     .app-content {
         padding: 18px 14px;
+    }
+
+    .app-topbar {
+        gap: 10px;
+        padding: 0 12px;
+    }
+
+    .topbar-title {
+        max-width: 120px;
+        font-size: 13px;
+    }
+
+    .topbar-actions {
+        gap: 6px;
+    }
+
+    .icon-btn {
+        width: 38px;
+        height: 38px;
+    }
+
+    .user-avatar {
+        width: 38px;
+        height: 38px;
+    }
+
+    .brand-mark {
+        width: 38px;
+        height: 38px;
+    }
+
+    .brand-text strong {
+        font-size: 18px;
+    }
+
+    .brand-text small {
+        font-size: 10px;
+    }
+
+    .sidebar-header {
+        padding: 18px 14px 14px;
+    }
+
+    .sidebar-nav {
+        padding: 14px;
+    }
+
+    .sidebar-footer {
+        padding: 14px;
     }
 
     .btn {
@@ -118,11 +425,119 @@
         padding: 0 14px;
     }
 
-    .page-header h1 {
+    .card {
+        border-radius: 18px;
+    }
+
+    .card-header,
+    .card-body {
+        padding: 18px;
+    }
+
+    .stat-card {
+        min-height: 140px;
+        padding: 20px;
+    }
+
+    .stat-card-body strong {
+        font-size: 34px;
+    }
+
+    .section-title {
+        font-size: 22px;
+    }
+
+    .client-brand {
+        font-size: 18px;
+    }
+
+    .client-topbar {
+        padding: 18px 14px;
+    }
+
+    .client-nav {
+        gap: 4px;
+        padding: 4px;
+    }
+
+    .client-nav-link {
+        min-height: 38px;
+        font-size: 13px;
+    }
+
+    .client-hero {
+        padding: 24px 18px;
+    }
+
+    .client-hero h1 {
+        font-size: 32px;
+    }
+
+    .client-hero p {
+        font-size: 15px;
+    }
+
+    .client-hero-panel {
+        padding: 18px;
+    }
+
+    .client-hero-panel-row {
+        display: grid;
+    }
+
+    .client-hero-panel-row strong {
+        text-align: left;
+    }
+
+    .client-project-card,
+    .project-card {
+        min-height: auto;
+        padding: 20px;
+        border-radius: 20px;
+    }
+
+    .client-project-stats,
+    .project-stat-row {
+        grid-template-columns: 1fr;
+    }
+
+    .client-progress-circle {
+        width: 132px;
+        height: 132px;
+    }
+
+    .client-progress-circle strong {
         font-size: 30px;
     }
 
-    .page-header p {
-        font-size: 15px;
+    .modal-panel {
+        border-radius: 20px;
+    }
+
+    .toast {
+        width: calc(100vw - 28px);
+    }
+}
+
+@media (max-width: 390px) {
+    .app-content {
+        padding: 14px 10px;
+    }
+
+    .page-header h1 {
+        font-size: 28px;
+    }
+
+    .client-content {
+        width: min(100% - 20px, 1240px);
+    }
+
+    .client-nav-link {
+        font-size: 12px;
+    }
+
+    .auth-form-side,
+    .client-login-form {
+        padding: 24px 16px;
     }
 }

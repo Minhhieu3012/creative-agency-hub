@@ -6,7 +6,8 @@ $bodyClass = $bodyClass ?? 'auth-body';
 $brandName = $brandName ?? 'Creative Agency Hub';
 
 $baseUrl = $baseUrl ?? '/creative-agency-hub';
-$assetUrl = $baseUrl . '/public/assets';
+$assetUrl = $assetUrl ?? ($baseUrl . '/public/assets');
+$viewUrl = $viewUrl ?? ($baseUrl . '/app/View');
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -18,13 +19,13 @@ $assetUrl = $baseUrl . '/public/assets';
         <?php echo $content ?? ''; ?>
     </main>
 
-    <script src="<?php echo $assetUrl; ?>/js/app.js"></script>
-    <script src="<?php echo $assetUrl; ?>/js/toast.js"></script>
-    <script src="<?php echo $assetUrl; ?>/js/forms.js"></script>
+    <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/app.js"></script>
+    <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/toast.js"></script>
+    <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/forms.js"></script>
 
     <?php foreach ($pageJs as $js): ?>
         <?php if ($js !== 'forms.js'): ?>
-            <script src="<?php echo $assetUrl; ?>/js/<?php echo htmlspecialchars($js); ?>"></script>
+            <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/<?php echo htmlspecialchars($js); ?>"></script>
         <?php endif; ?>
     <?php endforeach; ?>
 </body>
