@@ -2,14 +2,107 @@
 namespace App\Controllers\HRM;
 
 use App\Models\HRM\Employee;
+use App\Middleware\AuthMiddleware;
 use PDO;
 use Exception;
 
 class EmployeeController {
     private $employeeModel;
 
-    public function __construct(PDO $db) {
-        $this->employeeModel = new Employee($db);
+    public function __construct() {
+        $this->employeeModel = new \App\Models\HRM\Employee();
+    }
+    public function store() {
+        try {
+            $authUser = AuthMiddleware::check();
+            $input = json_decode(file_get_contents('php://input'), true);
+
+            // =========================
+            // VALIDATE INPUT
+            // =========================
+            $required = ['full_name', 'email', 'password', 'department_id', 'position_id', 'role'];
+
+            foreach ($required as $field) {
+                if (empty($input[$field])) {
+                    throw new \Exception("Thiếu trường: $field");
+                }
+            }
+
+            if (!filter_var($input['email'], FILTER_VALIDATE_EMAIL)) {
+                throw new \Exception("Email không hợp lệ");
+            }
+
+            if (strlen($input['password']) < 6) {
+                throw new \Exception("Mật khẩu tối thiểu 6 ký tự");
+            }
+
+            // =========================
+            // VALIDATE ROLE
+            // =========================
+            $allowedRoles = ['admin', 'manager', 'employee', 'client'];
+
+            if (!in_array($input['role'], $allowedRoles)) {
+                throw new \Exception("Role không hợp lệ");
+            }
+
+            // =========================
+            // PHÂN QUYỀN
+            // =========================
+
+            // ❌ employee không được tạo
+            if ($authUser['role'] === 'employee') {
+                throw new \Exception("Bạn không có quyền tạo user");
+            }
+
+            // ❌ manager chỉ tạo employee
+            if ($authUser['role'] === 'manager' && $input['role'] !== 'employee') {
+                throw new \Exception("Manager chỉ được tạo employee");
+            }
+
+            // ❌ chỉ admin tạo admin
+            if ($input['role'] === 'admin' && $authUser['role'] !== 'admin') {
+                throw new \Exception("Chỉ admin mới được tạo admin");
+            }
+
+            // =========================
+            // CHECK EMAIL TRÙNG
+            // =========================
+            if ($this->employeeModel->findByEmail($input['email'])) {
+                throw new \Exception("Email đã tồn tại");
+            }
+
+            // =========================
+            // TẠO USER
+            // =========================
+            $employee_code = 'EMP' . time();
+
+            $id = $this->employeeModel->create([
+                'department_id' => $input['department_id'],
+                'position_id'   => $input['position_id'],
+                'manager_id'    => $input['manager_id'] ?? null,
+                'employee_code' => $employee_code,
+                'full_name'     => $input['full_name'],
+                'email'         => $input['email'],
+                'password'      => password_hash($input['password'], PASSWORD_BCRYPT),
+                'role'          => $input['role'],
+                'phone'         => $input['phone'] ?? null,
+                'status'        => 'active',
+                'hire_date'     => date('Y-m-d')
+            ]);
+
+            echo json_encode([
+                "status" => "success",
+                "message" => "Tạo user thành công",
+                "data" => ["id" => $id]
+            ]);
+
+        } catch (\Exception $e) {
+            http_response_code(400);
+            echo json_encode([
+                "status" => "error",
+                "message" => $e->getMessage()
+            ]);
+        }
     }
 
     /**

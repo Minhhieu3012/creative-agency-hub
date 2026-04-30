@@ -11,35 +11,54 @@ class User {
         $this->db = Database::getConnection();
     }
 
-    // Tìm người dùng theo Email - Sửa từ 'employees' thành 'users'
+    // =========================
+    // FIND BY EMAIL
+    // =========================
     public function findByEmail($email) {
-        // Bảng 'users' bạn tạo ở image_e53b18.png không có deleted_at
-        $sql = "SELECT * FROM users WHERE email = :email AND status = 'active' LIMIT 1";
+        $sql = "SELECT * FROM employees 
+                WHERE email = :email 
+                AND status = 'active' 
+                LIMIT 1";
+
         $stmt = $this->db->prepare($sql);
         $stmt->execute(['email' => $email]);
-        return $stmt->fetch();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    // Tìm người dùng theo ID
+    // =========================
+    // FIND BY ID
+    // =========================
     public function findById($id) {
-        $sql = "SELECT id, full_name, email, role FROM users WHERE id = :id LIMIT 1";
+        $sql = "SELECT id, full_name, email, role 
+                FROM employees 
+                WHERE id = :id 
+                LIMIT 1";
+
         $stmt = $this->db->prepare($sql);
         $stmt->execute(['id' => $id]);
-        return $stmt->fetch();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    // Đăng ký (Nếu cần dùng)
+    // =========================
+    // CREATE (REGISTER CLIENT)
+    // =========================
     public function create($data) {
-        $sql = "INSERT INTO users (full_name, email, password, role, status) 
-                VALUES (:full_name, :email, :password, :role, :status)";
+
+        $sql = "INSERT INTO employees 
+            (department_id, position_id, employee_code, full_name, email, password, role, status, hire_date)
+            VALUES 
+            (:department_id, :position_id, :employee_code, :full_name, :email, :password, :role, 'active', CURDATE())";
 
         $stmt = $this->db->prepare($sql);
+
         $stmt->execute([
-            'full_name' => $data['full_name'],
-            'email'     => $data['email'],
-            'password'  => password_hash($data['password'], PASSWORD_BCRYPT),
-            'role'      => $data['role'] ?? 'client',
-            'status'    => 'active'
+            'department_id' => 1, // ⚠️ default tạm
+            'position_id'   => 1, // ⚠️ default tạm
+            'employee_code' => 'CL' . time(), // auto code
+            'full_name'     => $data['full_name'],
+            'email'         => $data['email'],
+            'password'      => password_hash($data['password'], PASSWORD_BCRYPT),
+            'role'          => $data['role'] ?? 'client'
         ]);
 
         return $this->db->lastInsertId();

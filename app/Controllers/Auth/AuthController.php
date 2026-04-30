@@ -120,4 +120,161 @@ class AuthController {
             echo json_encode(["status" => "error", "message" => "Lỗi server"]);
         }
     }
+
+    public function loginInternal() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $input = $this->getInputData();
+
+        $email    = trim($input['email'] ?? '');
+        $password = $input['password'] ?? '';
+
+        if (empty($email) || empty($password)) {
+            http_response_code(400);
+            echo json_encode(["status"=>"error","message"=>"Thiếu email hoặc password"]);
+            return;
+        }
+
+        $user = $this->userModel->findByEmail($email);
+
+        if (!$user || !password_verify($password, $user['password'])) {
+            http_response_code(401);
+            echo json_encode(["status"=>"error","message"=>"Sai tài khoản hoặc mật khẩu"]);
+            return;
+        }
+
+        // ❌ CHẶN CLIENT
+        if ($user['role'] === 'client') {
+            http_response_code(403);
+            echo json_encode(["status"=>"error","message"=>"Vui lòng đăng nhập ở trang Client"]);
+            return;
+        }
+
+        // ❌ CHẶN ACCOUNT BỊ KHÓA
+        if ($user['status'] !== 'active') {
+            http_response_code(403);
+            echo json_encode(["status"=>"error","message"=>"Tài khoản bị khóa"]);
+            return;
+        }
+
+        $token = $this->jwt->encode([
+            'id' => $user['id'],
+            'role' => $user['role'],
+            'email' => $user['email']
+        ]);
+
+        echo json_encode([
+            "status"=>"success",
+            "message"=>"Đăng nhập thành công",
+            "data"=>[
+                "token"=>$token,
+                "user"=>[
+                    "id"=>$user['id'],
+                    "full_name"=>$user['full_name'],
+                    "role"=>$user['role']
+                ]
+            ]
+        ]);
+    }
+    public function loginClient() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $input = $this->getInputData();
+
+        $email    = trim($input['email'] ?? '');
+        $password = $input['password'] ?? '';
+
+        if (empty($email) || empty($password)) {
+            http_response_code(400);
+            echo json_encode(["status"=>"error","message"=>"Thiếu email hoặc password"]);
+            return;
+        }
+
+        $user = $this->userModel->findByEmail($email);
+
+        if (!$user || !password_verify($password, $user['password'])) {
+            http_response_code(401);
+            echo json_encode(["status"=>"error","message"=>"Sai tài khoản hoặc mật khẩu"]);
+            return;
+        }
+
+        // ❌ CHỈ CHO CLIENT
+        if ($user['role'] !== 'client') {
+            http_response_code(403);
+            echo json_encode(["status"=>"error","message"=>"Bạn không phải client"]);
+            return;
+        }
+
+        if ($user['status'] !== 'active') {
+            http_response_code(403);
+            echo json_encode(["status"=>"error","message"=>"Tài khoản bị khóa"]);
+            return;
+        }
+
+        $token = $this->jwt->encode([
+            'id' => $user['id'],
+            'role' => $user['role'],
+            'email' => $user['email']
+        ]);
+
+        echo json_encode([
+            "status"=>"success",
+            "message"=>"Đăng nhập client thành công",
+            "data"=>[
+                "token"=>$token,
+                "user"=>[
+                    "id"=>$user['id'],
+                    "full_name"=>$user['full_name'],
+                    "role"=>$user['role']
+                ]
+            ]
+        ]);
+    }
+    public function registerClient() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $input = $this->getInputData();
+
+        $fullName = trim($input['full_name'] ?? '');
+        $email    = trim($input['email'] ?? '');
+        $password = $input['password'] ?? '';
+
+        // VALIDATE
+        if (empty($fullName) || empty($email) || empty($password)) {
+            http_response_code(400);
+            echo json_encode(["status"=>"error","message"=>"Thiếu thông tin"]);
+            return;
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            http_response_code(400);
+            echo json_encode(["status"=>"error","message"=>"Email không hợp lệ"]);
+            return;
+        }
+
+        if (strlen($password) < 6) {
+            http_response_code(400);
+            echo json_encode(["status"=>"error","message"=>"Mật khẩu tối thiểu 6 ký tự"]);
+            return;
+        }
+
+        if ($this->userModel->findByEmail($email)) {
+            http_response_code(409);
+            echo json_encode(["status"=>"error","message"=>"Email đã tồn tại"]);
+            return;
+        }
+
+        $id = $this->userModel->create([
+            'full_name'=>$fullName,
+            'email'=>$email,
+            'password'=>$password,
+            'role'=>'client'
+        ]);
+
+        echo json_encode([
+            "status"=>"success",
+            "message"=>"Đăng ký client thành công",
+            "data"=>["id"=>$id]
+        ]);
+    }
 }

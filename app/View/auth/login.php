@@ -53,7 +53,7 @@ ob_start();
 
                 <form
                     method="POST"
-                    action="<?php echo htmlspecialchars($baseUrl); ?>/public/api/auth/login"
+                    action="<?php echo htmlspecialchars($baseUrl); ?>/public/api/auth/login-internal"
                     data-ui-form
                     data-auth-login="true"
                     data-success-message="Đăng nhập thành công. Đang chuyển về Dashboard..."

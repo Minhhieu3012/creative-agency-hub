@@ -10,11 +10,15 @@
 return [
 
     // AUTH (Public)
-    ['POST', '/api/auth/login',    'Auth\\AuthController@login',    null],
-    ['POST', '/api/auth/register', 'Auth\\AuthController@register', null],
+    // ['POST', '/api/auth/login',    'Auth\\AuthController@login',    null],
+    // ['POST', '/api/auth/register', 'Auth\\AuthController@register', null],
 
-    // AUTH (Private)
-    ['GET', '/api/auth/me', 'Auth\\AuthController@me', ['admin', 'manager', 'employee', 'client']],
+    // // AUTH (Private)
+    // ['GET', '/api/auth/me', 'Auth\\AuthController@me', ['admin', 'manager', 'employee', 'client']],
+
+    ['POST', '/api/auth/login-internal', 'Auth\\AuthController@loginInternal', null],
+    ['POST', '/api/auth/login-client',   'Auth\\AuthController@loginClient', null],
+    ['POST', '/api/auth/register-client','Auth\\AuthController@registerClient', null],
 
     // HRM 
     ['GET',    '/api/employees',             'HRM\\EmployeeController@index',        ['admin', 'manager']],

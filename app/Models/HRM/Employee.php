@@ -2,13 +2,20 @@
 namespace App\Models\HRM;
 
 use PDO;
+use Core\Database;
 use Exception;
 
 class Employee {
     private $db;
 
-    public function __construct(PDO $dbConnection) {
-        $this->db = $dbConnection;
+    public function __construct() {
+        $this->db = Database::getConnection();
+    }
+
+    public function findByEmail($email) {
+        $stmt = $this->db->prepare("SELECT * FROM employees WHERE email = ?");
+        $stmt->execute([$email]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     /**
@@ -180,5 +187,59 @@ class Employee {
             $this->db->rollBack();
             throw $e;
         }
+    }
+    public function create($data) {
+        $sql = "INSERT INTO employees (
+            department_id,
+            position_id,
+            manager_id,
+            employee_code,
+            full_name,
+            email,
+            password,
+            role,
+            phone,
+            gender,
+            date_of_birth,
+            address,
+            hire_date,
+            status
+        ) VALUES (
+            :department_id,
+            :position_id,
+            :manager_id,
+            :employee_code,
+            :full_name,
+            :email,
+            :password,
+            :role,
+            :phone,
+            :gender,
+            :date_of_birth,
+            :address,
+            :hire_date,
+            :status
+        )";
+
+        $stmt = $this->db->prepare($sql);
+
+        $stmt->execute([
+            ':department_id'  => $data['department_id'],
+            ':position_id'    => $data['position_id'],
+            ':manager_id'     => $data['manager_id'] ?? null,
+            ':employee_code'  => $data['employee_code'],
+            ':full_name'      => $data['full_name'],
+            ':email'          => $data['email'],
+            ':password'       => password_hash($data['password'], PASSWORD_BCRYPT),
+            ':role'           => $data['role'] ?? 'employee',
+            ':phone'          => $data['phone'] ?? null,
+            ':gender'         => $data['gender'] ?? null,
+            ':date_of_birth'  => $data['date_of_birth'] ?? null,
+            ':address'        => $data['address'] ?? null,
+            ':hire_date'      => $data['hire_date'],
+            ':status'         => $data['status'] ?? 'active'
+        ]);
+
+        return $this->db->lastInsertId();
     }
 }
