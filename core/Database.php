@@ -10,11 +10,12 @@ class Database {
     private $connection;
 
     private function __construct() {
-        $host = $_ENV['DB_HOST'] ?? 'localhost';
-        $port = $_ENV['DB_PORT'] ?? '3306';
-        $db   = $_ENV['DB_DATABASE'] ?? 'creative_agency';
-        $user = $_ENV['DB_USERNAME'] ?? 'root';
-        $pass = $_ENV['DB_PASSWORD'] ?? '';
+        // Ưu tiên đọc từ $_ENV, nếu không có thì dùng getenv
+        $host = $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: 'localhost';
+        $port = $_ENV['DB_PORT'] ?? getenv('DB_PORT') ?: '3306';
+        $db   = $_ENV['DB_DATABASE'] ?? getenv('DB_DATABASE') ?: 'creative_agency';
+        $user = $_ENV['DB_USERNAME'] ?? getenv('DB_USERNAME') ?: 'root';
+        $pass = $_ENV['DB_PASSWORD'] ?? getenv('DB_PASSWORD') ?: '';
 
         $dsn = "mysql:host=$host;port=$port;dbname=$db;charset=utf8mb4";
 
@@ -30,9 +31,10 @@ class Database {
             error_log("DB Connection Error: " . $e->getMessage());
 
             http_response_code(500);
+            header('Content-Type: application/json; charset=utf-8');
             die(json_encode([
                 "status" => "error",
-                "message" => "Database connection failed"
+                "message" => "Database connection failed: " . $e->getMessage()
             ]));
         }
     }
