@@ -51,6 +51,7 @@
     let draggedCard = null;
     let previousDropState = null;
     let latestTasks = [];
+    let taskMetaCounts = new Map();
 
     injectActionStyles();
 
@@ -210,10 +211,6 @@
         return role === "admin" || role === "manager";
     }
 
-    function isEmployee() {
-        return String(getCurrentUser()?.role || "").toLowerCase() === "employee";
-    }
-
     function renderTaskCard(rawTask) {
         const task = normalizeTask(rawTask);
         const columnKey = getColumnByStatus(task.status);
@@ -222,6 +219,7 @@
         const deadlineText = task.deadline ? `Deadline: ${escapeHtml(task.deadline)}` : "Chưa có deadline";
         const initials = escapeHtml(getInitials(task));
         const doneClass = columnKey === "done" ? " is-completed" : "";
+        const counts = taskMetaCounts.get(String(task.id)) || { comments: 0, attachments: 0 };
 
         return `
             <article
@@ -267,7 +265,13 @@
                     </div>
 
                     <div class="task-card-meta-group">
-                        ${columnKey === "done" ? "<span>✓ Done</span>" : "<span>▣ 0</span><span>□ 0</span>"}
+                        ${columnKey === "done"
+                            ? "<span>✓ Done</span>"
+                            : `
+                                <span data-task-comment-count="${escapeHtml(task.id)}">💬 ${counts.comments}</span>
+                                <span data-task-attachment-count="${escapeHtml(task.id)}">📎 ${counts.attachments}</span>
+                            `
+                        }
                     </div>
                 </div>
             </article>
@@ -314,6 +318,7 @@
         });
 
         updateColumnCounts();
+        hydrateCardMetaCounts();
     }
 
     function findTaskById(taskId) {
@@ -359,7 +364,45 @@
         }
     }
 
-    function taskFormBody(mode, taskData) {
+    async function hydrateCardMetaCounts() {
+        if (!window.CAHApi || !window.CAHAuth?.isLoggedIn()) return;
+
+        const tasksToHydrate = latestTasks.slice(0, 30);
+
+        await Promise.allSettled(tasksToHydrate.map(async (task) => {
+            if (!task.id) return;
+
+            const [commentsResponse, attachmentsResponse] = await Promise.allSettled([
+                CAHApi.get(`/api/tasks/${task.id}/comments`, { loading: false }),
+                CAHApi.get(`/api/tasks/${task.id}/attachments`, { loading: false })
+            ]);
+
+            const comments = commentsResponse.status === "fulfilled" && Array.isArray(commentsResponse.value?.data)
+                ? commentsResponse.value.data
+                : [];
+
+            const attachments = attachmentsResponse.status === "fulfilled" && Array.isArray(attachmentsResponse.value?.data)
+                ? attachmentsResponse.value.data
+                : [];
+
+            taskMetaCounts.set(String(task.id), {
+                comments: comments.length,
+                attachments: attachments.length
+            });
+
+            const safeId = typeof CSS !== "undefined" && CSS.escape
+                ? CSS.escape(String(task.id))
+                : String(task.id).replace(/"/g, '\\"');
+
+            const commentEl = document.querySelector(`[data-task-comment-count="${safeId}"]`);
+            const attachmentEl = document.querySelector(`[data-task-attachment-count="${safeId}"]`);
+
+            if (commentEl) commentEl.textContent = `💬 ${comments.length}`;
+            if (attachmentEl) attachmentEl.textContent = `📎 ${attachments.length}`;
+        }));
+    }
+
+    function taskInfoForm(mode, taskData) {
         const isCreate = mode === "create";
         const isEdit = mode === "edit";
         const canEdit = isCreate || isEdit;
@@ -480,6 +523,82 @@
         `;
     }
 
+    function taskDetailBody(mode, taskData) {
+        const isCreate = mode === "create";
+        const task = taskData ? normalizeTask(taskData) : null;
+
+        if (isCreate) {
+            return taskInfoForm(mode, taskData);
+        }
+
+        return `
+            <div class="task-detail-shell" data-task-detail-shell data-task-id="${escapeHtml(task?.id || "")}">
+                <div class="task-detail-tabs">
+                    <button class="is-active" type="button" data-task-tab="info">Thông tin</button>
+                    <button type="button" data-task-tab="comments">Bình luận <span data-detail-comment-count>0</span></button>
+                    <button type="button" data-task-tab="attachments">Tệp <span data-detail-attachment-count>0</span></button>
+                    <button type="button" data-task-tab="activity">Hoạt động</button>
+                </div>
+
+                <div class="task-detail-panel is-active" data-task-panel="info">
+                    ${taskInfoForm(mode, taskData)}
+                </div>
+
+                <div class="task-detail-panel" data-task-panel="comments">
+                    <div class="task-comments-box">
+                        <div data-task-comments-list class="task-comments-list">
+                            ${renderLoadingState("Đang tải bình luận...")}
+                        </div>
+
+                        <form class="task-comment-form" data-task-comment-form data-task-id="${escapeHtml(task?.id || "")}">
+                            <textarea class="form-textarea" name="content" rows="3" placeholder="Nhập bình luận cho task này..." required></textarea>
+                            <div class="task-modal-footer">
+                                <button class="btn btn-primary" type="submit">Gửi bình luận</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="task-detail-panel" data-task-panel="attachments">
+                    <div class="task-attachments-box">
+                        <form class="task-upload-form" data-task-attachment-form data-task-id="${escapeHtml(task?.id || "")}">
+                            <input class="form-control" type="file" name="file" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" required>
+                            <button class="btn btn-primary" type="submit">Tải tệp lên</button>
+                        </form>
+
+                        <div data-task-attachments-list class="task-attachments-list">
+                            ${renderLoadingState("Đang tải tệp đính kèm...")}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="task-detail-panel" data-task-panel="activity">
+                    <div data-task-activity-list class="task-detail-activity">
+                        ${renderLoadingState("Đang tải lịch sử hoạt động...")}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderLoadingState(text) {
+        return `
+            <div class="task-detail-empty">
+                <strong>${escapeHtml(text)}</strong>
+                <p>Vui lòng chờ trong giây lát.</p>
+            </div>
+        `;
+    }
+
+    function renderEmptyState(title, text) {
+        return `
+            <div class="task-detail-empty">
+                <strong>${escapeHtml(title)}</strong>
+                <p>${escapeHtml(text)}</p>
+            </div>
+        `;
+    }
+
     function openTaskModal(mode, taskData) {
         if (!window.CAHModal) return;
 
@@ -491,15 +610,133 @@
 
         const subtitleMap = {
             create: "Task sẽ được lưu vào database và tự đồng bộ lại Kanban.",
-            view: "Xem thông tin task, gửi duyệt hoặc xử lý hoàn thành.",
+            view: "Xem thông tin, bình luận, tệp đính kèm và lịch sử hoạt động.",
             edit: "Cập nhật nội dung task và đồng bộ lại Kanban."
         };
 
         CAHModal.open({
             title: titleMap[mode] || "Công việc",
             subtitle: subtitleMap[mode] || "",
-            body: taskFormBody(mode, taskData)
+            body: taskDetailBody(mode, taskData)
         });
+
+        if (mode !== "create") {
+            loadTaskDetailData(taskData?.id);
+        }
+    }
+
+    async function loadTaskDetailData(taskId) {
+        if (!taskId || !window.CAHApi) return;
+
+        await Promise.allSettled([
+            loadTaskComments(taskId),
+            loadTaskAttachments(taskId),
+            loadTaskActivity(taskId)
+        ]);
+
+        await hydrateCardMetaCounts();
+    }
+
+    async function loadTaskComments(taskId) {
+        const list = document.querySelector("[data-task-comments-list]");
+        const countEl = document.querySelector("[data-detail-comment-count]");
+
+        if (!list) return;
+
+        try {
+            const response = await CAHApi.get(`/api/tasks/${taskId}/comments`, { loading: false });
+            const comments = Array.isArray(response.data) ? response.data : [];
+
+            if (countEl) countEl.textContent = comments.length;
+
+            if (!comments.length) {
+                list.innerHTML = renderEmptyState("Chưa có bình luận", "Bình luận đầu tiên sẽ giúp team nắm rõ tiến độ hơn.");
+                return;
+            }
+
+            list.innerHTML = comments.map((comment) => `
+                <article class="task-comment-item">
+                    <div class="task-comment-avatar">${escapeHtml(getInitials({ assignee_name: comment.full_name || "CA" }))}</div>
+                    <div class="task-comment-content">
+                        <div class="task-comment-head">
+                            <strong>${escapeHtml(comment.full_name || "Người dùng")}</strong>
+                            <time>${escapeHtml(comment.created_at || "")}</time>
+                        </div>
+                        <p>${escapeHtml(comment.comment_text || comment.content || "")}</p>
+                    </div>
+                </article>
+            `).join("");
+        } catch (error) {
+            list.innerHTML = renderEmptyState("Không tải được bình luận", error.message || "API bình luận chưa phản hồi.");
+        }
+    }
+
+    async function loadTaskAttachments(taskId) {
+        const list = document.querySelector("[data-task-attachments-list]");
+        const countEl = document.querySelector("[data-detail-attachment-count]");
+
+        if (!list) return;
+
+        try {
+            const response = await CAHApi.get(`/api/tasks/${taskId}/attachments`, { loading: false });
+            const attachments = Array.isArray(response.data) ? response.data : [];
+
+            if (countEl) countEl.textContent = attachments.length;
+
+            if (!attachments.length) {
+                list.innerHTML = renderEmptyState("Chưa có tệp đính kèm", "Upload file PDF, DOCX hoặc hình ảnh để lưu cùng task.");
+                return;
+            }
+
+            list.innerHTML = attachments.map((file) => `
+                <article class="task-attachment-item">
+                    <div class="task-attachment-icon">📎</div>
+                    <div>
+                        <strong>${escapeHtml(file.file_name || "Tệp đính kèm")}</strong>
+                        <p>${escapeHtml(file.uploaded_at || "Chưa rõ thời gian")}</p>
+                    </div>
+                    <button
+                        class="btn btn-light"
+                        type="button"
+                        data-task-download-attachment
+                        data-attachment-id="${escapeHtml(file.id)}"
+                        data-file-name="${escapeHtml(file.file_name || "attachment")}"
+                    >
+                        Tải xuống
+                    </button>
+                </article>
+            `).join("");
+        } catch (error) {
+            list.innerHTML = renderEmptyState("Không tải được tệp", error.message || "API tệp đính kèm chưa phản hồi.");
+        }
+    }
+
+    async function loadTaskActivity(taskId) {
+        const list = document.querySelector("[data-task-activity-list]");
+        if (!list) return;
+
+        try {
+            const response = await CAHApi.get(`/api/tasks/${taskId}/activity`, { loading: false });
+            const activities = Array.isArray(response.data) ? response.data : [];
+
+            if (!activities.length) {
+                list.innerHTML = renderEmptyState("Chưa có hoạt động", "Các thao tác như comment, upload, cập nhật sẽ được ghi lại tại đây.");
+                return;
+            }
+
+            list.innerHTML = activities.map((activity) => `
+                <article class="task-activity-item">
+                    <div class="task-activity-dot"></div>
+                    <div>
+                        <strong>${escapeHtml(activity.action || "activity")}</strong>
+                        <p>${escapeHtml(activity.description || "")}</p>
+                        <time>${escapeHtml(activity.created_at || "")} · ${escapeHtml(activity.full_name || "")}</time>
+                    </div>
+                </article>
+            `).join("");
+        } catch (error) {
+            list.innerHTML = renderEmptyState("Không tải được hoạt động", error.message || "API activity chưa phản hồi.");
+        }
     }
 
     async function updateTaskStatusById(taskId, newStatus) {
@@ -668,6 +905,143 @@
         }
 
         await loadTasksFromApi();
+    }
+
+    async function submitComment(form) {
+        const taskId = form.dataset.taskId;
+        const textarea = form.querySelector("[name='content']");
+        const content = textarea?.value.trim();
+
+        if (!content || content.length < 3) {
+            if (window.CAHToast) {
+                CAHToast.error("Bình luận quá ngắn", "Nội dung bình luận cần tối thiểu 3 ký tự.");
+            }
+            return;
+        }
+
+        await CAHApi.post(`/api/tasks/${taskId}/comments`, { content }, {
+            loading: true,
+            loadingMessage: "Đang gửi bình luận..."
+        });
+
+        textarea.value = "";
+
+        if (window.CAHToast) {
+            CAHToast.success("Đã gửi bình luận", "Bình luận đã được lưu vào task.");
+        }
+
+        await loadTaskComments(taskId);
+        await loadTaskActivity(taskId);
+        await hydrateCardMetaCounts();
+    }
+
+    async function uploadAttachment(form) {
+        const taskId = form.dataset.taskId;
+        const input = form.querySelector("[name='file']");
+
+        if (!input?.files?.length) {
+            if (window.CAHToast) {
+                CAHToast.error("Chưa chọn file", "Vui lòng chọn file trước khi tải lên.");
+            }
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", input.files[0]);
+
+        await CAHApi.request(`/api/tasks/${taskId}/attachments`, {
+            method: "POST",
+            formData,
+            loading: true,
+            loadingMessage: "Đang tải tệp lên..."
+        });
+
+        input.value = "";
+
+        if (window.CAHToast) {
+            CAHToast.success("Đã tải tệp", "File đã được lưu vào task.");
+        }
+
+        await loadTaskAttachments(taskId);
+        await loadTaskActivity(taskId);
+        await hydrateCardMetaCounts();
+    }
+
+    async function downloadAttachment(button) {
+        const attachmentId = button.dataset.attachmentId;
+        const fileName = button.dataset.fileName || "attachment";
+
+        if (!attachmentId) {
+            if (window.CAHToast) {
+                CAHToast.error("Không thể tải tệp", "Thiếu ID file đính kèm.");
+            }
+            return;
+        }
+
+        const token =
+            window.CAHAuth?.getToken?.()
+            || localStorage.getItem("cah_auth_token")
+            || localStorage.getItem("cah_token")
+            || localStorage.getItem("token")
+            || localStorage.getItem("auth_token")
+            || localStorage.getItem("access_token");
+
+        if (!token) {
+            if (window.CAHToast) {
+                CAHToast.error("Phiên đăng nhập hết hạn", "Vui lòng đăng nhập lại để tải tệp.");
+            }
+            return;
+        }
+
+        const url = window.CAHApp?.buildApiUrl
+            ? CAHApp.buildApiUrl(`/api/attachments/${attachmentId}/download`)
+            : `/creative-agency-hub/public/api/attachments/${attachmentId}/download`;
+
+        try {
+            button.disabled = true;
+            button.textContent = "Đang tải...";
+
+            const response = await fetch(url, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                let message = "Không thể tải file.";
+
+                try {
+                    const errorData = await response.json();
+                    message = errorData.message || message;
+                } catch (_) {}
+
+                throw new Error(message);
+            }
+
+            const blob = await response.blob();
+            const objectUrl = window.URL.createObjectURL(blob);
+
+            const tempLink = document.createElement("a");
+            tempLink.href = objectUrl;
+            tempLink.download = fileName;
+            document.body.appendChild(tempLink);
+            tempLink.click();
+            tempLink.remove();
+
+            window.URL.revokeObjectURL(objectUrl);
+
+            if (window.CAHToast) {
+                CAHToast.success("Đã tải xuống", `File "${fileName}" đã được tải về máy.`);
+            }
+        } catch (error) {
+            if (window.CAHToast) {
+                CAHToast.error("Không thể tải tệp", error.message || "API download chưa phản hồi.");
+            }
+        } finally {
+            button.disabled = false;
+            button.textContent = "Tải xuống";
+        }
     }
 
     function openActionMenu(button) {
@@ -900,11 +1274,36 @@
     document.addEventListener("click", function (event) {
         const menuTrigger = event.target.closest("[data-task-menu-trigger]");
         const actionButton = event.target.closest("[data-task-action]");
+        const tabButton = event.target.closest("[data-task-tab]");
+        const downloadButton = event.target.closest("[data-task-download-attachment]");
         const addButton = event.target.closest("[data-add-task]");
         const card = event.target.closest("[data-task-card]");
 
         if (!event.target.closest("[data-kanban-action-menu]") && !menuTrigger) {
             closeActionMenu();
+        }
+
+        if (downloadButton) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            downloadAttachment(downloadButton);
+            return;
+        }
+
+        if (tabButton) {
+            const shell = tabButton.closest("[data-task-detail-shell]");
+            const tab = tabButton.dataset.taskTab;
+
+            shell?.querySelectorAll("[data-task-tab]").forEach((button) => {
+                button.classList.toggle("is-active", button === tabButton);
+            });
+
+            shell?.querySelectorAll("[data-task-panel]").forEach((panel) => {
+                panel.classList.toggle("is-active", panel.dataset.taskPanel === tab);
+            });
+
+            return;
         }
 
         if (menuTrigger) {
@@ -957,14 +1356,39 @@
     });
 
     document.addEventListener("submit", function (event) {
-        const form = event.target.closest("[data-task-form]");
-        if (!form) return;
+        const taskForm = event.target.closest("[data-task-form]");
+        const commentForm = event.target.closest("[data-task-comment-form]");
+        const attachmentForm = event.target.closest("[data-task-attachment-form]");
+
+        if (commentForm) {
+            event.preventDefault();
+
+            submitComment(commentForm).catch((error) => {
+                if (window.CAHToast) {
+                    CAHToast.error("Không thể gửi bình luận", error.message || "API chưa xử lý được yêu cầu.");
+                }
+            });
+            return;
+        }
+
+        if (attachmentForm) {
+            event.preventDefault();
+
+            uploadAttachment(attachmentForm).catch((error) => {
+                if (window.CAHToast) {
+                    CAHToast.error("Không thể tải tệp", error.message || "API chưa xử lý được yêu cầu.");
+                }
+            });
+            return;
+        }
+
+        if (!taskForm) return;
 
         event.preventDefault();
 
-        const mode = form.dataset.taskFormMode;
-        const title = form.querySelector("[name='title']");
-        const deadline = form.querySelector("[name='deadline']");
+        const mode = taskForm.dataset.taskFormMode;
+        const title = taskForm.querySelector("[name='title']");
+        const deadline = taskForm.querySelector("[name='deadline']");
 
         if (!title?.value.trim() || !deadline?.value.trim()) {
             if (window.CAHToast) {
@@ -975,7 +1399,7 @@
 
         const handler = mode === "edit" ? updateTaskFromForm : createTaskFromForm;
 
-        handler(form).catch((error) => {
+        handler(taskForm).catch((error) => {
             if (window.CAHToast) {
                 CAHToast.error("Không thể lưu task", error.message || "API chưa xử lý được yêu cầu.");
             }

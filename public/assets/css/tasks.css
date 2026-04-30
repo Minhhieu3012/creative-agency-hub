@@ -530,6 +530,231 @@
     margin-top: 8px;
 }
 
+.task-detail-shell {
+    display: grid;
+    gap: 18px;
+}
+
+.task-detail-tabs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: #f8fafc;
+    overflow-x: auto;
+}
+
+.task-detail-tabs button {
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 12px;
+    color: var(--text-soft);
+    background: transparent;
+    font-weight: 850;
+    white-space: nowrap;
+}
+
+.task-detail-tabs button.is-active {
+    color: #ffffff;
+    background: var(--primary);
+    box-shadow: var(--shadow-primary);
+}
+
+.task-detail-tabs span {
+    display: inline-grid;
+    place-items: center;
+    min-width: 22px;
+    height: 22px;
+    margin-left: 6px;
+    border-radius: 999px;
+    color: var(--primary);
+    background: #ffffff;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.task-detail-panel {
+    display: none;
+}
+
+.task-detail-panel.is-active {
+    display: block;
+}
+
+.task-detail-empty {
+    display: grid;
+    gap: 6px;
+    min-height: 120px;
+    place-items: center;
+    padding: 24px;
+    border: 1px dashed #d6e2ef;
+    border-radius: 18px;
+    background: #f8fafc;
+    text-align: center;
+}
+
+.task-detail-empty strong {
+    color: var(--text);
+    font-size: 16px;
+}
+
+.task-detail-empty p {
+    margin: 0;
+    color: var(--text-soft);
+}
+
+.task-comments-box,
+.task-attachments-box {
+    display: grid;
+    gap: 18px;
+}
+
+.task-comments-list,
+.task-attachments-list,
+.task-detail-activity {
+    display: grid;
+    gap: 12px;
+    max-height: 360px;
+    overflow: auto;
+    padding-right: 4px;
+}
+
+.task-comment-item {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: #ffffff;
+}
+
+.task-comment-avatar {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--primary), var(--emerald));
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.task-comment-content {
+    display: grid;
+    gap: 6px;
+}
+
+.task-comment-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.task-comment-head strong {
+    color: var(--text);
+}
+
+.task-comment-head time,
+.task-comment-content p {
+    color: var(--text-soft);
+}
+
+.task-comment-content p {
+    margin: 0;
+    line-height: 1.55;
+}
+
+.task-comment-form {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 18px;
+    background: #f8fafc;
+}
+
+.task-upload-form {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 14px;
+    border-radius: 18px;
+    background: #f8fafc;
+}
+
+.task-attachment-item {
+    display: grid;
+    grid-template-columns: 42px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: #ffffff;
+}
+
+.task-attachment-icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    background: var(--mint);
+    color: var(--primary);
+}
+
+.task-attachment-item strong {
+    color: var(--text);
+}
+
+.task-attachment-item p {
+    margin: 4px 0 0;
+    color: var(--text-soft);
+    font-size: 13px;
+}
+
+.task-activity-item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: #ffffff;
+}
+
+.task-activity-dot {
+    width: 12px;
+    height: 12px;
+    margin-top: 5px;
+    border-radius: 999px;
+    background: var(--primary);
+    box-shadow: 0 0 0 6px var(--mint);
+}
+
+.task-activity-item strong {
+    color: var(--primary);
+    text-transform: capitalize;
+}
+
+.task-activity-item p {
+    margin: 4px 0;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.task-activity-item time {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 750;
+}
+
 @media (max-width: 1180px) {
     .project-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -561,5 +786,18 @@
     .kanban-view-switch {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .task-upload-form,
+    .task-attachment-item {
+        grid-template-columns: 1fr;
+    }
+
+    .task-detail-tabs {
+        align-items: stretch;
+    }
+
+    .task-detail-tabs button {
+        flex: 1 0 auto;
     }
 }
