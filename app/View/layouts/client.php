@@ -1,114 +1,93 @@
 <?php
+/**
+ * Client Layout - Creative Agency Hub
+ * Dùng cho Client Portal: login-client.php, projects.php, tasks.php, support.php
+ * Layout này tự fallback base URL, không phụ thuộc APP_URL.
+ */
+
 $pageTitle = $pageTitle ?? 'Client Portal | Creative Agency Hub';
 $pageCss = $pageCss ?? ['client-portal.css'];
-$pageJs = $pageJs ?? ['client-portal.js'];
-$brandName = $brandName ?? 'Creative Agency Hub';
+$pageJs = $pageJs ?? ['app.js', 'client-portal.js', 'toast.js'];
+$bodyClass = $bodyClass ?? 'client-page';
+$content = $content ?? '';
 
-$baseUrl = $baseUrl ?? '/creative-agency-hub';
-$assetUrl = $assetUrl ?? ($baseUrl . '/public/assets');
-$viewUrl = $viewUrl ?? ($baseUrl . '/app/View');
+if (!function_exists('cah_detect_base_url')) {
+    function cah_detect_base_url(): string
+    {
+        $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
 
-$currentUser = $currentUser ?? [
-    'name' => 'Khách hàng',
-    'role' => 'Client Portal',
-    'avatar' => null,
-];
+        $markers = [
+            '/app/View/',
+            '/app/view/',
+            '/public/',
+        ];
 
-/*
-|--------------------------------------------------------------------------
-| CLIENT ACTIVE NAV
-|--------------------------------------------------------------------------
-| Nếu page truyền $clientActive thì dùng biến đó.
-| Nếu không truyền, layout tự nhận diện theo tên file hiện tại:
-| - projects.php => projects
-| - tasks.php    => tasks
-| - support.php  => support
-*/
-$currentClientFile = basename($_SERVER['SCRIPT_NAME'] ?? '');
+        foreach ($markers as $marker) {
+            $pos = stripos($scriptName, $marker);
 
-if (!isset($clientActive)) {
-    $clientActive = match ($currentClientFile) {
-        'tasks.php' => 'tasks',
-        'support.php' => 'support',
-        default => 'projects',
-    };
+            if ($pos !== false) {
+                return rtrim(substr($scriptName, 0, $pos), '/');
+            }
+        }
+
+        return '/creative-agency-hub';
+    }
 }
 
-$clientLinks = [
-    [
-        'key' => 'projects',
-        'label' => 'Dự án',
-        'href' => $viewUrl . '/client-portal/projects.php',
-    ],
-    [
-        'key' => 'tasks',
-        'label' => 'Tiến độ',
-        'href' => $viewUrl . '/client-portal/tasks.php',
-    ],
-    [
-        'key' => 'support',
-        'label' => 'Hỗ trợ',
-        'href' => $viewUrl . '/client-portal/support.php',
-    ],
-];
+$baseUrl = defined('APP_URL') ? rtrim(APP_URL, '/') : cah_detect_base_url();
+$assetUrl = $baseUrl . '/public/assets';
 
-$userInitial = strtoupper(mb_substr($currentUser['name'] ?? 'K', 0, 1, 'UTF-8'));
+if (!function_exists('cah_asset')) {
+    function cah_asset(string $path): string
+    {
+        global $assetUrl;
+        return $assetUrl . '/' . ltrim($path, '/');
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <?php require __DIR__ . '/../components/head.php'; ?>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title><?php echo htmlspecialchars($pageTitle); ?></title>
+
+    <meta name="description" content="Creative Agency Hub Client Portal">
+    <meta name="theme-color" content="#00513A">
+
+    <link rel="stylesheet" href="<?php echo htmlspecialchars(cah_asset('css/reset.css')); ?>">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars(cah_asset('css/app.css')); ?>">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars(cah_asset('css/components.css')); ?>">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars(cah_asset('css/ui-states.css')); ?>">
+
+    <?php foreach ((array) $pageCss as $cssFile): ?>
+        <link rel="stylesheet" href="<?php echo htmlspecialchars(cah_asset('css/' . $cssFile)); ?>">
+    <?php endforeach; ?>
+
+    <script>
+        window.CAH_CONFIG = {
+            baseUrl: <?php echo json_encode($baseUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
+            assetUrl: <?php echo json_encode($assetUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
+            apiBaseUrl: <?php echo json_encode($baseUrl . '/public', JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>
+        };
+    </script>
 </head>
-<body class="client-body">
-    <div class="client-shell">
-        <header class="client-topbar">
-            <a href="<?php echo htmlspecialchars($viewUrl); ?>/client-portal/projects.php" class="client-brand">
-                <span class="brand-mark">CA</span>
-                <span><?php echo htmlspecialchars($brandName); ?></span>
-            </a>
 
-            <nav class="client-nav" aria-label="Điều hướng Client Portal">
-                <?php foreach ($clientLinks as $link): ?>
-                    <a
-                        href="<?php echo htmlspecialchars($link['href']); ?>"
-                        class="client-nav-link <?php echo $clientActive === $link['key'] ? 'is-active' : ''; ?>"
-                    >
-                        <?php echo htmlspecialchars($link['label']); ?>
-                    </a>
-                <?php endforeach; ?>
-            </nav>
+<body class="<?php echo htmlspecialchars($bodyClass); ?>">
+    <?php echo $content; ?>
 
-            <div class="client-user">
-                <span><?php echo htmlspecialchars($currentUser['name']); ?></span>
+    <div class="toast-stack" data-toast-stack></div>
 
-                <?php if (!empty($currentUser['avatar'])): ?>
-                    <img
-                        src="<?php echo htmlspecialchars($currentUser['avatar']); ?>"
-                        alt="<?php echo htmlspecialchars($currentUser['name']); ?>"
-                        class="client-avatar"
-                    >
-                <?php else: ?>
-                    <div class="client-avatar">
-                        <?php echo htmlspecialchars($userInitial); ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </header>
+    <?php
+    $defaultJs = ['app.js', 'client-portal.js', 'toast.js'];
+    $mergedJs = array_values(array_unique(array_merge($defaultJs, (array) $pageJs)));
+    ?>
 
-        <main class="client-content">
-            <?php echo $content ?? ''; ?>
-        </main>
-    </div>
-
-    <?php require __DIR__ . '/../components/toast.php'; ?>
-
-    <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/app.js"></script>
-    <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/modal.js"></script>
-    <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/toast.js"></script>
-    <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/forms.js"></script>
-
-    <?php foreach ($pageJs as $js): ?>
-        <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/<?php echo htmlspecialchars($js); ?>"></script>
+    <?php foreach ($mergedJs as $jsFile): ?>
+        <script src="<?php echo htmlspecialchars(cah_asset('js/' . $jsFile)); ?>"></script>
     <?php endforeach; ?>
 </body>
 </html>

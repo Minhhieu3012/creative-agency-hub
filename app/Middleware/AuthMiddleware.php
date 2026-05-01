@@ -4,36 +4,67 @@ namespace App\Middleware;
 use Core\JwtHandler;
 
 class AuthMiddleware {
-    public static function check() {
-        // Lấy Authorization Header - tương thích mọi server
-        $authHeader = '';
-        if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
-            $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
-        } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
-            $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
-        } elseif (function_exists('getallheaders')) {
-            $headers = getallheaders();
-            $authHeader = $headers['Authorization'] ?? '';
+    private static function ensureJwtEnvDefaults(): void {
+        if (empty($_ENV['JWT_SECRET'])) {
+            $_ENV['JWT_SECRET'] = 'creative_agency_hub_local_secret_key';
         }
 
-        // Kiểm tra đúng định dạng "Bearer <token>"
-        if (preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+        if (empty($_ENV['JWT_EXPIRATION'])) {
+            $_ENV['JWT_EXPIRATION'] = 86400;
+        }
+    }
+
+    private static function getAuthorizationHeader(): string {
+        if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
+            return $_SERVER['HTTP_AUTHORIZATION'];
+        }
+
+        if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+        }
+
+        if (!empty($_SERVER['Authorization'])) {
+            return $_SERVER['Authorization'];
+        }
+
+        if (function_exists('getallheaders')) {
+            $headers = getallheaders();
+
+            if (!empty($headers['Authorization'])) {
+                return $headers['Authorization'];
+            }
+
+            if (!empty($headers['authorization'])) {
+                return $headers['authorization'];
+            }
+        }
+
+        return '';
+    }
+
+    public static function check(): array {
+        self::ensureJwtEnvDefaults();
+
+        $authHeader = self::getAuthorizationHeader();
+
+        if (preg_match('/Bearer\s+(\S+)/i', $authHeader, $matches)) {
             $token = $matches[1];
             $jwt = new JwtHandler();
             $decoded = $jwt->decode($token);
 
-            if ($decoded) {
+            if (is_array($decoded)) {
                 return $decoded;
             }
         }
 
-        // Token không hợp lệ hoặc hết hạn
         header('Content-Type: application/json; charset=utf-8');
         http_response_code(401);
+
         echo json_encode([
-            "status"  => "error",
-            "message" => "Unauthorized: Bạn chưa đăng nhập hoặc Token đã hết hạn."
-        ]);
+            'status' => 'error',
+            'message' => 'Unauthorized: Bạn chưa đăng nhập hoặc token đã hết hạn.'
+        ], JSON_UNESCAPED_UNICODE);
+
         exit;
     }
 }

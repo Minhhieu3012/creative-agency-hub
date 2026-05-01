@@ -1,33 +1,36 @@
 /**
- * FORMS JS - XỬ LÝ ĐĂNG NHẬP THỰC TẾ (API FETCH)
+ * Forms JS - Creative Agency Hub
+ * Auth thật theo bảng employees + redirect riêng theo role.
  */
 (function () {
     "use strict";
 
     function setLoading(form, isLoading) {
-        const submitBtn = form.querySelector("[type='submit']");
-        if (!submitBtn) return;
+        const button = form.querySelector("[type='submit']");
+
+        if (!button) return;
 
         if (isLoading) {
-            submitBtn.dataset.originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = "Đang xử lý...";
-            submitBtn.disabled = true;
+            if (!button.dataset.originalText) {
+                button.dataset.originalText = button.innerHTML;
+            }
+
+            button.disabled = true;
+            button.innerHTML = "Đang xử lý...";
         } else {
-            submitBtn.innerHTML = submitBtn.dataset.originalText || submitBtn.innerHTML;
-            submitBtn.disabled = false;
+            button.disabled = false;
+            button.innerHTML = button.dataset.originalText || button.innerHTML;
         }
     }
 
     function validateRequired(form) {
-        const requiredFields = form.querySelectorAll("[required]");
         let valid = true;
 
-        requiredFields.forEach((field) => {
+        form.querySelectorAll("[required]").forEach(function (field) {
             const wrapper = field.closest(".form-group") || field.parentElement;
+            const value = field.type === "file" ? field.files.length : String(field.value || "").trim();
 
             wrapper?.classList.remove("has-error");
-
-            const value = field.type === "file" ? field.files?.length : String(field.value || "").trim();
 
             if (!value) {
                 valid = false;
@@ -38,112 +41,171 @@
         return valid;
     }
 
-    function getFormDataObject(form) {
-        if (window.CAHApp && typeof CAHApp.formToObject === "function") {
-            return CAHApp.formToObject(form);
+    function formToObject(form) {
+        if (window.CAHApp && typeof window.CAHApp.formToObject === "function") {
+            return window.CAHApp.formToObject(form);
         }
 
         const data = {};
-        new FormData(form).forEach((value, key) => {
-            data[key] = value;
+
+        new FormData(form).forEach(function (value, key) {
+            data[key] = value instanceof File ? value : String(value || "").trim();
         });
 
         return data;
     }
 
-    async function handleAuthLogin(form) {
-        const data = getFormDataObject(form);
+    function getBaseUrl() {
+        return window.CAH_CONFIG?.baseUrl || window.CAHApp?.baseUrl || "/creative-agency-hub";
+    }
+
+    function getApiBaseUrl() {
+        return window.CAH_CONFIG?.apiBaseUrl || window.CAHApp?.apiBaseUrl || `${getBaseUrl()}/public`;
+    }
+
+    function buildApiUrl(path) {
+        if (/^https?:\/\//i.test(path)) return path;
+
+        const cleanPath = String(path || "").startsWith("/") ? path : `/${path}`;
+
+        if (window.CAHApp && typeof window.CAHApp.buildApiUrl === "function") {
+            return window.CAHApp.buildApiUrl(cleanPath);
+        }
+
+        return `${getApiBaseUrl()}${cleanPath}`;
+    }
+
+    async function apiPost(path, data) {
+        if (window.CAHApi && typeof window.CAHApi.post === "function") {
+            return window.CAHApi.post(path, data, {
+                auth: false,
+                loading: false
+            });
+        }
+
+        const response = await fetch(buildApiUrl(path), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json().catch(function () {
+            return {};
+        });
+
+        if (!response.ok || result.status === "error") {
+            throw new Error(result.message || "Không thể xử lý yêu cầu.");
+        }
+
+        return result;
+    }
+
+    function storeAuth(token, user) {
+        localStorage.setItem("cah_auth_token", token);
+        localStorage.setItem("cah_token", token);
+
+        localStorage.setItem("cah_auth_user", JSON.stringify(user || {}));
+        localStorage.setItem("cah_user", JSON.stringify(user || {}));
+
+        if (window.CAHAuth) {
+            if (typeof CAHAuth.setToken === "function") {
+                CAHAuth.setToken(token);
+            }
+
+            if (typeof CAHAuth.setUser === "function") {
+                CAHAuth.setUser(user);
+            }
+        }
+    }
+
+    function getRedirectUrl(form, user) {
+        const role = String(user?.role || "").toLowerCase();
+        const viewUrl = `${getBaseUrl()}/app/View`;
+
+        const roleKey = `redirect${role.charAt(0).toUpperCase()}${role.slice(1)}`;
+        const roleRedirect = form.dataset[roleKey];
+
+        if (roleRedirect) return roleRedirect;
+        if (form.dataset.redirect) return form.dataset.redirect;
+
+        /**
+         * Chốt tạm routing theo vai trò:
+         * - manager: trung tâm điều phối
+         * - employee: hồ sơ cá nhân / task được giao sẽ nối tiếp ở scope sau
+         * - admin: quản trị nhân sự
+         * - client: client portal
+         */
+        const map = {
+            manager: `${viewUrl}/dashboard/index.php`,
+            employee: `${viewUrl}/hrm/profile.php`,
+            admin: `${viewUrl}/hrm/employees.php`,
+            client: `${viewUrl}/client-portal/projects.php`
+        };
+
+        return map[role] || `${viewUrl}/dashboard/index.php`;
+    }
+
+    async function handleLogin(form) {
+        if (!validateRequired(form)) {
+            window.CAHToast?.error?.("Thiếu thông tin", "Vui lòng nhập email và mật khẩu.");
+            return;
+        }
+
+        const payload = formToObject(form);
 
         setLoading(form, true);
 
         try {
-            const response = await CAHApi.post("/api/auth/login", data, {
-                auth: false,
-                loading: false
-            });
+            const response = await apiPost("/api/auth/login", payload);
 
             const token = response?.data?.token;
             const user = response?.data?.user;
 
             if (!token) {
-                throw new Error("API đăng nhập chưa trả về token.");
+                throw new Error("API chưa trả về token.");
             }
 
-            CAHAuth.setToken(token);
-            CAHAuth.setUser(user);
-
-            if (window.CAHToast) {
-                CAHToast.success("Đăng nhập thành công", response.message || "Đang chuyển trang...");
+            if (!user || !user.role) {
+                throw new Error("API chưa trả về thông tin role.");
             }
 
-            const redirect = form.dataset.redirect;
+            storeAuth(token, user);
 
-            if (redirect) {
-                window.setTimeout(() => {
-                    window.location.href = redirect;
-                }, 520);
-            }
+            window.CAHToast?.success?.("Đăng nhập thành công", "Đang chuyển trang...");
+
+            window.setTimeout(function () {
+                window.location.href = getRedirectUrl(form, user);
+            }, 450);
         } catch (error) {
-            if (window.CAHToast) {
-                CAHToast.error("Đăng nhập thất bại", error.message || "Vui lòng kiểm tra lại tài khoản.");
-            }
+            window.CAHToast?.error?.("Đăng nhập thất bại", error.message || "Vui lòng kiểm tra lại tài khoản.");
         } finally {
             setLoading(form, false);
         }
     }
 
-    async function handleApiForm(form) {
-        const method = form.dataset.method || form.method || "POST";
+    async function handleGenericForm(form) {
+        if (!validateRequired(form)) {
+            window.CAHToast?.error?.("Thiếu thông tin", "Vui lòng kiểm tra lại các trường bắt buộc.");
+            return;
+        }
+
         const action = form.dataset.action || form.getAttribute("action");
-        const successMessage = form.dataset.successMessage || "Thao tác đã được ghi nhận.";
-        const redirect = form.dataset.redirect;
+        const method = String(form.dataset.method || form.method || "POST").toUpperCase();
+        const data = formToObject(form);
 
         if (!action) {
-            throw new Error("Form chưa có action API.");
+            window.CAHToast?.error?.("Thiếu action", "Form chưa có đường dẫn xử lý.");
+            return;
         }
-
-        const data = getFormDataObject(form);
 
         setLoading(form, true);
 
         try {
-            const response = await CAHApi.request(action, {
-                method: method.toUpperCase(),
-                data,
-                auth: form.dataset.auth === "false" ? false : true
-            });
-
-            if (window.CAHToast) {
-                CAHToast.success("Thành công", response.message || successMessage);
-            }
-
-            form.reset();
-
-            if (redirect) {
-                window.setTimeout(() => {
-                    window.location.href = redirect;
-                }, 520);
-            }
-        } finally {
-            setLoading(form, false);
-        }
-    }
-
-    document.addEventListener("submit", async function (event) {
-
-        const form = event.target.closest("[data-ui-form]");
-        if (!form) return;
-
-        event.preventDefault(); // Chặn hành vi submit mặc định
-        setLoading(form, true);
-
-        try {
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
-
-            // Thực hiện Fetch thật đến API
-            const response = await fetch(form.action, {
-                method: "POST",
+            const response = await fetch(action, {
+                method,
                 headers: {
                     "Content-Type": "application/json",
                     "Accept": "application/json"
@@ -151,51 +213,72 @@
                 body: JSON.stringify(data)
             });
 
-            const result = await response.json();
+            const result = await response.json().catch(function () {
+                return {};
+            });
 
-            if (response.ok && result.status === "success") {
-                if (window.CAHToast) CAHToast.success("Thành công", result.message || "Đăng nhập thành công!");
-                
-                // Lưu token nếu cần
-                if (result.data?.token) localStorage.setItem('cah_token', result.data.token);
-
-                const redirect = form.dataset.redirect;
-                if (redirect) {
-                    setTimeout(() => window.location.href = redirect, 1000);
-                }
-            } else {
-                throw new Error(result.message || "Đăng nhập thất bại");
+            if (!response.ok || result.status === "error") {
+                throw new Error(result.message || "Không thể xử lý form.");
             }
 
+            window.CAHToast?.success?.("Thành công", result.message || form.dataset.successMessage || "Đã xử lý thành công.");
+
+            if (form.dataset.redirect) {
+                window.setTimeout(function () {
+                    window.location.href = form.dataset.redirect;
+                }, 450);
+            }
         } catch (error) {
-            if (window.CAHToast) CAHToast.error("Lỗi", error.message);
+            window.CAHToast?.error?.("Không thể xử lý", error.message || "Có lỗi xảy ra.");
         } finally {
             setLoading(form, false);
         }
+    }
+
+    document.addEventListener("submit", function (event) {
+        const form = event.target.closest("[data-ui-form]");
+
+        if (!form) return;
+
+        event.preventDefault();
+
+        if (form.matches("[data-auth-login-form]")) {
+            handleLogin(form);
+            return;
+        }
+
+        handleGenericForm(form);
     });
 
-    // Xử lý ẩn hiện mật khẩu
     document.addEventListener("click", function (event) {
         const toggle = event.target.closest("[data-password-toggle]");
+
         if (!toggle) return;
+
         const target = document.querySelector(toggle.dataset.passwordToggle);
-        if (target) {
-            target.type = target.type === "password" ? "text" : "password";
-            toggle.textContent = target.type === "password" ? "👁" : "🙈";
-        }
+
+        if (!target) return;
+
+        target.type = target.type === "password" ? "text" : "password";
+        toggle.textContent = target.type === "password" ? "👁" : "🙈";
     });
 
     document.addEventListener("click", function (event) {
         const logout = event.target.closest("[data-logout]");
+
         if (!logout) return;
 
         event.preventDefault();
 
-        if (window.CAHAuth) {
+        localStorage.removeItem("cah_auth_token");
+        localStorage.removeItem("cah_token");
+        localStorage.removeItem("cah_auth_user");
+        localStorage.removeItem("cah_user");
+
+        if (window.CAHAuth && typeof CAHAuth.clearToken === "function") {
             CAHAuth.clearToken();
         }
 
-        const redirect = logout.getAttribute("href") || "/creative-agency-hub/app/View/auth/login.php";
-        window.location.href = redirect;
+        window.location.href = logout.getAttribute("href") || `${getBaseUrl()}/app/View/auth/login.php`;
     });
 })();
