@@ -20,27 +20,20 @@ class AuthController {
      * Helper: Đọc dữ liệu đầu vào một cách chính xác nhất
      */
     private function getInputData() {
-        // Đọc dữ liệu thô từ luồng đầu vào
         $rawInput = file_get_contents('php://input');
         $json = json_decode($rawInput, true);
-
-        // Nếu là JSON hợp lệ thì trả về, nếu không thì lấy từ $_POST (giống Postman)
         return (!empty($json)) ? $json : $_POST;
     }
 
     /**
-     * Xử lý Đăng nhập - Cấu hình lại để khớp với Postman
+     * Xử lý Đăng nhập chung
      */
     public function login() {
         header('Content-Type: application/json; charset=utf-8');
-        
         $input = $this->getInputData();
 
-        // QUAN TRỌNG: Với Login, không nên dùng Security::escape cho Email 
-        // vì nó có thể làm thay đổi chuỗi tìm kiếm trong Database.
-        // Chỉ dùng trim() để xóa khoảng trắng dư thừa.
         $email    = isset($input['email']) ? trim($input['email']) : '';
-        $password = isset($input['password']) ? $input['password'] : '';
+        $password = isset($input['password']) ? trim($input['password']) : '';
 
         if (empty($email) || empty($password)) {
             http_response_code(400);
@@ -48,18 +41,14 @@ class AuthController {
             return;
         }
 
-        // Tìm user trong DB
         $user = $this->userModel->findByEmail($email);
 
-        // Kiểm tra mật khẩu chuẩn xác bằng password_verify
         if ($user && password_verify($password, $user['password'])) {
-            $payload = [
+            $token = $this->jwt->encode([
                 'id'    => $user['id'],
                 'email' => $user['email'],
                 'role'  => $user['role']
-            ];
-
-            $token = $this->jwt->encode($payload);
+            ]);
 
             echo json_encode([
                 "status"  => "success",
@@ -74,24 +63,86 @@ class AuthController {
                 ]
             ]);
         } else {
-            // Log lỗi để bạn kiểm tra trong php_error_log nếu cần
-            error_log("Login failed for email: " . $email);
-            
             http_response_code(401);
             echo json_encode(["status" => "error", "message" => "Email hoặc mật khẩu không chính xác"]);
         }
     }
 
     /**
-     * Đăng ký người dùng chung
+     * Đăng nhập Nội bộ (Admin, Manager, Employee)
      */
+    public function loginInternal() {
+        header('Content-Type: application/json; charset=utf-8');
+        $input = $this->getInputData();
+
+        // Sử dụng trim() cho cả password để tránh khoảng trắng vô tình
+        $email    = trim($input['email'] ?? '');
+        $password = trim($input['password'] ?? '');
+
+        if (empty($email) || empty($password)) {
+            http_response_code(400);
+            echo json_encode(["status"=>"error","message"=>"DEBUG 1: Thiếu dữ liệu Email hoặc Pass"]);
+            return;
+        }
+
+        $user = $this->userModel->findByEmail($email);
+
+        // Kiểm tra User và Trạng thái
+        if (!$user) {
+            http_response_code(401);
+            echo json_encode(["status"=>"error","message"=>"DEBUG 2: Tài khoản không tồn tại hoặc bị khóa"]);
+            return;
+        }
+
+        // KIỂM TRA MẬT KHẨU
+        if (!password_verify($password, $user['password'])) {
+            // Kiểm tra độ dài hash để cảnh báo nếu bị cắt cụt
+            $hashLen = strlen($user['password']);
+            http_response_code(401);
+            echo json_encode([
+                "status"=>"error",
+                "message"=>"DEBUG 3: Sai mật khẩu! (Độ dài Hash trong DB: $hashLen ký tự. Chuẩn phải là 60).",
+                "debug_info" => [
+                    "input_pass" => $password,
+                    "db_hash" => $user['password']
+                ]
+            ]);
+            return;
+        }
+
+        if ($user['role'] === 'client') {
+            http_response_code(403);
+            echo json_encode(["status"=>"error","message"=>"Vui lòng đăng nhập ở trang Client"]);
+            return;
+        }
+
+        $token = $this->jwt->encode([
+            'id'    => $user['id'],
+            'role'  => $user['role'],
+            'email' => $user['email']
+        ]);
+
+        echo json_encode([
+            "status"=>"success",
+            "message"=>"Đăng nhập thành công",
+            "data"=>[
+                "token"=>$token,
+                "user"=>[
+                    "id"=>$user['id'],
+                    "full_name"=>$user['full_name'],
+                    "role"=>$user['role']
+                ]
+            ]
+        ]);
+    }
+
     public function register() {
         header('Content-Type: application/json; charset=utf-8');
         $input = $this->getInputData();
 
         $fullName = Security::escape($input['full_name'] ?? '');
         $email    = Security::escape($input['email'] ?? '');
-        $password = $input['password'] ?? '';
+        $password = $input['password'] ?? ''; // Tuyệt đối không escape password
 
         if (empty($fullName) || empty($email) || empty($password)) {
             http_response_code(400);
@@ -121,14 +172,10 @@ class AuthController {
         }
     }
 
-    /**
-     * Lấy thông tin cá nhân
-     */
     public function me() {
         header('Content-Type: application/json; charset=utf-8');
-
         $headers = getallheaders();
-        $authHeader = $headers['Authorization'] ?? '';
+        $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
 
         if (!$authHeader) {
             http_response_code(401);
@@ -137,7 +184,6 @@ class AuthController {
         }
 
         $token = str_replace("Bearer ", "", $authHeader);
-
         $decoded = $this->jwt->decode($token);
 
         if (!$decoded) {
@@ -147,100 +193,20 @@ class AuthController {
         }
 
         $user = $this->userModel->findById($decoded['id']);
-
         if (!$user) {
             http_response_code(404);
             echo json_encode(["status"=>"error","message"=>"Không tìm thấy user"]);
             return;
         }
 
-        echo json_encode([
-            "status"=>"success",
-            "data"=>[
-                "user"=>$user
-            ]
-        ]);
+        echo json_encode(["status"=>"success", "data"=>["user"=>$user]]);
     }
 
-    /**
-     * Đăng nhập dành riêng cho Nội bộ (Admin, Manager, Employee)
-     */
-    public function loginInternal() {
-        header('Content-Type: application/json; charset=utf-8');
-
-        $input = $this->getInputData();
-
-        $email    = trim($input['email'] ?? '');
-        $password = $input['password'] ?? '';
-
-        // 1. DEBUG: Kiểm tra xem Backend có nhận được dữ liệu từ JS gửi lên không
-        if (empty($email) || empty($password)) {
-            http_response_code(400);
-            echo json_encode(["status"=>"error","message"=>"DEBUG 1: Dữ liệu bị rỗng! Email nhận được: '$email', Pass nhận được: '$password'"]);
-            return;
-        }
-
-        $user = $this->userModel->findByEmail($email);
-
-        // 2. DEBUG: Kiểm tra xem DB có tìm thấy Email và status có đang là active không
-        if (!$user) {
-            http_response_code(401);
-            echo json_encode(["status"=>"error","message"=>"DEBUG 2: Email '$email' không tồn tại trong DB, HOẶC cột status đang bị NULL/khác 'active'"]);
-            return;
-        }
-
-        // 3. DEBUG: Kiểm tra đối chiếu mật khẩu
-        if (!password_verify($password, $user['password'])) {
-            http_response_code(401);
-            echo json_encode(["status"=>"error","message"=>"DEBUG 3: Tìm thấy tài khoản nhưng SAI MẬT KHẨU! Pass nhập: '$password' | Hash trong DB: '" . $user['password'] . "'"]);
-            return;
-        }
-
-        // ❌ CHẶN CLIENT truy cập trang quản trị nội bộ
-        if ($user['role'] === 'client') {
-            http_response_code(403);
-            echo json_encode(["status"=>"error","message"=>"Vui lòng đăng nhập ở trang Client"]);
-            return;
-        }
-
-        // ❌ CHẶN ACCOUNT BỊ KHÓA (Sử dụng fallback ?? 'active' để tránh lỗi undefined index)
-        $userStatus = $user['status'] ?? 'active';
-        if ($userStatus !== 'active') {
-            http_response_code(403);
-            echo json_encode(["status"=>"error","message"=>"Tài khoản bị khóa"]);
-            return;
-        }
-
-        $token = $this->jwt->encode([
-            'id'    => $user['id'],
-            'role'  => $user['role'],
-            'email' => $user['email']
-        ]);
-
-        echo json_encode([
-            "status"=>"success",
-            "message"=>"Đăng nhập thành công",
-            "data"=>[
-                "token"=>$token,
-                "user"=>[
-                    "id"=>$user['id'],
-                    "full_name"=>$user['full_name'],
-                    "role"=>$user['role']
-                ]
-            ]
-        ]);
-    }
-
-    /**
-     * Đăng nhập dành riêng cho Client
-     */
     public function loginClient() {
         header('Content-Type: application/json; charset=utf-8');
-
         $input = $this->getInputData();
-
         $email    = trim($input['email'] ?? '');
-        $password = $input['password'] ?? '';
+        $password = trim($input['password'] ?? '');
 
         if (empty($email) || empty($password)) {
             http_response_code(400);
@@ -256,69 +222,26 @@ class AuthController {
             return;
         }
 
-        // ❌ CHỈ CHO CLIENT
         if ($user['role'] !== 'client') {
             http_response_code(403);
             echo json_encode(["status"=>"error","message"=>"Bạn không phải client"]);
             return;
         }
 
-        // ❌ CHẶN ACCOUNT BỊ KHÓA
-        $userStatus = $user['status'] ?? 'active';
-        if ($userStatus !== 'active') {
-            http_response_code(403);
-            echo json_encode(["status"=>"error","message"=>"Tài khoản bị khóa"]);
-            return;
-        }
-
-        $token = $this->jwt->encode([
-            'id'    => $user['id'],
-            'role'  => $user['role'],
-            'email' => $user['email']
-        ]);
-
-        echo json_encode([
-            "status"=>"success",
-            "message"=>"Đăng nhập client thành công",
-            "data"=>[
-                "token"=>$token,
-                "user"=>[
-                    "id"=>$user['id'],
-                    "full_name"=>$user['full_name'],
-                    "role"=>$user['role']
-                ]
-            ]
-        ]);
+        $token = $this->jwt->encode(['id' => $user['id'], 'role' => $user['role'], 'email' => $user['email']]);
+        echo json_encode(["status"=>"success", "message"=>"Đăng nhập client thành công", "data"=>["token"=>$token, "user"=>$user]]);
     }
 
-    /**
-     * Đăng ký dành cho Client
-     */
     public function registerClient() {
         header('Content-Type: application/json; charset=utf-8');
-
         $input = $this->getInputData();
-
         $fullName = trim($input['full_name'] ?? '');
         $email    = trim($input['email'] ?? '');
         $password = $input['password'] ?? '';
 
-        // VALIDATE
         if (empty($fullName) || empty($email) || empty($password)) {
             http_response_code(400);
             echo json_encode(["status"=>"error","message"=>"Thiếu thông tin"]);
-            return;
-        }
-
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            http_response_code(400);
-            echo json_encode(["status"=>"error","message"=>"Email không hợp lệ"]);
-            return;
-        }
-
-        if (strlen($password) < 6) {
-            http_response_code(400);
-            echo json_encode(["status"=>"error","message"=>"Mật khẩu tối thiểu 6 ký tự"]);
             return;
         }
 
@@ -328,17 +251,7 @@ class AuthController {
             return;
         }
 
-        $id = $this->userModel->create([
-            'full_name' => $fullName,
-            'email'     => $email,
-            'password'  => $password,
-            'role'      => 'client'
-        ]);
-
-        echo json_encode([
-            "status"  => "success",
-            "message" => "Đăng ký client thành công",
-            "data"    => ["id" => $id]
-        ]);
+        $id = $this->userModel->create(['full_name' => $fullName, 'email' => $email, 'password' => $password, 'role' => 'client']);
+        echo json_encode(["status" => "success", "message" => "Đăng ký thành công", "data" => ["id" => $id]]);
     }
 }
