@@ -3,207 +3,171 @@ $pageTitle = 'Hồ sơ cá nhân | Creative Agency Hub';
 $pageCss = ['hrm.css'];
 $pageJs = ['hrm.js'];
 $activeMenu = 'profile';
-$topbarTitle = 'Hồ sơ của tôi';
+$topbarTitle = 'Hồ sơ cá nhân';
 $brandName = 'Creative Agency Hub';
-
-$currentUser = $currentUser ?? [
-    'name' => 'Nguyễn Minh Tú',
-    'role' => 'Senior HR Specialist',
-    'avatar' => null,
-];
-
-$employee = $employee ?? [
-    'name' => 'Nguyễn Minh Tú',
-    'position' => 'Chuyên viên Nhân sự Cấp cao',
-    'department' => 'Phòng HR & Hành chính',
-    'employee_code' => 'EMP-09224',
-    'birth_date' => '24/09/1992',
-    'email' => 'minhtu.hr@gmail.com',
-    'phone' => '+84 908 123 456',
-    'address' => '123 Đường Lê Lợi, Phường Bến Thành, Quận 1, TP. Hồ Chí Minh',
-    'contract_type' => 'Vô thời hạn',
-    'insurance_status' => 'Đang hiệu lực',
-    'start_date' => '15/05/2021',
-];
-
-$kpis = $kpis ?? [
-    ['label' => 'Tiến độ công việc', 'value' => 85],
-    ['label' => 'Chỉ số hài lòng', 'value' => 92],
-    ['label' => 'Chuyên cần', 'value' => 100],
-];
-
-$documents = $documents ?? [
-    ['name' => 'CCCD_Mat_Truoc.pdf', 'updated' => 'Cập nhật 2 ngày trước', 'icon' => 'PDF'],
-    ['name' => 'So_Yeu_Ly_Lich.docx', 'updated' => 'Cập nhật 1 tháng trước', 'icon' => 'DOC'],
-    ['name' => 'Bang_Dai_Hoc.pdf', 'updated' => 'Cập nhật 1 năm trước', 'icon' => 'PDF'],
-];
 
 ob_start();
 ?>
 
-<section class="hrm-grid">
+<?php
+$pageHeading = 'Hồ sơ Cá nhân';
+$pageSubtitle = 'Xem thông tin nhân sự, số ngày phép và các dữ liệu cá nhân liên quan đến tài khoản đăng nhập.';
+$pageAction = '
+<button class="btn btn-light" type="button" data-hrm-action="refresh-profile">Làm mới</button>
+<button class="btn btn-primary" type="button" data-hrm-action="open-edit-profile">Cập nhật hồ sơ</button>
+';
+require __DIR__ . '/../components/page-header.php';
+?>
+
+<section class="hrm-grid" data-hrm-page="profile">
     <article class="hrm-profile-hero">
-        <div class="profile-avatar-large">
-            <?php if (!empty($currentUser['avatar'])): ?>
-                <img src="<?php echo htmlspecialchars($currentUser['avatar']); ?>" alt="<?php echo htmlspecialchars($employee['name']); ?>">
-            <?php else: ?>
-                <span>MT</span>
-            <?php endif; ?>
+        <div class="profile-avatar-large" data-profile-avatar>
+            <span>CA</span>
         </div>
 
         <div class="profile-main-info">
-            <h1><?php echo htmlspecialchars($employee['name']); ?></h1>
-            <p><?php echo htmlspecialchars($employee['position']); ?> • <?php echo htmlspecialchars($employee['department']); ?></p>
+            <h1 data-profile-name>Đang tải hồ sơ...</h1>
+            <p data-profile-position>Đang đồng bộ dữ liệu nhân sự từ HRM API.</p>
 
             <div class="profile-badge-row">
-                <span class="badge badge-success">Đã xác minh</span>
-                <span class="badge badge-info">ID: <?php echo htmlspecialchars($employee['employee_code']); ?></span>
+                <span class="badge badge-primary" data-profile-role>Role</span>
+                <span class="badge badge-success" data-profile-status>Status</span>
+                <span class="badge badge-info" data-profile-code>Employee Code</span>
             </div>
         </div>
 
         <div class="profile-actions">
-            <a href="/creative-agency-hub/app/View/payroll/attendance.php" class="btn btn-emerald">
-                <span>↪</span>
-                <span>Check-in Trực tuyến</span>
-            </a>
+            <button class="btn btn-light" type="button" data-hrm-action="open-edit-profile">
+                ✎ Chỉnh sửa thông tin
+            </button>
 
-            <button class="btn btn-light" type="button" data-hrm-action="mock-save">
-                <span>✎</span>
-                <span>Chỉnh sửa hồ sơ</span>
+            <button class="btn btn-primary" type="button" data-hrm-action="open-avatar-upload">
+                ↑ Upload avatar
             </button>
         </div>
     </article>
 
     <section class="hrm-two-column">
-        <div class="hrm-grid">
-            <article class="card">
-                <div class="card-body">
-                    <h2 class="section-title">Chỉ số KPI Tháng 10</h2>
+        <article class="card">
+            <div class="card-header dashboard-card-title-row">
+                <h2>Thông tin cá nhân</h2>
+                <button class="btn btn-soft" type="button" data-hrm-action="open-edit-profile">Cập nhật</button>
+            </div>
 
-                    <div class="kpi-list" style="margin-top: 26px;">
-                        <?php foreach ($kpis as $kpi): ?>
-                            <div class="kpi-line">
-                                <div class="kpi-line-head">
-                                    <span><?php echo htmlspecialchars($kpi['label']); ?></span>
-                                    <span><?php echo (int) $kpi['value']; ?>%</span>
-                                </div>
+            <div class="card-body">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <small>Email</small>
+                        <strong data-profile-email>—</strong>
+                    </div>
 
-                                <div class="progress-line">
-                                    <div class="progress-line-fill" style="width: <?php echo (int) $kpi['value']; ?>%;"></div>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
+                    <div class="info-item">
+                        <small>Số điện thoại</small>
+                        <strong data-profile-phone>—</strong>
+                    </div>
+
+                    <div class="info-item">
+                        <small>Giới tính</small>
+                        <strong data-profile-gender>—</strong>
+                    </div>
+
+                    <div class="info-item">
+                        <small>Ngày sinh</small>
+                        <strong data-profile-dob>—</strong>
+                    </div>
+
+                    <div class="info-item">
+                        <small>Phòng ban</small>
+                        <strong data-profile-department>—</strong>
+                    </div>
+
+                    <div class="info-item">
+                        <small>Ngày vào làm</small>
+                        <strong data-profile-hire-date>—</strong>
+                    </div>
+
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <small>Địa chỉ</small>
+                        <strong data-profile-address>—</strong>
                     </div>
                 </div>
-            </article>
+            </div>
+        </article>
 
-            <article class="card">
-                <div class="card-body">
-                    <h2 class="section-title">Hợp đồng & Bảo hiểm</h2>
+        <article class="card">
+            <div class="card-header dashboard-card-title-row">
+                <h2>Ngày phép</h2>
+                <span class="badge badge-primary">Leave Balance</span>
+            </div>
 
-                    <div class="hrm-grid" style="margin-top: 24px;">
-                        <div class="document-card">
-                            <div class="document-icon">▤</div>
-                            <div class="document-info">
-                                <strong>Loại hợp đồng</strong>
-                                <small><?php echo htmlspecialchars($employee['contract_type']); ?></small>
-                            </div>
-                            <button class="document-download" type="button">›</button>
+            <div class="card-body">
+                <div class="kpi-list">
+                    <div class="kpi-line">
+                        <div class="kpi-line-head">
+                            <span>Số ngày phép còn lại</span>
+                            <span data-profile-remaining-leave>0 ngày</span>
                         </div>
-
-                        <div class="document-card">
-                            <div class="document-icon">✚</div>
-                            <div class="document-info">
-                                <strong>Bảo hiểm y tế</strong>
-                                <small><?php echo htmlspecialchars($employee['insurance_status']); ?></small>
-                            </div>
-                            <button class="document-download" type="button">›</button>
-                        </div>
-
-                        <div class="document-card">
-                            <div class="document-icon">◷</div>
-                            <div class="document-info">
-                                <strong>Ngày bắt đầu</strong>
-                                <small><?php echo htmlspecialchars($employee['start_date']); ?></small>
-                            </div>
-                            <button class="document-download" type="button">›</button>
+                        <div class="progress-line">
+                            <div class="progress-line-fill" data-profile-leave-progress style="width: 0%;"></div>
                         </div>
                     </div>
-                </div>
-            </article>
-        </div>
 
-        <div class="hrm-grid">
-            <article class="card">
-                <div class="card-header dashboard-card-title-row">
-                    <h2>Thông tin cá nhân</h2>
-                    <button class="btn btn-soft" type="button" data-hrm-action="mock-save">✎ Chỉnh sửa</button>
-                </div>
-
-                <div class="card-body">
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <small>Họ và tên</small>
-                            <strong><?php echo htmlspecialchars($employee['name']); ?></strong>
+                    <div class="kpi-line">
+                        <div class="kpi-line-head">
+                            <span>Tổng ngày phép năm</span>
+                            <span data-profile-total-leave>0 ngày</span>
                         </div>
-
-                        <div class="info-item">
-                            <small>Ngày sinh</small>
-                            <strong><?php echo htmlspecialchars($employee['birth_date']); ?></strong>
+                        <div class="progress-line">
+                            <div class="progress-line-fill" style="width: 100%;"></div>
                         </div>
+                    </div>
 
-                        <div class="info-item">
-                            <small>Email cá nhân</small>
-                            <strong><?php echo htmlspecialchars($employee['email']); ?></strong>
+                    <div class="kpi-line">
+                        <div class="kpi-line-head">
+                            <span>Trạng thái hồ sơ</span>
+                            <span data-profile-status-note>Đang tải</span>
                         </div>
-
-                        <div class="info-item">
-                            <small>Số điện thoại</small>
-                            <strong><?php echo htmlspecialchars($employee['phone']); ?></strong>
-                        </div>
-
-                        <div class="info-item" style="grid-column: 1 / -1;">
-                            <small>Địa chỉ thường trú</small>
-                            <span><?php echo htmlspecialchars($employee['address']); ?></span>
+                        <div class="progress-line">
+                            <div class="progress-line-fill" data-profile-status-progress style="width: 0%;"></div>
                         </div>
                     </div>
                 </div>
-            </article>
-
-            <article class="card">
-                <div class="card-header dashboard-card-title-row">
-                    <h2>Hồ sơ điện tử</h2>
-                    <button class="btn btn-soft" type="button" data-hrm-action="upload-doc">＋ Tải lên</button>
-                </div>
-
-                <div class="card-body">
-                    <div class="document-grid">
-                        <?php foreach ($documents as $document): ?>
-                            <div class="document-card">
-                                <div class="document-icon"><?php echo htmlspecialchars($document['icon']); ?></div>
-
-                                <div class="document-info">
-                                    <strong><?php echo htmlspecialchars($document['name']); ?></strong>
-                                    <small><?php echo htmlspecialchars($document['updated']); ?></small>
-                                </div>
-
-                                <button class="document-download" type="button">⇩</button>
-                            </div>
-                        <?php endforeach; ?>
-
-                        <button class="document-card" type="button" data-hrm-action="upload-doc" style="border-style: dashed;">
-                            <div class="document-icon">＋</div>
-                            <div class="document-info">
-                                <strong>Tải lên hồ sơ mới</strong>
-                                <small>PDF, DOCX hoặc hình ảnh</small>
-                            </div>
-                            <span></span>
-                        </button>
-                    </div>
-                </div>
-            </article>
-        </div>
+            </div>
+        </article>
     </section>
+
+    <article class="card">
+        <div class="card-header dashboard-card-title-row">
+            <div>
+                <h2>Tài liệu cá nhân</h2>
+                <p class="section-subtitle">Khu vực demo hồ sơ giấy tờ; backend document sẽ nối sau.</p>
+            </div>
+
+            <button class="btn btn-soft" type="button" data-hrm-action="upload-doc">＋ Upload hồ sơ</button>
+        </div>
+
+        <div class="card-body">
+            <div class="document-grid">
+                <div class="document-card">
+                    <div class="document-icon">PDF</div>
+                    <div class="document-info">
+                        <strong>Hợp đồng lao động</strong>
+                        <small>Đang chờ module EmployeeContract</small>
+                    </div>
+                    <button class="document-download" type="button" data-hrm-action="upload-doc">↓</button>
+                </div>
+
+                <div class="document-card">
+                    <div class="document-icon">ID</div>
+                    <div class="document-info">
+                        <strong>Hồ sơ định danh</strong>
+                        <small>Upload sau khi hoàn thiện API document</small>
+                    </div>
+                    <button class="document-download" type="button" data-hrm-action="upload-doc">↓</button>
+                </div>
+            </div>
+        </div>
+    </article>
 </section>
 
 <?php

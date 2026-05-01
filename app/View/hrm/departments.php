@@ -6,69 +6,41 @@ $activeMenu = 'departments';
 $topbarTitle = 'Cơ cấu tổ chức';
 $brandName = 'Creative Agency Hub';
 
-$departments = $departments ?? [
-    ['name' => 'Ban Giám đốc', 'members' => '05 Thành viên', 'location' => 'Head Office', 'icon' => '▣', 'parent' => true],
-    ['name' => 'Phòng Kỹ thuật', 'members' => '24 Thành viên', 'location' => 'Product & Engineering', 'icon' => '⚙', 'parent' => false],
-    ['name' => 'Phòng HR & Hành chính', 'members' => '08 Thành viên', 'location' => 'People Operations', 'icon' => '◉', 'parent' => false],
-    ['name' => 'Phòng Kế toán', 'members' => '04 Thành viên', 'location' => 'Finance', 'icon' => '▧', 'parent' => false],
-];
-
-$roles = $roles ?? [
-    [
-        'title' => 'Giám đốc Điều hành (CEO)',
-        'badge' => 'Admin',
-        'description' => 'Toàn quyền hệ thống và cấu hình tổ chức.',
-        'permissions' => ['Quản lý nhân sự', 'Duyệt chi', 'Cấu hình hệ thống'],
-    ],
-    [
-        'title' => 'Trưởng phòng Kỹ thuật',
-        'badge' => 'Manager',
-        'description' => 'Quản lý đội ngũ và dự án thuộc phạm vi phụ trách.',
-        'permissions' => ['Phân công việc', 'Duyệt nghỉ phép', 'Theo dõi tiến độ'],
-    ],
-    [
-        'title' => 'Chuyên viên Nhân sự',
-        'badge' => 'Standard',
-        'description' => 'Thực thi nghiệp vụ hồ sơ, hợp đồng và hỗ trợ nhân viên.',
-        'permissions' => ['Nhập liệu hồ sơ', 'Tính lương', 'Báo cáo'],
-    ],
-];
-
 ob_start();
 ?>
 
 <?php
 $pageHeading = 'Cơ cấu Tổ chức';
 $pageSubtitle = 'Quản lý sơ đồ phòng ban, chức danh và phân quyền hệ thống.';
-$pageAction = '<button class="btn btn-light" type="button" data-hrm-action="mock-save">⇩ Xuất báo cáo</button><button class="btn btn-primary" type="button" data-hrm-action="mock-save">＋ Thêm phòng ban</button>';
+$pageAction = '
+<button class="btn btn-light" type="button" data-hrm-action="refresh-organization">Làm mới</button>
+<button class="btn btn-primary" type="button" data-hrm-action="open-create-department">＋ Thêm phòng ban</button>
+';
 require __DIR__ . '/../components/page-header.php';
 ?>
 
-<section class="org-grid">
+<section class="org-grid" data-hrm-page="departments">
     <article class="card">
         <div class="card-header dashboard-card-title-row">
-            <h2>Sơ đồ phòng ban</h2>
-            <button class="btn btn-soft" type="button" data-hrm-action="mock-save">Mở rộng tất cả</button>
+            <div>
+                <h2>Sơ đồ phòng ban</h2>
+                <p class="section-subtitle">Đồng bộ từ bảng departments và số lượng nhân sự thực tế.</p>
+            </div>
+
+            <button class="btn btn-soft" type="button" data-hrm-action="open-create-department">
+                ＋ Thêm
+            </button>
         </div>
 
         <div class="card-body">
-            <div class="org-tree">
-                <?php foreach ($departments as $department): ?>
-                    <div class="org-node <?php echo !empty($department['parent']) ? 'is-parent' : ''; ?>">
-                        <div class="org-node-icon"><?php echo htmlspecialchars($department['icon']); ?></div>
-
-                        <div class="org-node-text">
-                            <strong><?php echo htmlspecialchars($department['name']); ?></strong>
-                            <small>
-                                <?php echo htmlspecialchars($department['members']); ?>
-                                •
-                                <?php echo htmlspecialchars($department['location']); ?>
-                            </small>
-                        </div>
-
-                        <button class="icon-btn" type="button" data-hrm-action="mock-save">⋮</button>
+            <div class="org-tree" data-department-tree>
+                <div class="ui-empty-state" style="min-height: 220px;">
+                    <div class="ui-empty-icon">▤</div>
+                    <div class="ui-empty-content">
+                        <h3>Đang tải phòng ban</h3>
+                        <p>Dữ liệu tổ chức đang được đồng bộ từ HRM API.</p>
                     </div>
-                <?php endforeach; ?>
+                </div>
             </div>
         </div>
     </article>
@@ -76,28 +48,25 @@ require __DIR__ . '/../components/page-header.php';
     <aside class="hrm-grid">
         <article class="card">
             <div class="card-header dashboard-card-title-row">
-                <h2>Chức danh & Phân quyền</h2>
-                <button class="btn btn-soft" type="button" data-hrm-action="mock-save">＋ Thêm</button>
+                <div>
+                    <h2>Chức danh</h2>
+                    <p class="section-subtitle">Danh sách position đang hoạt động.</p>
+                </div>
+
+                <button class="btn btn-soft" type="button" data-hrm-action="open-create-position">
+                    ＋ Thêm
+                </button>
             </div>
 
             <div class="card-body">
-                <div class="role-list">
-                    <?php foreach ($roles as $role): ?>
-                        <div class="role-card">
-                            <div class="role-card-head">
-                                <h3><?php echo htmlspecialchars($role['title']); ?></h3>
-                                <span class="badge badge-primary"><?php echo htmlspecialchars($role['badge']); ?></span>
-                            </div>
-
-                            <p><?php echo htmlspecialchars($role['description']); ?></p>
-
-                            <div class="role-permission-row">
-                                <?php foreach ($role['permissions'] as $permission): ?>
-                                    <span class="badge badge-info"><?php echo htmlspecialchars($permission); ?></span>
-                                <?php endforeach; ?>
-                            </div>
+                <div class="role-list" data-position-list>
+                    <div class="ui-empty-state" style="min-height: 180px;">
+                        <div class="ui-empty-icon">✦</div>
+                        <div class="ui-empty-content">
+                            <h3>Đang tải chức danh</h3>
+                            <p>Danh sách chức danh sẽ hiển thị tại đây.</p>
                         </div>
-                    <?php endforeach; ?>
+                    </div>
                 </div>
             </div>
         </article>
@@ -105,19 +74,30 @@ require __DIR__ . '/../components/page-header.php';
         <article class="quick-summary-card">
             <div>
                 <span>Tổng quy mô tổ chức</span>
-                <strong>142</strong>
-                <p>Tăng 12% so với tháng trước. Cơ cấu hiện tại ổn định và sẵn sàng mở rộng.</p>
+                <strong data-org-stat="employees">0</strong>
+                <p>
+                    <span data-org-stat="departments">0</span> phòng ban và
+                    <span data-org-stat="positions">0</span> chức danh đang hoạt động.
+                </p>
             </div>
 
-            <button class="btn btn-light" type="button" data-hrm-action="mock-save">Xem báo cáo nhân sự</button>
+            <a class="btn btn-light" href="/creative-agency-hub/app/View/hrm/employees.php">
+                Xem danh sách nhân sự
+            </a>
         </article>
     </aside>
 </section>
 
 <section class="card" style="margin-top: 26px;">
     <div class="card-header dashboard-card-title-row">
-        <h2>Danh sách nhân sự nòng cốt</h2>
-        <a href="/creative-agency-hub/app/View/hrm/employees.php" class="text-primary" style="font-weight: 800;">Xem tất cả</a>
+        <div>
+            <h2>Danh sách nhân sự nòng cốt</h2>
+            <p class="section-subtitle">Top nhân sự mới nhất trong hệ thống.</p>
+        </div>
+
+        <a href="/creative-agency-hub/app/View/hrm/employees.php" class="text-primary" style="font-weight: 800;">
+            Xem tất cả
+        </a>
     </div>
 
     <div class="table-responsive">
@@ -132,37 +112,17 @@ require __DIR__ . '/../components/page-header.php';
                 </tr>
             </thead>
 
-            <tbody>
+            <tbody data-org-employee-preview>
                 <tr>
-                    <td>
-                        <div class="employee-cell">
-                            <div class="employee-avatar">NA</div>
-                            <div class="employee-name">
-                                <strong>Nguyễn Văn An</strong>
-                                <small>an.nguyen@agency.vn</small>
+                    <td colspan="5">
+                        <div class="ui-empty-state" style="min-height: 160px;">
+                            <div class="ui-empty-icon">◉</div>
+                            <div class="ui-empty-content">
+                                <h3>Đang tải nhân sự</h3>
+                                <p>Danh sách preview sẽ được đồng bộ từ API employees.</p>
                             </div>
                         </div>
                     </td>
-                    <td>Ban Giám đốc</td>
-                    <td><strong class="text-primary">Tổng Giám đốc</strong></td>
-                    <td><span class="badge badge-success">Đang làm việc</span></td>
-                    <td><button class="icon-btn" type="button" data-hrm-action="mock-save">✎</button></td>
-                </tr>
-
-                <tr>
-                    <td>
-                        <div class="employee-cell">
-                            <div class="employee-avatar">LM</div>
-                            <div class="employee-name">
-                                <strong>Lê Thị Mai</strong>
-                                <small>mai.lt@agency.vn</small>
-                            </div>
-                        </div>
-                    </td>
-                    <td>Kỹ thuật</td>
-                    <td><strong class="text-primary">Technical Lead</strong></td>
-                    <td><span class="badge badge-success">Đang làm việc</span></td>
-                    <td><button class="icon-btn" type="button" data-hrm-action="mock-save">✎</button></td>
                 </tr>
             </tbody>
         </table>
