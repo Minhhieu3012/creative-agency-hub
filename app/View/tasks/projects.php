@@ -1,167 +1,167 @@
 <?php
 $pageTitle = 'Quản lý dự án | Creative Agency Hub';
-$pageCss = ['tasks.css', 'dashboard.css'];
-$pageJs = ['dashboard.js'];
+$pageCss = ['projects.css', 'tasks.css'];
+$pageJs = ['projects.js'];
 $activeMenu = 'projects';
 $topbarTitle = 'Dự án';
 $brandName = 'Creative Agency Hub';
 
-$projects = $projects ?? [
-    [
-        'name' => 'NexusHR Web Platform',
-        'description' => 'Xây dựng nền tảng quản lý nhân sự, công việc và cổng khách hàng.',
-        'status' => 'Đang triển khai',
-        'progress' => 78,
-        'tasks' => 42,
-        'members' => 12,
-        'deadline' => '25/12/2026',
-    ],
-    [
-        'name' => 'Brand Campaign Q4',
-        'description' => 'Quản trị chiến dịch sáng tạo, tracking asset, feedback và phê duyệt.',
-        'status' => 'Đang kiểm tra',
-        'progress' => 64,
-        'tasks' => 28,
-        'members' => 8,
-        'deadline' => '15/01/2027',
-    ],
-    [
-        'name' => 'Client Portal Upgrade',
-        'description' => 'Nâng cấp trải nghiệm khách hàng, phản hồi task và báo cáo tiến độ.',
-        'status' => 'Lên kế hoạch',
-        'progress' => 36,
-        'tasks' => 19,
-        'members' => 6,
-        'deadline' => '08/02/2027',
-    ],
-];
+$baseUrl = $baseUrl ?? '/creative-agency-hub';
+$viewUrl = $viewUrl ?? ($baseUrl . '/app/View');
 
 ob_start();
 ?>
 
 <?php
 $pageHeading = 'Quản lý Dự án';
-$pageSubtitle = 'Theo dõi tiến độ, phân bổ nhân sự và kiểm soát trạng thái các dự án đang vận hành.';
-$pageAction = '<a class="btn btn-light" href="/creative-agency-hub/app/View/tasks/gantt.php">▥ Gantt Chart</a><a class="btn btn-primary" href="/creative-agency-hub/app/View/tasks/kanban.php">☑ Mở Kanban</a>';
+$pageSubtitle = 'Manager tạo project thật, chọn client theo dõi và chuẩn bị luồng tạo task theo project.';
+$pageAction = '
+    <a class="btn btn-light" href="' . htmlspecialchars($viewUrl) . '/tasks/gantt.php">▥ Gantt Chart</a>
+    <a class="btn btn-light" href="' . htmlspecialchars($viewUrl) . '/tasks/kanban.php">☑ Kanban</a>
+    <button class="btn btn-primary" type="button" data-project-create>＋ Tạo Project mới</button>
+';
 require __DIR__ . '/../components/page-header.php';
 ?>
 
-<section class="task-shell">
-    <div class="stat-grid">
-        <article class="stat-card">
-            <div class="stat-card-icon">▣</div>
-            <div class="stat-card-body">
+<section class="project-page-shell" data-project-page>
+    <div class="project-stat-grid">
+        <article class="project-stat-card">
+            <span class="project-stat-icon">▣</span>
+            <div>
                 <span>Tổng dự án</span>
-                <strong data-count-to="15">0</strong>
-                <small>Đang theo dõi</small>
+                <strong data-project-stat-total>0</strong>
+                <small>Project manager đang quản lý</small>
             </div>
         </article>
 
-        <article class="stat-card">
-            <div class="stat-card-icon">☑</div>
-            <div class="stat-card-body">
+        <article class="project-stat-card">
+            <span class="project-stat-icon">☑</span>
+            <div>
                 <span>Task đang mở</span>
-                <strong data-count-to="89">0</strong>
-                <small>Trong tháng này</small>
+                <strong data-project-stat-tasks>0</strong>
+                <small>Tổng task trong các project</small>
             </div>
         </article>
 
-        <article class="stat-card">
-            <div class="stat-card-icon">◔</div>
-            <div class="stat-card-body">
+        <article class="project-stat-card">
+            <span class="project-stat-icon">◔</span>
+            <div>
                 <span>Tiến độ TB</span>
-                <strong><span data-count-to="72">0</span>%</strong>
-                <small>+8% so với tuần trước</small>
+                <strong><span data-project-stat-progress>0</span>%</strong>
+                <small>Tính theo trạng thái task</small>
             </div>
         </article>
 
-        <article class="stat-card stat-card-danger">
-            <div class="stat-card-icon">!</div>
-            <div class="stat-card-body">
-                <span>Rủi ro deadline</span>
-                <strong data-count-to="4">0</strong>
-                <small>Cần xử lý</small>
+        <article class="project-stat-card project-stat-card-danger">
+            <span class="project-stat-icon">◇</span>
+            <div>
+                <span>Client đang theo dõi</span>
+                <strong data-project-stat-clients>0</strong>
+                <small>Tài khoản client được gán</small>
             </div>
         </article>
     </div>
 
-    <div class="task-filter-bar">
-        <div class="input-with-icon">
-            <span class="input-icon">⌕</span>
-            <input class="form-control" type="search" placeholder="Tìm kiếm dự án...">
+    <div class="project-toolbar">
+        <div class="project-toolbar-left">
+            <label class="project-search">
+                <span>⌕</span>
+                <input type="search" placeholder="Tìm kiếm dự án..." data-project-search>
+            </label>
+
+            <select class="form-select" data-project-status-filter>
+                <option value="all">Tất cả trạng thái</option>
+                <option value="Active">Đang triển khai</option>
+                <option value="Completed">Hoàn thành</option>
+                <option value="Archived">Lưu trữ</option>
+            </select>
+
+            <button class="btn btn-soft" type="button" data-project-filter-apply>
+                Lọc dữ liệu
+            </button>
         </div>
 
-        <select class="form-select">
-            <option>Tất cả trạng thái</option>
-            <option>Đang triển khai</option>
-            <option>Đang kiểm tra</option>
-            <option>Lên kế hoạch</option>
-        </select>
-
-        <select class="form-select">
-            <option>Deadline gần nhất</option>
-            <option>Tiến độ cao nhất</option>
-            <option>Rủi ro cao nhất</option>
-        </select>
-
-        <button class="btn btn-soft" type="button">Lọc dữ liệu</button>
+        <div class="project-toolbar-right">
+            <button class="btn btn-light" type="button" data-project-refresh>
+                ↻ Làm mới
+            </button>
+        </div>
     </div>
 
-    <section class="project-grid">
-        <?php foreach ($projects as $project): ?>
-            <article class="project-card">
-                <div class="project-card-head">
-                    <div class="project-card-title-row">
-                        <h2><?php echo htmlspecialchars($project['name']); ?></h2>
-                        <span class="project-status-pill"><?php echo htmlspecialchars($project['status']); ?></span>
-                    </div>
-
-                    <p><?php echo htmlspecialchars($project['description']); ?></p>
-                </div>
-
-                <div class="project-card-meta">
-                    <div class="progress-line">
-                        <div class="progress-line-fill" style="width: <?php echo (int) $project['progress']; ?>%;"></div>
-                    </div>
-
-                    <div class="project-progress-meta">
-                        <span><?php echo (int) $project['progress']; ?>% hoàn thành</span>
-                        <span>Deadline: <?php echo htmlspecialchars($project['deadline']); ?></span>
-                    </div>
-
-                    <div class="project-stat-row">
-                        <div class="project-mini-stat">
-                            <strong><?php echo (int) $project['tasks']; ?></strong>
-                            <span>Tasks</span>
-                        </div>
-
-                        <div class="project-mini-stat">
-                            <strong><?php echo (int) $project['members']; ?></strong>
-                            <span>Members</span>
-                        </div>
-
-                        <div class="project-mini-stat">
-                            <strong><?php echo (int) $project['progress']; ?>%</strong>
-                            <span>Progress</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="project-card-footer">
-                    <div class="avatar-stack">
-                        <span>A</span>
-                        <span>B</span>
-                        <span>+<?php echo max(0, (int) $project['members'] - 2); ?></span>
-                    </div>
-
-                    <a href="/creative-agency-hub/app/View/tasks/kanban.php" class="btn btn-light">Xem bảng</a>
-                </div>
-            </article>
-        <?php endforeach; ?>
+    <section class="project-grid" data-project-grid>
+        <div class="project-loading-card">
+            <div class="ui-spinner"></div>
+            <strong>Đang tải project từ database...</strong>
+            <p>Vui lòng chờ trong giây lát.</p>
+        </div>
     </section>
 </section>
 
+<template id="projectCreateTemplate">
+    <form class="project-form" data-project-form>
+        <div class="form-group">
+            <label class="form-label">Tên project</label>
+            <input
+                class="form-control"
+                type="text"
+                name="name"
+                placeholder="VD: Website Brand Launch"
+                required
+            >
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Mô tả project</label>
+            <textarea
+                class="form-textarea"
+                name="description"
+                rows="4"
+                placeholder="Mô tả mục tiêu, phạm vi và đầu ra của project..."
+            ></textarea>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Client theo dõi</label>
+                <select class="form-select" name="client_id" data-project-client-select>
+                    <option value="">-- Chọn client --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Trạng thái</label>
+                <select class="form-select" name="status">
+                    <option value="Active">Đang triển khai</option>
+                    <option value="Completed">Hoàn thành</option>
+                    <option value="Archived">Lưu trữ</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="project-form-note">
+            <strong>Ghi chú:</strong>
+            Employee sẽ được đưa vào project thông qua task được giao trong phase kế tiếp.
+            Schema hiện tại chưa có bảng project_members nên chưa làm invite link thật ở bước này.
+        </div>
+
+        <div class="task-modal-footer">
+            <button class="btn btn-light" type="button" data-modal-close>Đóng</button>
+            <button class="btn btn-primary" type="submit">Tạo project</button>
+        </div>
+    </form>
+</template>
+
+<template id="projectDetailTemplate">
+    <div class="project-detail-modal" data-project-detail-modal>
+        <div class="project-detail-loading">
+            <div class="ui-spinner"></div>
+            <strong>Đang tải chi tiết project...</strong>
+        </div>
+    </div>
+</template>
+
 <?php
+require __DIR__ . '/../components/modal.php';
 $content = ob_get_clean();
 require __DIR__ . '/../layouts/app.php';
 ?>
