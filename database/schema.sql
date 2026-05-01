@@ -182,19 +182,6 @@ CREATE TABLE notifications (
     FOREIGN KEY (user_id) REFERENCES employees(id) ON DELETE CASCADE
 );
 
-CREATE TABLE `users` (
-  `id` INT(11) NOT NULL AUTO_INCREMENT,
-  `email` VARCHAR(255) NOT NULL,
-  `password` VARCHAR(255) NOT NULL,
-  `full_name` VARCHAR(255) DEFAULT NULL,
-  `role` ENUM('admin', 'manager', 'employee', 'client') NOT NULL DEFAULT 'employee',
-  `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
-  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
-  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP(),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- BẢNG LỊCH SỬ CHỈNH SỬA TASK (Task Activity Logs) - Owner: Bảo (Bổ sung bảng)
 CREATE TABLE task_activity_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -219,7 +206,6 @@ CREATE TABLE task_activity_logs (
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES employees(id) ON DELETE CASCADE
 );
-
 -- 9. BẢNG ĐÍNH KÈM TÀI LIỆU (Task Attachments) - Owner: Bảo (ĐÃ FIX: Bổ sung bảng)
 CREATE TABLE task_attachments (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -231,7 +217,6 @@ CREATE TABLE task_attachments (
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- 10. BẢNG NGHỈ PHÉP (Leave Requests) - Owner: Tiến
 CREATE TABLE leave_requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -246,7 +231,6 @@ CREATE TABLE leave_requests (
     FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
     FOREIGN KEY (approved_by) REFERENCES employees(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- 11. BẢNG CHẤM CÔNG (Attendances) - Owner: Tiến
 CREATE TABLE attendances (
     id INT AUTO_INCREMENT PRIMARY KEY,
