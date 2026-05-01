@@ -4,7 +4,6 @@ namespace App\Controllers\Auth;
 use App\Models\Auth\User;
 use Core\JwtHandler;
 use Core\Security;
-use Core\Database;
 use Exception;
 
 class AuthController {
@@ -19,7 +18,7 @@ class AuthController {
     }
 
     /**
-     * Helper: Đọc dữ liệu đầu vào một cách chính xác nhất
+     * Helper: Đọc dữ liệu đầu vào từ JSON hoặc POST
      */
     private function getInputData() {
         $rawInput = file_get_contents('php://input');
@@ -28,57 +27,66 @@ class AuthController {
     }
 
     /**
-     * Xử lý Đăng nhập chung (Cập nhật logic Session để tránh nhảy Role)
+     * Xử lý Đăng nhập chung
+     * Tích hợp: Cookie JWT + Trả về JSON chuẩn Stateless
      */
     public function login() {
         header('Content-Type: application/json; charset=utf-8');
-        $input = $this->getInputData();
+        try {
+            $input = $this->getInputData();
+            $email    = isset($input['email']) ? trim($input['email']) : '';
+            $password = isset($input['password']) ? trim($input['password']) : '';
 
-        $email    = isset($input['email']) ? trim($input['email']) : '';
-        $password = isset($input['password']) ? trim($input['password']) : '';
+            if (empty($email) || empty($password)) {
+                throw new Exception("Vui lòng nhập đầy đủ email và mật khẩu");
+            }
 
-        if (empty($email) || empty($password)) {
-            http_response_code(400);
-            echo json_encode(["status" => "error", "message" => "Vui lòng nhập đầy đủ email và mật khẩu"]);
-            return;
-        }
+            $user = $this->userModel->findByEmail($email);
 
-        $user = $this->userModel->findByEmail($email);
+            if ($user && password_verify($password, $user['password'])) {
+                $role = strtolower($user['role']);
 
-        if ($user && password_verify($password, $user['password'])) {
-            // --- FIX LỖI NHẢY ROLE KHI F5 ---
-            if (session_status() === PHP_SESSION_NONE) session_start();
-            $_SESSION['user_id']   = $user['id'];
-            $_SESSION['user_role'] = strtolower($user['role']);
-            $_SESSION['full_name'] = $user['full_name'] ?? '';
+                // Tạo Token chứa thông tin định danh
+                $token = $this->jwt->encode([
+                    'id'        => $user['id'],
+                    'email'     => $user['email'],
+                    'role'      => $role,
+                    'full_name' => $user['full_name'] ?? ''
+                ]);
 
-            $token = $this->jwt->encode([
-                'id'    => $user['id'],
-                'email' => $user['email'],
-                'role'  => strtolower($user['role'])
-            ]);
+                // Lưu Cookie làm dự phòng cho Server-side Rendering
+                setcookie('cah_token', $token, time() + 86400, '/', '', false, true);
 
-            echo json_encode([
-                "status"  => "success",
-                "message" => "Đăng nhập thành công",
-                "data"    => [
-                    "token" => $token,
-                    "user"  => [
-                        "id"        => $user['id'],
-                        "full_name" => $user['full_name'] ?? '',
-                        "role"      => strtolower($user['role'])
+                // Đồng bộ hóa Session (Fallback)
+                if (session_status() === PHP_SESSION_NONE) session_start();
+                $_SESSION['user_id']   = $user['id'];
+                $_SESSION['user_role'] = $role;
+                session_write_close(); 
+
+                echo json_encode([
+                    "status"  => "success",
+                    "message" => "Đăng nhập thành công",
+                    "data"    => [
+                        "token" => $token,
+                        "user"  => [
+                            "id"        => $user['id'],
+                            "full_name" => $user['full_name'] ?? '',
+                            "role"      => $role
+                        ]
                     ]
-                ]
-            ]);
-        } else {
+                ]);
+            } else {
+                throw new Exception("Email hoặc mật khẩu không chính xác");
+            }
+        } catch (Exception $e) {
             http_response_code(401);
-            echo json_encode(["status" => "error", "message" => "Email hoặc mật khẩu không chính xác"]);
+            echo json_encode(["status" => "error", "message" => $e->getMessage()]);
         }
     }
 
     /**
      * Đăng nhập Nội bộ (Admin, Manager, Employee)
-     * Tích hợp Logic Session để đồng bộ với Sidebar.php
+     * KẾT HỢP: Logic DEBUG chi tiết + Cookie JWT + Trả về data cho Sidebar JS
      */
     public function loginInternal() {
         header('Content-Type: application/json; charset=utf-8');
@@ -108,27 +116,32 @@ class AuthController {
                 return;
             }
 
-            // --- QUAN TRỌNG: FIX LỖI NHẢY ROLE KHI F5 ---
-            if (session_status() === PHP_SESSION_NONE) session_start();
-            $_SESSION['user_id']   = $user['id'];
-            $_SESSION['user_role'] = strtolower($user['role']);
-            $_SESSION['full_name'] = $user['full_name'];
-
+            $role = strtolower($user['role']);
+            
+            // Tạo Token
             $token = $this->jwt->encode([
-                'id'    => $user['id'],
-                'email' => $user['email'],
-                'role'  => strtolower($user['role'])
+                'id'        => $user['id'],
+                'role'      => $role,
+                'email'     => $user['email'],
+                'full_name' => $user['full_name']
             ]);
 
+            // Lưu Cookie & Session Persistence
+            setcookie('cah_token', $token, time() + 86400, '/', '', false, true);
+            if (session_status() === PHP_SESSION_NONE) session_start();
+            $_SESSION['user_id']   = $user['id'];
+            $_SESSION['user_role'] = $role;
+            session_write_close(); 
+
             echo json_encode([
-                "status"  => "success",
-                "message" => "Đăng nhập thành công",
-                "data"    => [
+                "status" => "success",
+                "message"=> "Đăng nhập thành công",
+                "data"   => [
                     "token" => $token,
                     "user"  => [
                         "id"        => $user['id'],
                         "full_name" => $user['full_name'],
-                        "role"      => strtolower($user['role'])
+                        "role"      => $role
                     ]
                 ]
             ]);
@@ -179,7 +192,7 @@ class AuthController {
         header('Content-Type: application/json; charset=utf-8');
         $headers = getallheaders();
         $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
-
+        
         if (!$authHeader) {
             http_response_code(401);
             echo json_encode(["status"=>"error","message"=>"Thiếu token"]);
@@ -191,18 +204,12 @@ class AuthController {
 
         if (!$decoded) {
             http_response_code(401);
-            echo json_encode(["status"=>"error","message"=>"Token không hợp lệ"]);
+            echo json_encode(["status"=>"error", "message"=>"Token không hợp lệ"]);
             return;
         }
 
         $user = $this->userModel->findById($decoded['id']);
-        if (!$user) {
-            http_response_code(404);
-            echo json_encode(["status"=>"error","message"=>"Không tìm thấy user"]);
-            return;
-        }
-
-        echo json_encode(["status"=>"success", "data"=>["user"=>$user]]);
+        echo json_encode(["status"=>"success", "data"=>["user" => $user]]);
     }
 
     public function loginClient() {
