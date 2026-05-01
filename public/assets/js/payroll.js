@@ -126,8 +126,8 @@
                                 </div>
                             </div>
                             <div class="approval-actions">
-                                <button class="btn btn-danger-soft" onclick="processApproval('leave', ${item.id}, 'Rejected')">Từ chối</button>
-                                <button class="btn btn-primary" onclick="processApproval('leave', ${item.id}, 'Approved')">Duyệt phép</button>
+                                <button class="btn btn-danger-soft" onclick="processApproval('leave', ${item.id || item.leave_id}, 'Rejected')">Từ chối</button>
+                                <button class="btn btn-primary" onclick="processApproval('leave', ${item.id || item.leave_id}, 'Approved')">Duyệt phép</button>
                             </div>
                         </article>
                     `).join('');
@@ -143,34 +143,72 @@
                     if (countEl) countEl.innerText = tasks.length;
 
                     taskList.innerHTML = tasks.length === 0 ? '<p class="empty-msg" style="text-align:center; padding:20px; color:#999;">Mọi công việc đã được xử lý xong.</p>' : 
-                    tasks.map(item => `
+                    tasks.map(item => {
+                        const taskId = item.id || item.task_id || 0;
+                        const projectId = item.project_id || item.project || 'N/A';
+                        const taskTitle = item.title || item.task_name || 'Không có tên';
+                        
+                        return `
                         <article class="approval-card">
                             <div class="approval-avatar">TK</div>
                             <div class="approval-content">
-                                <h3>Duyệt hoàn thành: ${item.title}</h3>
+                                <h3>Duyệt hoàn thành: ${taskTitle}</h3>
                                 <p>${item.description || 'Không có mô tả'}</p>
-                                <div class="approval-meta"><span class="badge badge-primary">Dự án ID: #${item.project_id}</span></div>
+                                <div class="approval-meta">
+                                    <span class="badge badge-primary">Dự án ID: #${projectId}</span>
+                                </div>
                             </div>
                             <div class="approval-actions">
-                                <button class="btn btn-danger-soft" onclick="processApproval('task', ${item.id}, 'Rejected')">Từ chối</button>
-                                <button class="btn btn-primary" onclick="processApproval('task', ${item.id}, 'Approved')">Duyệt Task</button>
+                                <button class="btn btn-danger-soft" onclick="processApproval('task', ${taskId}, 'Rejected')">Từ chối</button>
+                                <button class="btn btn-primary" onclick="processApproval('task', ${taskId}, 'Approved')">Duyệt Task</button>
                             </div>
                         </article>
-                    `).join('');
+                        `;
+                    }).join('');
                 }
             }
         } catch (e) { console.error("Lỗi tải phê duyệt:", e); }
     };
 
+    /**
+     * HÀM XỬ LÝ PHÊ DUYỆT ĐÃ ĐƯỢC CHUẨN HÓA
+     * Phân tách Method (PATCH/POST) và Endpoint dựa trên cấu hình routes/api.php
+     */
     window.processApproval = async (type, id, action) => {
+        if (!id || id === 0) {
+            if (window.CAHToast) CAHToast.error("Lỗi Dữ Liệu", "Không tìm thấy ID để phê duyệt.");
+            return;
+        }
+
         try {
-            const endpoint = type === 'leave' ? `/leaves/${id}/approve` : `/tasks/${id}/approve`;
-            const res = await callApi(endpoint, 'PATCH', { action });
+            let endpoint = '';
+            let method = '';
+            let body = null;
+
+            if (type === 'leave') {
+                // Tuyến đường cho Nghỉ Phép: PATCH /api/leaves/:id/approve
+                endpoint = `/leaves/${id}/approve`;
+                method = 'PATCH';
+                body = { action }; // Gửi trạng thái Approved/Rejected trong body
+            } else if (type === 'task') {
+                // Tuyến đường cho Task: POST /api/tasks/:id/approve HOẶC POST /api/tasks/:id/reject
+                const taskAction = action === 'Approved' ? 'approve' : 'reject';
+                endpoint = `/tasks/${id}/${taskAction}`;
+                method = 'POST';
+                body = {}; // Backend có thể cần body trống cho POST requests
+            }
+
+            const res = await callApi(endpoint, method, body);
+            
             if (res.status === 'success') {
                 if (window.CAHToast) CAHToast.success("Thành công", res.message);
-                loadManagerApprovals();
-            } else { if (window.CAHToast) CAHToast.error("Thất bại", res.message); }
-        } catch (err) { if (window.CAHToast) CAHToast.error("Lỗi hệ thống", err.message); }
+                loadManagerApprovals(); // Reload lại danh sách sau khi duyệt
+            } else { 
+                if (window.CAHToast) CAHToast.error("Thất bại", res.message); 
+            }
+        } catch (err) { 
+            if (window.CAHToast) CAHToast.error("Lỗi hệ thống", err.message); 
+        }
     };
 
     // --- 5. KHỞI TẠO & LẮNG NGHE ---
