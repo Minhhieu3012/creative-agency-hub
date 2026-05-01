@@ -6,92 +6,44 @@ $activeMenu = 'dashboard';
 $topbarTitle = 'Manager Dashboard';
 $brandName = 'Creative Agency Hub';
 
-$currentUser = $currentUser ?? [
-    'name' => 'Nguyễn Quản Lý',
-    'role' => 'Project Director',
-    'avatar' => null,
-];
-
-$stats = $stats ?? [
+$stats = [
     [
+        'id' => 'stat-projects',
         'title' => 'Dự án đang chạy',
-        'value' => 15,
+        'value' => 0,
         'note' => '+12% so với tháng trước',
         'icon' => '▦',
         'tone' => 'primary',
     ],
     [
+        'id' => 'stat-employees',
         'title' => 'Nhân sự tham gia',
-        'value' => 48,
+        'value' => 0,
         'note' => 'Đang hoạt động',
         'icon' => '◉',
         'tone' => 'info',
     ],
     [
+        'id' => 'stat-progress',
         'title' => 'Tiến độ trung bình',
-        'value' => 72,
+        'value' => 0,
         'note' => 'Mục tiêu tháng này',
         'icon' => '◔',
         'tone' => 'primary',
     ],
     [
+        'id' => 'stat-tasks',
         'title' => 'Task quá hạn',
-        'value' => 4,
+        'value' => 0,
         'note' => 'Cần xử lý hôm nay',
         'icon' => '!',
         'tone' => 'danger',
     ],
 ];
 
-$projects = $projects ?? [
-    [
-        'name' => 'Nâng cấp Core Banking',
-        'deadline' => '25 TH12, 2026',
-        'progress' => 85,
-        'tasks' => '42/50 Tasks',
-        'tone' => 'primary',
-        'members' => ['A', 'B', '+4'],
-    ],
-    [
-        'name' => 'Thiết kế Website Corporate',
-        'deadline' => '15 TH01, 2027',
-        'progress' => 45,
-        'tasks' => '18/40 Tasks',
-        'tone' => 'warning',
-        'members' => ['D', 'M', '+2'],
-    ],
-];
-
-$activities = $activities ?? [
-    [
-        'icon' => '✓',
-        'tone' => 'primary',
-        'title' => 'Hoàn thành Milestone 2',
-        'description' => 'Dự án Core Banking - <a href="#">Trần Văn A</a>',
-        'time' => '10 phút trước',
-    ],
-    [
-        'icon' => '□',
-        'tone' => 'info',
-        'title' => 'Bình luận mới',
-        'description' => '“Cần kiểm tra lại UI trên thiết bị mobile...”',
-        'time' => '2 giờ trước',
-    ],
-    [
-        'icon' => '△',
-        'tone' => 'danger',
-        'title' => 'Task quá hạn',
-        'description' => 'Tối ưu hóa DB - Team Backend',
-        'time' => '5 giờ trước',
-    ],
-    [
-        'icon' => '+',
-        'tone' => 'primary',
-        'title' => 'Thêm nhân sự mới',
-        'description' => 'Lê Thị B gia nhập Design Team',
-        'time' => 'Hôm qua',
-    ],
-];
+// Dữ liệu giả tĩnh (Mock) - Sẽ bị JS ghi đè ngay khi load xong
+$projects = []; 
+$activities = [];
 
 $resources = $resources ?? [
     ['label' => 'Dev Team', 'value' => 82],
@@ -117,11 +69,11 @@ require __DIR__ . '/../components/page-header.php';
                 <span><?php echo htmlspecialchars($stat['title']); ?></span>
 
                 <?php if ($stat['title'] === 'Tiến độ trung bình'): ?>
-                    <strong><span data-count-to="<?php echo (int) $stat['value']; ?>">0</span>%</strong>
+                    <strong><span id="<?php echo htmlspecialchars($stat['id']); ?>" data-count-to="<?php echo (int) $stat['value']; ?>">0</span>%</strong>
                 <?php elseif ($stat['title'] === 'Task quá hạn'): ?>
-                    <strong><span data-count-to="<?php echo (int) $stat['value']; ?>" data-pad="2">00</span></strong>
+                    <strong><span id="<?php echo htmlspecialchars($stat['id']); ?>" data-count-to="<?php echo (int) $stat['value']; ?>" data-pad="2">00</span></strong>
                 <?php else: ?>
-                    <strong data-count-to="<?php echo (int) $stat['value']; ?>">0</strong>
+                    <strong id="<?php echo htmlspecialchars($stat['id']); ?>" data-count-to="<?php echo (int) $stat['value']; ?>">0</strong>
                 <?php endif; ?>
 
                 <small><?php echo htmlspecialchars($stat['note']); ?></small>
@@ -137,36 +89,8 @@ require __DIR__ . '/../components/page-header.php';
                 <h2>Tiến độ Dự án Trọng điểm</h2>
                 <a href="/creative-agency-hub/app/View/tasks/projects.php">Xem tất cả</a>
             </div>
-
             <div class="card-body dashboard-project-list">
-                <?php foreach ($projects as $project): ?>
-                    <div class="project-progress-item">
-                        <div class="project-progress-head">
-                            <div class="project-progress-title">
-                                <strong><?php echo htmlspecialchars($project['name']); ?></strong>
-                                <small>Deadline: <?php echo htmlspecialchars($project['deadline']); ?></small>
-                            </div>
-
-                            <div class="avatar-stack">
-                                <?php foreach ($project['members'] as $member): ?>
-                                    <span><?php echo htmlspecialchars($member); ?></span>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-
-                        <div class="progress-line">
-                            <div
-                                class="progress-line-fill <?php echo $project['tone'] === 'warning' ? 'warning' : ''; ?>"
-                                data-progress="<?php echo (int) $project['progress']; ?>"
-                            ></div>
-                        </div>
-
-                        <div class="project-progress-meta">
-                            <span><?php echo (int) $project['progress']; ?>% Hoàn thành</span>
-                            <span><?php echo htmlspecialchars($project['tasks']); ?></span>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
+                <p style="padding: 20px; color: #6c757d;">Đang tải dữ liệu...</p>
             </div>
         </article>
 
@@ -199,22 +123,10 @@ require __DIR__ . '/../components/page-header.php';
 
             <div class="card-body">
                 <div class="activity-timeline">
-                    <?php foreach ($activities as $activity): ?>
-                        <div class="activity-item">
-                            <div class="activity-icon <?php echo htmlspecialchars($activity['tone']); ?>">
-                                <?php echo htmlspecialchars($activity['icon']); ?>
-                            </div>
-
-                            <div class="activity-content">
-                                <strong><?php echo htmlspecialchars($activity['title']); ?></strong>
-                                <p><?php echo $activity['description']; ?></p>
-                                <time><?php echo htmlspecialchars($activity['time']); ?></time>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
+                    <p style="padding: 10px; color: #6c757d;">Đang tải dữ liệu...</p>
                 </div>
 
-                <a href="#" class="btn btn-soft btn-block">Xem toàn bộ nhật ký</a>
+                <a href="/creative-agency-hub/app/View/tasks/activity.php" class="btn btn-soft btn-block">Xem toàn bộ nhật ký</a>
             </div>
         </article>
 
@@ -229,6 +141,130 @@ require __DIR__ . '/../components/page-header.php';
         </article>
     </aside>
 </section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const token = localStorage.getItem('cah_token'); 
+
+    if (!token) {
+        window.location.href = '/creative-agency-hub/public/auth/login.php';
+        return;
+    }
+
+    function animateRealData(element, targetValue) {
+        const duration = 900;
+        const start = performance.now();
+        const pad = element.dataset.pad || 0;
+
+        function tick(now) {
+            const progress = Math.min((now - start) / duration, 1);
+            const value = Math.floor(targetValue * progress);
+            element.textContent = String(value).padStart(pad, "0");
+
+            if (progress < 1) {
+                requestAnimationFrame(tick);
+            } else {
+                element.textContent = String(targetValue).padStart(pad, "0");
+            }
+        }
+        requestAnimationFrame(tick);
+    }
+
+    fetch('/creative-agency-hub/public/api/dashboard/stats', {
+        method: 'GET',
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            const stats = data.data;
+            
+            // 1. CẬP NHẬT 4 Ô SỐ LIỆU TỔNG
+            const updateStat = (id, value) => {
+                const oldEl = document.getElementById(id);
+                if (oldEl) {
+                    const newEl = oldEl.cloneNode(true);
+                    oldEl.parentNode.replaceChild(newEl, oldEl);
+                    animateRealData(newEl, value);
+                }
+            };
+
+            updateStat('stat-projects', stats.active_projects);
+            updateStat('stat-employees', stats.total_employees);
+            updateStat('stat-progress', stats.avg_progress);
+            updateStat('stat-tasks', stats.overdue_tasks);
+
+            // 2. CẬP NHẬT DANH SÁCH DỰ ÁN
+            const projectListEl = document.querySelector('.dashboard-project-list');
+            if (projectListEl && stats.projects) {
+                projectListEl.innerHTML = ''; 
+                if (stats.projects.length > 0) {
+                    stats.projects.forEach(project => {
+                        let membersHtml = '';
+                        project.members.forEach(m => {
+                            membersHtml += `<span>${m}</span>`;
+                        });
+
+                        const projectHtml = `
+                            <div class="project-progress-item">
+                                <div class="project-progress-head">
+                                    <div class="project-progress-title">
+                                        <strong>${project.name}</strong>
+                                        <small>Deadline: ${project.deadline}</small>
+                                    </div>
+                                    <div class="avatar-stack">
+                                        ${membersHtml}
+                                    </div>
+                                </div>
+                                <div class="progress-line">
+                                    <div class="progress-line-fill ${project.tone}" style="width: ${project.progress}%"></div>
+                                </div>
+                                <div class="project-progress-meta">
+                                    <span>${project.progress}% Hoàn thành</span>
+                                    <span>${project.tasks}</span>
+                                </div>
+                            </div>
+                        `;
+                        projectListEl.innerHTML += projectHtml;
+                    });
+                } else {
+                    projectListEl.innerHTML = '<p style="padding: 20px; color: #6c757d;">Hiện chưa có dự án nào đang chạy.</p>';
+                }
+            }
+
+            // 3. CẬP NHẬT HOẠT ĐỘNG GẦN ĐÂY
+            const activityTimelineEl = document.querySelector('.activity-timeline');
+            if (activityTimelineEl && stats.activities) {
+                activityTimelineEl.innerHTML = '';
+                if (stats.activities.length > 0) {
+                    stats.activities.forEach(act => {
+                        // Lưu ý: act.description chứa HTML (<strong>, <br>) từ Controller nên in thẳng ra
+                        activityTimelineEl.innerHTML += `
+                            <div class="activity-item">
+                                <div class="activity-icon ${act.tone}">${act.icon}</div>
+                                <div class="activity-content">
+                                    <strong>${act.title}</strong>
+                                    <p>${act.description}</p>
+                                    <time>${act.time}</time>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    activityTimelineEl.innerHTML = '<p style="padding: 10px; color: #6c757d;">Chưa có hoạt động nào trong hệ thống.</p>';
+                }
+            }
+            
+        }
+    })
+    .catch(error => {
+        console.error('Lỗi kết nối mạng:', error);
+    });
+});
+</script>
 
 <?php
 $content = ob_get_clean();

@@ -20,6 +20,11 @@ return [
     ['GET', '/auth/logout', 'Auth\\LogoutController@index', null],
 
     // ==============================================================================
+    // DASHBOARD (BẢNG ĐIỀU KHIỂN)
+    // ==============================================================================
+    ['GET', '/api/dashboard/stats', 'DashboardController@getStats', ['admin', 'manager']],
+
+    // ==============================================================================
     // HRM (QUẢN TRỊ NHÂN SỰ)
     // ==============================================================================
     ['GET',    '/api/employees',             'HRM\\EmployeeController@index',        ['admin', 'manager']],

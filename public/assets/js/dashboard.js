@@ -15,10 +15,8 @@
             avatarEl.textContent = user.full_name?.charAt(0)?.toUpperCase() || "U";
         }
     }
+    
     async function loadCurrentUser() {
-        const user = data.data.user;
-
-        updateTopbarUser(user);
         const token = localStorage.getItem("cah_token");
 
         if (!token) {
@@ -39,14 +37,9 @@
                 throw new Error("Token lỗi");
             }
 
+            // Gán vào UI (Chỉ gọi hàm này SAU KHI đã có data thành công)
             const user = data.data.user;
-
-            // Gán vào UI
-            const nameEl = document.querySelector("[data-user-name]");
-            const roleEl = document.querySelector("[data-user-role]");
-
-            if (nameEl) nameEl.textContent = user.full_name;
-            if (roleEl) roleEl.textContent = user.role;
+            updateTopbarUser(user);
 
         } catch (e) {
             localStorage.removeItem("cah_token");
@@ -56,6 +49,7 @@
 
     // Gọi khi load
     document.addEventListener("DOMContentLoaded", loadCurrentUser);
+    
     function animateCounter(element) {
         const target = Number(element.dataset.countTo || 0);
         const duration = Number(element.dataset.duration || 900);
