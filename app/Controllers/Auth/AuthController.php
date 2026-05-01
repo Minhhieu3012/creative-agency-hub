@@ -4,6 +4,8 @@ namespace App\Controllers\Auth;
 use App\Models\Auth\User;
 use Core\JwtHandler;
 use Core\Security;
+use Core\Database;
+use Exception;
 
 class AuthController {
     private $userModel;
@@ -26,7 +28,7 @@ class AuthController {
     }
 
     /**
-     * Xử lý Đăng nhập chung
+     * Xử lý Đăng nhập chung (Cập nhật logic Session để tránh nhảy Role)
      */
     public function login() {
         header('Content-Type: application/json; charset=utf-8');
@@ -44,10 +46,16 @@ class AuthController {
         $user = $this->userModel->findByEmail($email);
 
         if ($user && password_verify($password, $user['password'])) {
+            // --- FIX LỖI NHẢY ROLE KHI F5 ---
+            if (session_status() === PHP_SESSION_NONE) session_start();
+            $_SESSION['user_id']   = $user['id'];
+            $_SESSION['user_role'] = strtolower($user['role']);
+            $_SESSION['full_name'] = $user['full_name'] ?? '';
+
             $token = $this->jwt->encode([
                 'id'    => $user['id'],
                 'email' => $user['email'],
-                'role'  => $user['role']
+                'role'  => strtolower($user['role'])
             ]);
 
             echo json_encode([
@@ -58,7 +66,7 @@ class AuthController {
                     "user"  => [
                         "id"        => $user['id'],
                         "full_name" => $user['full_name'] ?? '',
-                        "role"      => $user['role']
+                        "role"      => strtolower($user['role'])
                     ]
                 ]
             ]);
@@ -70,70 +78,65 @@ class AuthController {
 
     /**
      * Đăng nhập Nội bộ (Admin, Manager, Employee)
+     * Tích hợp Logic Session để đồng bộ với Sidebar.php
      */
     public function loginInternal() {
         header('Content-Type: application/json; charset=utf-8');
-        $input = $this->getInputData();
+        try {
+            $input = $this->getInputData();
+            $email    = trim($input['email'] ?? '');
+            $password = trim($input['password'] ?? '');
 
-        // Sử dụng trim() cho cả password để tránh khoảng trắng vô tình
-        $email    = trim($input['email'] ?? '');
-        $password = trim($input['password'] ?? '');
+            if (empty($email) || empty($password)) {
+                throw new Exception('DEBUG 1: Thiếu dữ liệu Email hoặc Password');
+            }
 
-        if (empty($email) || empty($password)) {
-            http_response_code(400);
-            echo json_encode(["status"=>"error","message"=>"DEBUG 1: Thiếu dữ liệu Email hoặc Pass"]);
-            return;
-        }
+            $user = $this->userModel->findByEmail($email);
 
-        $user = $this->userModel->findByEmail($email);
+            if (!$user) {
+                throw new Exception('DEBUG 2: Tài khoản không tồn tại hoặc bị khóa');
+            }
 
-        // Kiểm tra User và Trạng thái
-        if (!$user) {
-            http_response_code(401);
-            echo json_encode(["status"=>"error","message"=>"DEBUG 2: Tài khoản không tồn tại hoặc bị khóa"]);
-            return;
-        }
+            if (!password_verify($password, $user['password'])) {
+                $hashLen = strlen($user['password']);
+                throw new Exception("DEBUG 3: Sai mật khẩu! (Độ dài Hash trong DB: $hashLen ký tự).");
+            }
 
-        // KIỂM TRA MẬT KHẨU
-        if (!password_verify($password, $user['password'])) {
-            // Kiểm tra độ dài hash để cảnh báo nếu bị cắt cụt
-            $hashLen = strlen($user['password']);
-            http_response_code(401);
+            if ($user['role'] === 'client') {
+                http_response_code(403);
+                echo json_encode(["status"=>"error","message"=>"Vui lòng đăng nhập ở trang Client"]);
+                return;
+            }
+
+            // --- QUAN TRỌNG: FIX LỖI NHẢY ROLE KHI F5 ---
+            if (session_status() === PHP_SESSION_NONE) session_start();
+            $_SESSION['user_id']   = $user['id'];
+            $_SESSION['user_role'] = strtolower($user['role']);
+            $_SESSION['full_name'] = $user['full_name'];
+
+            $token = $this->jwt->encode([
+                'id'    => $user['id'],
+                'email' => $user['email'],
+                'role'  => strtolower($user['role'])
+            ]);
+
             echo json_encode([
-                "status"=>"error",
-                "message"=>"DEBUG 3: Sai mật khẩu! (Độ dài Hash trong DB: $hashLen ký tự. Chuẩn phải là 60).",
-                "debug_info" => [
-                    "input_pass" => $password,
-                    "db_hash" => $user['password']
+                "status"  => "success",
+                "message" => "Đăng nhập thành công",
+                "data"    => [
+                    "token" => $token,
+                    "user"  => [
+                        "id"        => $user['id'],
+                        "full_name" => $user['full_name'],
+                        "role"      => strtolower($user['role'])
+                    ]
                 ]
             ]);
-            return;
+
+        } catch (Exception $e) {
+            http_response_code(401);
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         }
-
-        if ($user['role'] === 'client') {
-            http_response_code(403);
-            echo json_encode(["status"=>"error","message"=>"Vui lòng đăng nhập ở trang Client"]);
-            return;
-        }
-
-        $token = $this->jwt->encode([
-            'id'    => $user['id'],
-            'role'  => $user['role'],
-            'email' => $user['email']
-        ]);
-
-        echo json_encode([
-            "status"=>"success",
-            "message"=>"Đăng nhập thành công",
-            "data"=>[
-                "token"=>$token,
-                "user"=>[
-                    "id"=>$user['id'],
-                    "full_name"=>$user['full_name'],
-                    "role"=>$user['role']
-                ]
-            ]
-        ]);
     }
 
     public function register() {
@@ -142,7 +145,7 @@ class AuthController {
 
         $fullName = Security::escape($input['full_name'] ?? '');
         $email    = Security::escape($input['email'] ?? '');
-        $password = $input['password'] ?? ''; // Tuyệt đối không escape password
+        $password = $input['password'] ?? ''; 
 
         if (empty($fullName) || empty($email) || empty($password)) {
             http_response_code(400);
