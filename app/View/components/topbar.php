@@ -46,8 +46,8 @@ $userInitial = strtoupper(mb_substr($currentUser['name'] ?? 'U', 0, 1, 'UTF-8'))
         <div class="user-menu" data-dropdown>
             <button class="user-menu-trigger" type="button" data-dropdown-trigger aria-label="Menu người dùng">
                 <span class="user-meta">
-                    <strong><?php echo htmlspecialchars($currentUser['name']); ?></strong>
-                    <small><?php echo htmlspecialchars($currentUser['role']); ?></small>
+                    <strong data-user-name>Loading...</strong>
+                    <small data-user-role></small>
                 </span>
 
                 <?php if (!empty($currentUser['avatar'])): ?>
@@ -57,7 +57,7 @@ $userInitial = strtoupper(mb_substr($currentUser['name'] ?? 'U', 0, 1, 'UTF-8'))
                         class="user-avatar"
                     >
                 <?php else: ?>
-                    <span class="user-avatar"><?php echo htmlspecialchars($userInitial); ?></span>
+                    <span class="user-avatar" data-user-avatar>U</span>
                 <?php endif; ?>
             </button>
 
@@ -65,7 +65,7 @@ $userInitial = strtoupper(mb_substr($currentUser['name'] ?? 'U', 0, 1, 'UTF-8'))
                 <a href="<?php echo htmlspecialchars($viewUrl); ?>/hrm/profile.php">Hồ sơ cá nhân</a>
                 <a href="<?php echo htmlspecialchars($viewUrl); ?>/payroll/attendance.php">Chấm công hôm nay</a>
                 <a href="<?php echo htmlspecialchars($viewUrl); ?>/client-portal/projects.php">Client Portal</a>
-                <a href="<?php echo htmlspecialchars($viewUrl); ?>/auth/login.php" class="text-danger">Đăng xuất</a>
+                 <a href="#" class="text-danger" data-logout>Đăng xuất</a>
             </div>
         </div>
     </div>

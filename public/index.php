@@ -2,6 +2,7 @@
 /**
  * NEXUS AGENCY HUB - CENTRAL ENTRY POINT (FIXED PATH)
  */
+use App\Seeders\AdminSeeder;
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -100,6 +101,8 @@ try {
         header('Content-Type: text/html; charset=utf-8');
         return require_once $viewPath;
     }
+    AdminSeeder::run();
+
 
     http_response_code(404);
     echo "<h1>404 Not Found</h1><p>Path: $path</p>";

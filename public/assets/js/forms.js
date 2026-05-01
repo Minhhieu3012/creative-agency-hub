@@ -158,6 +158,9 @@
                 
                 // Lưu token nếu cần
                 if (result.data?.token) localStorage.setItem('cah_token', result.data.token);
+                if (result.data?.user) {
+                    localStorage.setItem('cah_user', JSON.stringify(result.data.user));
+                }
 
                 const redirect = form.dataset.redirect;
                 if (redirect) {

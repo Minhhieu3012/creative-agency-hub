@@ -121,6 +121,43 @@ class AuthController {
         }
     }
 
+    public function me() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $headers = getallheaders();
+        $authHeader = $headers['Authorization'] ?? '';
+
+        if (!$authHeader) {
+            http_response_code(401);
+            echo json_encode(["status"=>"error","message"=>"Thiếu token"]);
+            return;
+        }
+
+        $token = str_replace("Bearer ", "", $authHeader);
+
+        $decoded = $this->jwt->decode($token);
+
+        if (!$decoded) {
+            http_response_code(401);
+            echo json_encode(["status"=>"error","message"=>"Token không hợp lệ"]);
+            return;
+        }
+
+        $user = $this->userModel->findById($decoded['id']);
+
+        if (!$user) {
+            http_response_code(404);
+            echo json_encode(["status"=>"error","message"=>"Không tìm thấy user"]);
+            return;
+        }
+
+        echo json_encode([
+            "status"=>"success",
+            "data"=>[
+                "user"=>$user
+            ]
+        ]);
+    }
     public function loginInternal() {
         header('Content-Type: application/json; charset=utf-8');
 

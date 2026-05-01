@@ -3,6 +3,59 @@
 
     const counters = document.querySelectorAll("[data-count-to]");
 
+    function updateTopbarUser(user) {
+        const nameEl = document.querySelector("[data-user-name]");
+        const roleEl = document.querySelector("[data-user-role]");
+        const avatarEl = document.querySelector("[data-user-avatar]");
+
+        if (nameEl) nameEl.textContent = user.full_name;
+        if (roleEl) roleEl.textContent = user.role;
+
+        if (avatarEl) {
+            avatarEl.textContent = user.full_name?.charAt(0)?.toUpperCase() || "U";
+        }
+    }
+    async function loadCurrentUser() {
+        const user = data.data.user;
+
+        updateTopbarUser(user);
+        const token = localStorage.getItem("cah_token");
+
+        if (!token) {
+            window.location.href = "/creative-agency-hub/app/View/auth/login.php";
+            return;
+        }
+
+        try {
+            const res = await fetch("/creative-agency-hub/public/api/auth/me", {
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            });
+
+            const data = await res.json();
+
+            if (data.status !== "success") {
+                throw new Error("Token lỗi");
+            }
+
+            const user = data.data.user;
+
+            // Gán vào UI
+            const nameEl = document.querySelector("[data-user-name]");
+            const roleEl = document.querySelector("[data-user-role]");
+
+            if (nameEl) nameEl.textContent = user.full_name;
+            if (roleEl) roleEl.textContent = user.role;
+
+        } catch (e) {
+            localStorage.removeItem("cah_token");
+            window.location.href = "/creative-agency-hub/app/View/auth/login.php";
+        }
+    }
+
+    // Gọi khi load
+    document.addEventListener("DOMContentLoaded", loadCurrentUser);
     function animateCounter(element) {
         const target = Number(element.dataset.countTo || 0);
         const duration = Number(element.dataset.duration || 900);
