@@ -28,7 +28,9 @@
 
         form.querySelectorAll("[required]").forEach(function (field) {
             const wrapper = field.closest(".form-group") || field.parentElement;
-            const value = field.type === "file" ? field.files.length : String(field.value || "").trim();
+            const value = field.type === "file"
+                ? field.files.length
+                : String(field.value || "").trim();
 
             wrapper?.classList.remove("has-error");
 
@@ -56,11 +58,15 @@
     }
 
     function getBaseUrl() {
-        return window.CAH_CONFIG?.baseUrl || window.CAHApp?.baseUrl || "/creative-agency-hub";
+        return window.CAH_CONFIG?.baseUrl
+            || window.CAHApp?.baseUrl
+            || "/creative-agency-hub";
     }
 
     function getApiBaseUrl() {
-        return window.CAH_CONFIG?.apiBaseUrl || window.CAHApp?.apiBaseUrl || `${getBaseUrl()}/public`;
+        return window.CAH_CONFIG?.apiBaseUrl
+            || window.CAHApp?.apiBaseUrl
+            || `${getBaseUrl()}/public`;
     }
 
     function buildApiUrl(path) {
@@ -121,31 +127,18 @@
         }
     }
 
-    function getRedirectUrl(form, user) {
+    function getRedirectUrl(user) {
         const role = String(user?.role || "").toLowerCase();
         const viewUrl = `${getBaseUrl()}/app/View`;
 
-        const roleKey = `redirect${role.charAt(0).toUpperCase()}${role.slice(1)}`;
-        const roleRedirect = form.dataset[roleKey];
-
-        if (roleRedirect) return roleRedirect;
-        if (form.dataset.redirect) return form.dataset.redirect;
-
-        /**
-         * Chốt tạm routing theo vai trò:
-         * - manager: trung tâm điều phối
-         * - employee: hồ sơ cá nhân / task được giao sẽ nối tiếp ở scope sau
-         * - admin: quản trị nhân sự
-         * - client: client portal
-         */
-        const map = {
-            manager: `${viewUrl}/dashboard/index.php`,
-            employee: `${viewUrl}/hrm/profile.php`,
-            admin: `${viewUrl}/hrm/employees.php`,
+        const redirectMap = {
+            manager: `${viewUrl}/manager/index.php`,
+            employee: `${viewUrl}/employee/index.php`,
+            admin: `${viewUrl}/admin/index.php`,
             client: `${viewUrl}/client-portal/projects.php`
         };
 
-        return map[role] || `${viewUrl}/dashboard/index.php`;
+        return redirectMap[role] || `${viewUrl}/auth/login.php`;
     }
 
     async function handleLogin(form) {
@@ -177,10 +170,13 @@
             window.CAHToast?.success?.("Đăng nhập thành công", "Đang chuyển trang...");
 
             window.setTimeout(function () {
-                window.location.href = getRedirectUrl(form, user);
+                window.location.href = getRedirectUrl(user);
             }, 450);
         } catch (error) {
-            window.CAHToast?.error?.("Đăng nhập thất bại", error.message || "Vui lòng kiểm tra lại tài khoản.");
+            window.CAHToast?.error?.(
+                "Đăng nhập thất bại",
+                error.message || "Vui lòng kiểm tra lại tài khoản."
+            );
         } finally {
             setLoading(form, false);
         }
@@ -221,7 +217,10 @@
                 throw new Error(result.message || "Không thể xử lý form.");
             }
 
-            window.CAHToast?.success?.("Thành công", result.message || form.dataset.successMessage || "Đã xử lý thành công.");
+            window.CAHToast?.success?.(
+                "Thành công",
+                result.message || form.dataset.successMessage || "Đã xử lý thành công."
+            );
 
             if (form.dataset.redirect) {
                 window.setTimeout(function () {

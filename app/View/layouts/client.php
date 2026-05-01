@@ -7,7 +7,7 @@
 
 $pageTitle = $pageTitle ?? 'Client Portal | Creative Agency Hub';
 $pageCss = $pageCss ?? ['client-portal.css'];
-$pageJs = $pageJs ?? ['app.js', 'client-portal.js', 'toast.js'];
+$pageJs = $pageJs ?? ['client-portal.js'];
 $bodyClass = $bodyClass ?? 'client-page';
 $content = $content ?? '';
 
@@ -26,7 +26,8 @@ if (!function_exists('cah_detect_base_url')) {
             $pos = stripos($scriptName, $marker);
 
             if ($pos !== false) {
-                return rtrim(substr($scriptName, 0, $pos), '/');
+                $base = substr($scriptName, 0, $pos);
+                return $base !== '' ? rtrim($base, '/') : '';
             }
         }
 
@@ -34,16 +35,39 @@ if (!function_exists('cah_detect_base_url')) {
     }
 }
 
-$baseUrl = defined('APP_URL') ? rtrim(APP_URL, '/') : cah_detect_base_url();
+$baseUrl = defined('APP_URL') ? rtrim((string) APP_URL, '/') : cah_detect_base_url();
+
+if ($baseUrl === '') {
+    $baseUrl = '/creative-agency-hub';
+}
+
 $assetUrl = $baseUrl . '/public/assets';
+$viewUrl = $baseUrl . '/app/View';
 
 if (!function_exists('cah_asset')) {
     function cah_asset(string $path): string
     {
         global $assetUrl;
-        return $assetUrl . '/' . ltrim($path, '/');
+        return rtrim($assetUrl, '/') . '/' . ltrim($path, '/');
     }
 }
+
+$defaultCss = [
+    'reset.css',
+    'app.css',
+    'components.css',
+];
+
+$cssFiles = array_values(array_unique(array_merge($defaultCss, (array) $pageCss)));
+
+$defaultJs = [
+    'app.js',
+    'toast.js',
+    'forms.js',
+    'client-portal.js',
+];
+
+$jsFiles = array_values(array_unique(array_merge($defaultJs, (array) $pageJs)));
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -58,12 +82,7 @@ if (!function_exists('cah_asset')) {
     <meta name="description" content="Creative Agency Hub Client Portal">
     <meta name="theme-color" content="#00513A">
 
-    <link rel="stylesheet" href="<?php echo htmlspecialchars(cah_asset('css/reset.css')); ?>">
-    <link rel="stylesheet" href="<?php echo htmlspecialchars(cah_asset('css/app.css')); ?>">
-    <link rel="stylesheet" href="<?php echo htmlspecialchars(cah_asset('css/components.css')); ?>">
-    <link rel="stylesheet" href="<?php echo htmlspecialchars(cah_asset('css/ui-states.css')); ?>">
-
-    <?php foreach ((array) $pageCss as $cssFile): ?>
+    <?php foreach ($cssFiles as $cssFile): ?>
         <link rel="stylesheet" href="<?php echo htmlspecialchars(cah_asset('css/' . $cssFile)); ?>">
     <?php endforeach; ?>
 
@@ -71,7 +90,8 @@ if (!function_exists('cah_asset')) {
         window.CAH_CONFIG = {
             baseUrl: <?php echo json_encode($baseUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
             assetUrl: <?php echo json_encode($assetUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
-            apiBaseUrl: <?php echo json_encode($baseUrl . '/public', JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>
+            apiBaseUrl: <?php echo json_encode($baseUrl . '/public', JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
+            viewUrl: <?php echo json_encode($viewUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>
         };
     </script>
 </head>
@@ -81,12 +101,7 @@ if (!function_exists('cah_asset')) {
 
     <div class="toast-stack" data-toast-stack></div>
 
-    <?php
-    $defaultJs = ['app.js', 'client-portal.js', 'toast.js'];
-    $mergedJs = array_values(array_unique(array_merge($defaultJs, (array) $pageJs)));
-    ?>
-
-    <?php foreach ($mergedJs as $jsFile): ?>
+    <?php foreach ($jsFiles as $jsFile): ?>
         <script src="<?php echo htmlspecialchars(cah_asset('js/' . $jsFile)); ?>"></script>
     <?php endforeach; ?>
 </body>

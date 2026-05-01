@@ -6,81 +6,132 @@ $viewUrl = $viewUrl ?? ($baseUrl . '/app/View');
 
 $menus = [
     [
+        'key' => 'manager_home',
+        'label' => 'Trung tâm quản lý',
+        'href' => $viewUrl . '/manager/index.php',
+        'icon' => '▦',
+        'roles' => ['manager'],
+    ],
+    [
+        'key' => 'employee_home',
+        'label' => 'Không gian của tôi',
+        'href' => $viewUrl . '/employee/index.php',
+        'icon' => '◉',
+        'roles' => ['employee'],
+    ],
+    [
+        'key' => 'admin_home',
+        'label' => 'Quản trị hệ thống',
+        'href' => $viewUrl . '/admin/index.php',
+        'icon' => '▧',
+        'roles' => ['admin'],
+    ],
+
+    [
+        'key' => 'admin_accounts',
+        'label' => 'Tài khoản',
+        'href' => $viewUrl . '/admin/index.php#accounts',
+        'icon' => '◎',
+        'roles' => ['admin'],
+    ],
+    [
+        'key' => 'admin_services',
+        'label' => 'Dịch vụ',
+        'href' => $viewUrl . '/admin/index.php#services',
+        'icon' => '◇',
+        'roles' => ['admin'],
+    ],
+    [
+        'key' => 'admin_feedback',
+        'label' => 'Feedback',
+        'href' => $viewUrl . '/admin/index.php#feedback',
+        'icon' => '☷',
+        'roles' => ['admin'],
+    ],
+    [
+        'key' => 'admin_settings',
+        'label' => 'Cấu hình',
+        'href' => $viewUrl . '/admin/index.php#settings',
+        'icon' => '⚙',
+        'roles' => ['admin'],
+    ],
+
+    [
         'key' => 'dashboard',
         'label' => 'Bảng điều khiển',
         'href' => $viewUrl . '/dashboard/index.php',
         'icon' => '▦',
-        'roles' => ['admin', 'manager', 'employee'],
+        'roles' => ['manager'],
     ],
     [
         'key' => 'departments',
         'label' => 'Tổ chức',
         'href' => $viewUrl . '/hrm/departments.php',
         'icon' => '▤',
-        'roles' => ['admin', 'manager'],
+        'roles' => ['manager'],
     ],
     [
         'key' => 'employees',
         'label' => 'Nhân sự',
         'href' => $viewUrl . '/hrm/employees.php',
-        'icon' => '◉',
-        'roles' => ['admin', 'manager'],
+        'icon' => '◌',
+        'roles' => ['manager'],
+    ],
+    [
+        'key' => 'profile',
+        'label' => 'Hồ sơ cá nhân',
+        'href' => $viewUrl . '/hrm/profile.php',
+        'icon' => '◎',
+        'roles' => ['manager', 'employee'],
     ],
     [
         'key' => 'projects',
         'label' => 'Dự án',
         'href' => $viewUrl . '/tasks/projects.php',
         'icon' => '▣',
-        'roles' => ['admin', 'manager', 'employee'],
+        'roles' => ['manager', 'employee'],
     ],
     [
         'key' => 'kanban',
         'label' => 'Bảng Kanban',
         'href' => $viewUrl . '/tasks/kanban.php',
         'icon' => '☑',
-        'roles' => ['admin', 'manager', 'employee'],
+        'roles' => ['manager', 'employee'],
     ],
     [
         'key' => 'gantt',
         'label' => 'Gantt Chart',
         'href' => $viewUrl . '/tasks/gantt.php',
         'icon' => '▥',
-        'roles' => ['admin', 'manager', 'employee'],
+        'roles' => ['manager', 'employee'],
     ],
     [
         'key' => 'attendance',
         'label' => 'Chấm công',
         'href' => $viewUrl . '/payroll/attendance.php',
         'icon' => '◴',
-        'roles' => ['admin', 'manager', 'employee'],
+        'roles' => ['manager', 'employee'],
     ],
     [
         'key' => 'leave_request',
         'label' => 'Nghỉ phép',
         'href' => $viewUrl . '/payroll/leave_request.php',
         'icon' => '✦',
-        'roles' => ['admin', 'manager', 'employee'],
+        'roles' => ['manager', 'employee'],
     ],
     [
         'key' => 'approvals',
         'label' => 'Phê duyệt',
         'href' => $viewUrl . '/payroll/manager_approvals.php',
         'icon' => '☷',
-        'roles' => ['admin', 'manager'],
+        'roles' => ['manager'],
     ],
     [
         'key' => 'payroll',
         'label' => 'Bảng lương',
         'href' => $viewUrl . '/payroll/payroll_summary.php',
-        'icon' => '▧',
-        'roles' => ['admin', 'manager'],
-    ],
-    [
-        'key' => 'profile',
-        'label' => 'Hồ sơ cá nhân',
-        'href' => $viewUrl . '/hrm/profile.php',
-        'icon' => '◌',
-        'roles' => ['admin', 'manager', 'employee'],
+        'icon' => '▨',
+        'roles' => ['manager'],
     ],
 ];
 
@@ -90,14 +141,7 @@ $secondaryMenus = [
         'label' => 'Client Portal',
         'href' => $viewUrl . '/client-portal/projects.php',
         'icon' => '◇',
-        'roles' => ['admin', 'manager', 'client'],
-    ],
-    [
-        'key' => 'settings',
-        'label' => 'Cài đặt',
-        'href' => '#settings',
-        'icon' => '⚙',
-        'roles' => ['admin', 'manager', 'employee'],
+        'roles' => ['manager', 'client'],
     ],
     [
         'key' => 'help',
@@ -166,7 +210,7 @@ function cah_sidebar_roles_attr(array $roles): string {
         <a
             href="<?php echo htmlspecialchars($viewUrl); ?>/tasks/projects.php"
             class="btn btn-primary btn-block"
-            data-role-allow="admin,manager"
+            data-role-allow="manager"
         >
             <span>＋</span>
             <span>Tạo mới</span>
@@ -197,14 +241,18 @@ function cah_sidebar_roles_attr(array $roles): string {
 
     var user = getCurrentUser();
     var role = String(user && user.role ? user.role : "").toLowerCase();
-    var baseUrl = <?php echo json_encode($baseUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
     var viewUrl = <?php echo json_encode($viewUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
 
-    if (role === "client") {
-        var home = document.querySelector("[data-sidebar-home]");
-        if (home) {
-            home.href = viewUrl + "/client-portal/projects.php";
-        }
+    var homeMap = {
+        manager: viewUrl + "/manager/index.php",
+        employee: viewUrl + "/employee/index.php",
+        admin: viewUrl + "/admin/index.php",
+        client: viewUrl + "/client-portal/projects.php"
+    };
+
+    var home = document.querySelector("[data-sidebar-home]");
+    if (home && homeMap[role]) {
+        home.href = homeMap[role];
     }
 
     document.querySelectorAll("[data-role-allow]").forEach(function (item) {

@@ -1,107 +1,125 @@
 <?php
-$currentUser = $currentUser ?? [
-    'name' => 'Nguyễn Quản Lý',
-    'role' => 'Project Director',
-    'avatar' => null,
-];
-
-$topbarTitle = $topbarTitle ?? '';
+$topbarTitle = $topbarTitle ?? $pageTitle ?? 'Creative Agency Hub';
 $baseUrl = $baseUrl ?? '/creative-agency-hub';
 $viewUrl = $viewUrl ?? ($baseUrl . '/app/View');
 
-$userInitial = strtoupper(mb_substr($currentUser['name'] ?? 'U', 0, 1, 'UTF-8'));
+$topbarUser = $topbarUser ?? [
+    'full_name' => 'Creative User',
+    'role_label' => 'Workspace',
+    'initials' => 'CU',
+];
 ?>
 
 <header class="app-topbar">
     <div class="topbar-left">
-        <button class="icon-btn topbar-menu-btn" type="button" data-sidebar-toggle aria-label="Mở menu">
+        <button class="topbar-menu-btn" type="button" data-sidebar-toggle aria-label="Mở menu">
             ☰
         </button>
 
-        <form class="topbar-search" action="#" method="GET">
-            <span class="search-icon">⌕</span>
-            <input type="search" name="q" placeholder="Tìm kiếm dự án, nhân sự, công việc...">
-        </form>
-
-        <?php if (!empty($topbarTitle)): ?>
-            <div class="topbar-title"><?php echo htmlspecialchars($topbarTitle); ?></div>
-        <?php endif; ?>
-    </div>
-
-    <div class="topbar-actions">
-        <div class="topbar-notification" data-dropdown data-notification-dropdown>
-            <button
-                class="icon-btn has-dot"
-                type="button"
-                aria-label="Thông báo"
-                data-dropdown-trigger
-                data-notification-trigger
-            >
-                ♢
-                <span class="notification-badge" data-notification-count hidden>0</span>
-            </button>
-
-            <div class="dropdown-menu notification-dropdown" data-dropdown-menu>
-                <div class="notification-dropdown-head">
-                    <div>
-                        <strong>Thông báo</strong>
-                        <p>Cập nhật mới nhất từ task và hệ thống</p>
-                    </div>
-
-                    <button class="btn btn-light btn-sm" type="button" data-notification-refresh>
-                        Làm mới
-                    </button>
-                </div>
-
-                <div class="notification-list" data-notification-list>
-                    <div class="notification-empty">
-                        <strong>Đang tải thông báo...</strong>
-                        <p>Vui lòng chờ trong giây lát.</p>
-                    </div>
-                </div>
-
-                <div class="notification-dropdown-foot">
-                    <a href="<?php echo htmlspecialchars($viewUrl); ?>/payroll/manager_approvals.php">
-                        Mở trung tâm phê duyệt →
-                    </a>
-                </div>
-            </div>
+        <div class="topbar-search">
+            <span>⌕</span>
+            <input type="search" placeholder="Tìm kiếm dự án, nhân sự, công việc..." aria-label="Tìm kiếm">
         </div>
 
-        <button class="icon-btn desktop-only" type="button" aria-label="Lịch sử">
-            ↺
+        <strong class="topbar-title">
+            <?php echo htmlspecialchars($topbarTitle); ?>
+        </strong>
+    </div>
+
+    <div class="topbar-right">
+        <button class="topbar-icon-btn" type="button" aria-label="Thông báo">
+            ◊
+            <span class="topbar-dot"></span>
         </button>
 
-        <button class="icon-btn desktop-only" type="button" aria-label="Trợ giúp">
+        <button class="topbar-icon-btn" type="button" aria-label="Làm mới">
+            ↻
+        </button>
+
+        <button class="topbar-icon-btn" type="button" aria-label="Trợ giúp">
             ?
         </button>
 
         <div class="topbar-divider"></div>
 
-        <div class="user-menu" data-dropdown>
-            <button class="user-menu-trigger" type="button" data-dropdown-trigger aria-label="Menu người dùng">
-                <span class="user-meta">
-                    <strong><?php echo htmlspecialchars($currentUser['name']); ?></strong>
-                    <small><?php echo htmlspecialchars($currentUser['role']); ?></small>
-                </span>
+        <a class="topbar-user" href="<?php echo htmlspecialchars($viewUrl); ?>/hrm/profile.php" data-topbar-user-link>
+            <span class="topbar-user-text">
+                <strong data-topbar-user-name><?php echo htmlspecialchars($topbarUser['full_name']); ?></strong>
+                <small data-topbar-user-role><?php echo htmlspecialchars($topbarUser['role_label']); ?></small>
+            </span>
 
-                <?php if (!empty($currentUser['avatar'])): ?>
-                    <img
-                        src="<?php echo htmlspecialchars($currentUser['avatar']); ?>"
-                        alt="<?php echo htmlspecialchars($currentUser['name']); ?>"
-                        class="user-avatar"
-                    >
-                <?php else: ?>
-                    <span class="user-avatar"><?php echo htmlspecialchars($userInitial); ?></span>
-                <?php endif; ?>
-            </button>
-
-            <div class="dropdown-menu user-dropdown" data-dropdown-menu>
-                <a href="<?php echo htmlspecialchars($viewUrl); ?>/hrm/profile.php">Hồ sơ cá nhân</a>
-                <a href="<?php echo htmlspecialchars($viewUrl); ?>/payroll/attendance.php">Chấm công hôm nay</a>
-                <a href="<?php echo htmlspecialchars($viewUrl); ?>/client-portal/projects.php">Client Portal</a>
-                <a href="<?php echo htmlspecialchars($viewUrl); ?>/auth/login.php" class="text-danger" data-logout>Đăng xuất</a>
-            </div>
-        </div>
+            <span class="topbar-avatar" data-topbar-user-avatar>
+                <?php echo htmlspecialchars($topbarUser['initials']); ?>
+            </span>
+        </a>
     </div>
 </header>
+
+<script>
+(function () {
+    function readUser() {
+        try {
+            return JSON.parse(localStorage.getItem("cah_auth_user") || localStorage.getItem("cah_user") || "null");
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function initialsFromName(name) {
+        var cleanName = String(name || "").trim();
+
+        if (!cleanName) return "CA";
+
+        var parts = cleanName
+            .split(/\s+/)
+            .filter(Boolean);
+
+        if (parts.length === 1) {
+            return parts[0].slice(0, 2).toUpperCase();
+        }
+
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+
+    function roleLabel(role) {
+        var map = {
+            admin: "SYSTEM ADMIN",
+            manager: "PROJECT MANAGER",
+            employee: "EMPLOYEE",
+            client: "CLIENT PORTAL"
+        };
+
+        return map[String(role || "").toLowerCase()] || "WORKSPACE";
+    }
+
+    var user = readUser();
+
+    if (!user) return;
+
+    var baseUrl = <?php echo json_encode($baseUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+    var viewUrl = <?php echo json_encode($viewUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+
+    var fullName = user.full_name || user.name || user.email || "Creative User";
+    var role = String(user.role || "").toLowerCase();
+
+    var nameEl = document.querySelector("[data-topbar-user-name]");
+    var roleEl = document.querySelector("[data-topbar-user-role]");
+    var avatarEl = document.querySelector("[data-topbar-user-avatar]");
+    var linkEl = document.querySelector("[data-topbar-user-link]");
+
+    if (nameEl) nameEl.textContent = fullName;
+    if (roleEl) roleEl.textContent = roleLabel(role);
+    if (avatarEl) avatarEl.textContent = initialsFromName(fullName);
+
+    if (linkEl) {
+        var hrefMap = {
+            admin: viewUrl + "/admin/index.php",
+            manager: viewUrl + "/manager/index.php",
+            employee: viewUrl + "/employee/index.php",
+            client: viewUrl + "/client-portal/projects.php"
+        };
+
+        linkEl.href = hrefMap[role] || viewUrl + "/auth/login.php";
+    }
+})();
+</script>

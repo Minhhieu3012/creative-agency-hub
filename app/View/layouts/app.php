@@ -11,16 +11,28 @@ $assetUrl = $assetUrl ?? ($baseUrl . '/public/assets');
 $viewUrl = $viewUrl ?? ($baseUrl . '/app/View');
 
 $currentUser = $currentUser ?? [
-    'name' => 'Nguyễn Quản Lý',
-    'role' => 'Project Director',
+    'name' => 'Creative User',
+    'role' => 'Workspace',
     'avatar' => null,
 ];
+
+$defaultJs = [
+    'app.js',
+    'sidebar.js',
+    'dropdown.js',
+    'modal.js',
+    'toast.js',
+    'forms.js',
+];
+
+$mergedJs = array_values(array_unique(array_merge($defaultJs, (array) $pageJs)));
 ?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <?php require __DIR__ . '/../components/head.php'; ?>
 </head>
+
 <body class="app-body">
     <div class="app-shell" data-layout="internal">
         <?php require __DIR__ . '/../components/sidebar.php'; ?>
@@ -36,14 +48,15 @@ $currentUser = $currentUser ?? [
 
     <?php require __DIR__ . '/../components/toast.php'; ?>
 
-    <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/app.js"></script>
-    <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/sidebar.js"></script>
-    <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/dropdown.js"></script>
-    <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/modal.js"></script>
-    <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/toast.js"></script>
-    <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/forms.js"></script>
+    <script>
+        window.CAH_CONFIG = window.CAH_CONFIG || {
+            baseUrl: <?php echo json_encode($baseUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
+            assetUrl: <?php echo json_encode($assetUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
+            apiBaseUrl: <?php echo json_encode($baseUrl . '/public', JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>
+        };
+    </script>
 
-    <?php foreach ($pageJs as $js): ?>
+    <?php foreach ($mergedJs as $js): ?>
         <script src="<?php echo htmlspecialchars($assetUrl); ?>/js/<?php echo htmlspecialchars($js); ?>"></script>
     <?php endforeach; ?>
 </body>
