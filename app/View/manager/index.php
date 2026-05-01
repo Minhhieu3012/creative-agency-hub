@@ -3,6 +3,7 @@ $pageTitle = 'Trung tâm quản lý | Creative Agency Hub';
 $pageCss = ['role-home.css'];
 $pageJs = ['app.js', 'forms.js', 'toast.js'];
 $activeMenu = 'manager_home';
+$topbarTitle = 'Trung tâm quản lý';
 $brandName = 'Creative Agency Hub';
 
 if (!defined('BASE_PATH')) {
@@ -15,19 +16,19 @@ $viewUrl = $viewUrl ?? ($baseUrl . '/app/View');
 ob_start();
 ?>
 
-<section class="role-home role-home-manager">
+<section class="role-home role-home-manager" data-manager-home>
     <div class="role-hero">
         <div class="role-hero-copy">
             <span class="role-kicker">Manager Workspace • Creative Agency Hub</span>
             <h1>Điều phối dự án, task và đội ngũ trong một màn hình.</h1>
             <p>
                 Theo dõi tiến độ, phân công đầu việc, duyệt kết quả và kiểm soát hoạt động
-                của team theo luồng quản lý rõ ràng.
+                của team theo dữ liệu thật từ project/task.
             </p>
 
             <div class="role-hero-actions">
-                <a class="btn btn-light" href="<?php echo htmlspecialchars($viewUrl); ?>/tasks/kanban.php">
-                    Mở Kanban
+                <a class="btn btn-light" href="<?php echo htmlspecialchars($viewUrl); ?>/tasks/projects.php">
+                    Mở dự án
                 </a>
                 <a class="btn btn-ghost" href="<?php echo htmlspecialchars($viewUrl); ?>/payroll/manager_approvals.php">
                     Xem phê duyệt
@@ -60,31 +61,31 @@ ob_start();
             <span class="role-stat-icon">▣</span>
             <div>
                 <h3>Dự án đang quản lý</h3>
-                <strong>04</strong>
+                <strong data-manager-total-projects>0</strong>
             </div>
         </article>
 
         <article class="role-stat-card">
             <span class="role-stat-icon">☑</span>
             <div>
-                <h3>Task đang chạy</h3>
-                <strong>18</strong>
-            </div>
-        </article>
-
-        <article class="role-stat-card">
-            <span class="role-stat-icon">☷</span>
-            <div>
-                <h3>Chờ phê duyệt</h3>
-                <strong>06</strong>
+                <h3>Task đang mở</h3>
+                <strong data-manager-total-tasks>0</strong>
             </div>
         </article>
 
         <article class="role-stat-card">
             <span class="role-stat-icon">◉</span>
             <div>
-                <h3>Nhân sự phụ trách</h3>
-                <strong>12</strong>
+                <h3>Employee tham gia</h3>
+                <strong data-manager-total-members>0</strong>
+            </div>
+        </article>
+
+        <article class="role-stat-card">
+            <span class="role-stat-icon">◇</span>
+            <div>
+                <h3>Tiến độ trung bình</h3>
+                <strong><span data-manager-average-progress>0</span>%</strong>
             </div>
         </article>
     </div>
@@ -93,41 +94,22 @@ ob_start();
         <article class="role-card">
             <div class="role-card-header">
                 <div>
-                    <h2>Việc cần xử lý</h2>
-                    <p>Các đầu việc quan trọng của manager trong ngày.</p>
+                    <h2>Project đang quản lý</h2>
+                    <p>Dữ liệu lấy từ database qua API project thật.</p>
                 </div>
-                <a class="btn btn-light" href="<?php echo htmlspecialchars($viewUrl); ?>/tasks/kanban.php">
+                <a class="btn btn-light" href="<?php echo htmlspecialchars($viewUrl); ?>/tasks/projects.php">
                     Xem tất cả
                 </a>
             </div>
 
             <div class="role-card-body">
-                <div class="role-list">
+                <div class="role-list" data-manager-project-list>
                     <div class="role-list-item">
-                        <span class="role-list-icon">1</span>
+                        <span class="role-list-icon">…</span>
                         <div class="role-list-content">
-                            <h3>Duyệt task “Fix Auth API”</h3>
-                            <p>Employee đã gửi kết quả, cần kiểm tra và phản hồi.</p>
+                            <h3>Đang tải dữ liệu...</h3>
+                            <p>Vui lòng chờ trong giây lát.</p>
                         </div>
-                        <span class="badge badge-warning">Review</span>
-                    </div>
-
-                    <div class="role-list-item">
-                        <span class="role-list-icon">2</span>
-                        <div class="role-list-content">
-                            <h3>Phân công task mới cho dự án Creative Website Revamp</h3>
-                            <p>Tạo task thật và gán nhân sự phụ trách từ bảng employees.</p>
-                        </div>
-                        <span class="badge badge-success">Task</span>
-                    </div>
-
-                    <div class="role-list-item">
-                        <span class="role-list-icon">3</span>
-                        <div class="role-list-content">
-                            <h3>Kiểm tra tiến độ tuần này</h3>
-                            <p>Đối chiếu Kanban và Gantt để chuẩn bị báo cáo.</p>
-                        </div>
-                        <span class="badge badge-primary">Gantt</span>
                     </div>
                 </div>
             </div>
@@ -166,16 +148,139 @@ ob_start();
                 </div>
 
                 <div class="role-note" style="margin-top: 18px;">
-                    <h3>Manager là luồng ưu tiên cao nhất</h3>
+                    <h3>Luồng nhiều employee</h3>
                     <p>
-                        Các scope tiếp theo sẽ ưu tiên tạo task thật, giao việc thật,
-                        duyệt task thật và đồng bộ notification.
+                        Manager tạo nhiều task trong cùng project, mỗi task giao cho một employee khác nhau.
+                        Project sẽ tự tổng hợp employee từ các task đó.
                     </p>
                 </div>
             </div>
         </aside>
     </div>
 </section>
+
+<script>
+(function () {
+    const root = document.querySelector("[data-manager-home]");
+    if (!root) return;
+
+    const totalProjectsEl = document.querySelector("[data-manager-total-projects]");
+    const totalTasksEl = document.querySelector("[data-manager-total-tasks]");
+    const totalMembersEl = document.querySelector("[data-manager-total-members]");
+    const avgProgressEl = document.querySelector("[data-manager-average-progress]");
+    const listEl = document.querySelector("[data-manager-project-list]");
+
+    function escapeHtml(value) {
+        return String(value || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function formatNumber(value) {
+        return Number(value || 0).toLocaleString("vi-VN");
+    }
+
+    function statusLabel(status) {
+        const map = {
+            Active: "Đang triển khai",
+            Completed: "Hoàn thành",
+            Archived: "Lưu trữ"
+        };
+
+        return map[status] || status || "Đang triển khai";
+    }
+
+    function renderEmpty(message) {
+        if (!listEl) return;
+
+        listEl.innerHTML = `
+            <div class="role-list-item">
+                <span class="role-list-icon">▣</span>
+                <div class="role-list-content">
+                    <h3>Chưa có dữ liệu</h3>
+                    <p>${escapeHtml(message || "Bạn chưa có project nào.")}</p>
+                </div>
+                <a class="badge badge-primary" href="<?php echo htmlspecialchars($viewUrl); ?>/tasks/projects.php">Tạo</a>
+            </div>
+        `;
+    }
+
+    function renderProjects(projects) {
+        const totalProjects = projects.length;
+        const totalTasks = projects.reduce((sum, project) => sum + Number(project.task_count || 0), 0);
+        const totalMembers = projects.reduce((sum, project) => sum + Number(project.member_count || 0), 0);
+        const avgProgress = totalProjects
+            ? Math.round(projects.reduce((sum, project) => sum + Number(project.progress || 0), 0) / totalProjects)
+            : 0;
+
+        if (totalProjectsEl) totalProjectsEl.textContent = formatNumber(totalProjects);
+        if (totalTasksEl) totalTasksEl.textContent = formatNumber(totalTasks);
+        if (totalMembersEl) totalMembersEl.textContent = formatNumber(totalMembers);
+        if (avgProgressEl) avgProgressEl.textContent = formatNumber(avgProgress);
+
+        if (!projects.length) {
+            renderEmpty("Tạo project đầu tiên để bắt đầu giao task cho employee.");
+            return;
+        }
+
+        if (!listEl) return;
+
+        listEl.innerHTML = projects.slice(0, 5).map((project, index) => {
+            const progress = Math.max(0, Math.min(100, Number(project.progress || 0)));
+
+            return `
+                <div class="role-list-item">
+                    <span class="role-list-icon">${index + 1}</span>
+                    <div class="role-list-content">
+                        <h3>${escapeHtml(project.name)}</h3>
+                        <p>
+                            ${escapeHtml(statusLabel(project.status))}
+                            · ${formatNumber(project.task_count)} task
+                            · ${formatNumber(project.member_count)} employee
+                            · ${progress}% hoàn thành
+                        </p>
+                        <div class="role-progress" style="margin-top: 10px;">
+                            <div class="role-progress-row">
+                                <span>Tiến độ</span>
+                                <span>${progress}%</span>
+                            </div>
+                            <div class="role-progress-track">
+                                <div class="role-progress-fill" style="width: ${progress}%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <a class="badge badge-success" href="<?php echo htmlspecialchars($viewUrl); ?>/tasks/projects.php">
+                        Xem
+                    </a>
+                </div>
+            `;
+        }).join("");
+    }
+
+    async function loadManagerProjects() {
+        if (!window.CAHApi || !window.CAHAuth?.isLoggedIn?.()) {
+            renderEmpty("Bạn cần đăng nhập manager để xem dữ liệu.");
+            return;
+        }
+
+        try {
+            const response = await CAHApi.get("/api/projects", {
+                loading: false
+            });
+
+            const projects = Array.isArray(response.data) ? response.data : [];
+            renderProjects(projects);
+        } catch (error) {
+            renderEmpty(error.message || "Không tải được dữ liệu project.");
+        }
+    }
+
+    loadManagerProjects();
+})();
+</script>
 
 <?php
 $content = ob_get_clean();
