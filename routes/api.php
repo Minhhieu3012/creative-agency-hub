@@ -81,4 +81,8 @@ return [
     ['GET',   '/api/attendance',            'Payroll\\AttendanceController@index',    ['admin', 'manager', 'employee']],
     ['POST',  '/api/attendance/checkin',    'Payroll\\AttendanceController@checkin',  ['admin', 'manager', 'employee']],
     ['POST',  '/api/attendance/checkout',   'Payroll\\AttendanceController@checkout', ['admin', 'manager', 'employee']],
+    
+    // PAYROLL SUMMARY & EXPORT
+    ['GET',   '/api/payroll/summary',      'Payroll\\PayrollController@getSummary',  ['admin', 'manager']],
+    ['GET',   '/api/payroll/export',       'Payroll\\PayrollController@exportCsv',   ['admin', 'manager']],
 ];

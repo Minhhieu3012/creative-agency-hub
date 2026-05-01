@@ -6,79 +6,26 @@ $activeMenu = 'payroll';
 $topbarTitle = 'Payroll Summary';
 $brandName = 'Creative Agency Hub';
 
-$rows = $rows ?? [
-    [
-        'name' => 'Nguyễn Văn An',
-        'email' => 'an.nguyen@agency.vn',
-        'department' => 'Ban Giám đốc',
-        'working_days' => 22,
-        'late' => 0,
-        'kpi' => 96,
-        'base' => '38.000.000đ',
-        'net' => '41.200.000đ',
-        'status' => 'Đã tính',
-        'tone' => 'success',
-        'initials' => 'NA',
-    ],
-    [
-        'name' => 'Lê Thị Mai',
-        'email' => 'mai.lt@agency.vn',
-        'department' => 'Kỹ thuật',
-        'working_days' => 21,
-        'late' => 1,
-        'kpi' => 88,
-        'base' => '24.000.000đ',
-        'net' => '25.100.000đ',
-        'status' => 'Đã tính',
-        'tone' => 'success',
-        'initials' => 'LM',
-    ],
-    [
-        'name' => 'Phạm Duy Anh',
-        'email' => 'anh.pd@agency.vn',
-        'department' => 'Design',
-        'working_days' => 20,
-        'late' => 2,
-        'kpi' => 82,
-        'base' => '18.000.000đ',
-        'net' => '18.250.000đ',
-        'status' => 'Chờ duyệt',
-        'tone' => 'warning',
-        'initials' => 'PA',
-    ],
-    [
-        'name' => 'Trần Minh Huy',
-        'email' => 'huy.tm@agency.vn',
-        'department' => 'Marketing',
-        'working_days' => 18,
-        'late' => 3,
-        'kpi' => 76,
-        'base' => '16.000.000đ',
-        'net' => '15.600.000đ',
-        'status' => 'Cần kiểm tra',
-        'tone' => 'danger',
-        'initials' => 'TH',
-    ],
-];
-
 ob_start();
 ?>
 
 <?php
 $pageHeading = 'Báo cáo Chấm công & Bảng lương';
 $pageSubtitle = 'Tổng hợp ngày công, KPI, thưởng phạt và lương thực nhận của nhân sự.';
-$pageAction = '<button class="btn btn-light" type="button" data-payroll-action="mock-save">⇩ Xuất Excel</button><button class="btn btn-primary" type="button" data-payroll-action="mock-save">Chốt bảng lương</button>';
+$pageAction = '<button class="btn btn-light" type="button" onclick="exportExcel()">⇩ Xuất Excel</button>
+               <button class="btn btn-primary" type="button" onclick="loadPayrollData()">Chốt bảng lương</button>';
 require __DIR__ . '/../components/page-header.php';
 ?>
 
 <section class="payroll-shell">
+    <!-- KHỐI 1: THỐNG KÊ TỔNG QUAN -->
     <div class="stat-grid">
         <article class="stat-card">
             <div class="stat-card-icon">▧</div>
             <div class="stat-card-body">
                 <span>Tổng quỹ lương</span>
-                <strong>126M</strong>
-                <small>Tháng 10/2026</small>
+                <strong id="stat-total-salary">0đ</strong>
+                <small>Tháng hiện tại</small>
             </div>
         </article>
 
@@ -86,8 +33,8 @@ require __DIR__ . '/../components/page-header.php';
             <div class="stat-card-icon">◷</div>
             <div class="stat-card-body">
                 <span>Tổng ngày công</span>
-                <strong>81</strong>
-                <small>4 nhân sự demo</small>
+                <strong id="stat-total-days">0</strong>
+                <small id="stat-emp-count">0 nhân sự</small>
             </div>
         </article>
 
@@ -95,8 +42,8 @@ require __DIR__ . '/../components/page-header.php';
             <div class="stat-card-icon">✦</div>
             <div class="stat-card-body">
                 <span>KPI trung bình</span>
-                <strong>86%</strong>
-                <small>Đạt mục tiêu</small>
+                <strong id="stat-avg-kpi">0%</strong>
+                <small>Hiệu suất toàn team</small>
             </div>
         </article>
 
@@ -104,24 +51,21 @@ require __DIR__ . '/../components/page-header.php';
             <div class="stat-card-icon">!</div>
             <div class="stat-card-body">
                 <span>Cần kiểm tra</span>
-                <strong>01</strong>
-                <small>Trước khi chốt</small>
+                <strong id="stat-warnings">0</strong>
+                <small>Nhân sự KPI < 80%</small>
             </div>
         </article>
     </div>
 
+    <!-- KHỐI 2: BỘ LỌC (Tạm thời giữ UI, có thể phát triển thêm tính năng filter API sau) -->
     <div class="payroll-filter">
-        <select class="form-select">
-            <option>Tháng 10/2026</option>
-            <option>Tháng 09/2026</option>
-            <option>Tháng 08/2026</option>
+        <select class="form-select" id="filter-month">
+            <option value="<?php echo date('m'); ?>">Tháng <?php echo date('m/Y'); ?></option>
+            <option value="<?php echo date('m', strtotime('-1 month')); ?>">Tháng <?php echo date('m/Y', strtotime('-1 month')); ?></option>
         </select>
 
         <select class="form-select">
             <option>Tất cả phòng ban</option>
-            <option>Kỹ thuật</option>
-            <option>Design</option>
-            <option>Marketing</option>
         </select>
 
         <div class="input-with-icon">
@@ -129,17 +73,16 @@ require __DIR__ . '/../components/page-header.php';
             <input class="form-control" type="search" placeholder="Tìm nhân sự...">
         </div>
 
-        <button class="btn btn-soft" type="button" data-payroll-action="mock-save">
-            Lọc dữ liệu
-        </button>
+        <button class="btn btn-soft" type="button" onclick="loadPayrollData()">Lọc dữ liệu</button>
     </div>
 
     <section class="payroll-grid">
+        <!-- KHỐI 3: BẢNG LƯƠNG CHI TIẾT -->
         <article class="card employee-table-card">
             <div class="card-header dashboard-card-title-row">
                 <div>
                     <h2>Bảng lương tháng</h2>
-                    <p class="section-subtitle">Dữ liệu demo UI. Backend sẽ nối công thức tính sau.</p>
+                    <p class="section-subtitle">Dữ liệu được lấy trực tiếp từ hệ thống chấm công và KPI.</p>
                 </div>
             </div>
 
@@ -148,7 +91,7 @@ require __DIR__ . '/../components/page-header.php';
                     <thead>
                         <tr>
                             <th>Nhân sự</th>
-                            <th>Phòng ban</th>
+                            <th>Phòng ban / Role</th>
                             <th>Ngày công</th>
                             <th>Đi muộn</th>
                             <th>KPI</th>
@@ -157,39 +100,18 @@ require __DIR__ . '/../components/page-header.php';
                             <th>Trạng thái</th>
                         </tr>
                     </thead>
-
-                    <tbody>
-                        <?php foreach ($rows as $row): ?>
-                            <tr>
-                                <td>
-                                    <div class="employee-cell">
-                                        <div class="employee-avatar"><?php echo htmlspecialchars($row['initials']); ?></div>
-
-                                        <div class="employee-name">
-                                            <strong><?php echo htmlspecialchars($row['name']); ?></strong>
-                                            <small><?php echo htmlspecialchars($row['email']); ?></small>
-                                        </div>
-                                    </div>
-                                </td>
-
-                                <td><?php echo htmlspecialchars($row['department']); ?></td>
-                                <td><strong><?php echo (int) $row['working_days']; ?></strong></td>
-                                <td><?php echo (int) $row['late']; ?></td>
-                                <td><strong><?php echo (int) $row['kpi']; ?>%</strong></td>
-                                <td><?php echo htmlspecialchars($row['base']); ?></td>
-                                <td class="salary-amount"><?php echo htmlspecialchars($row['net']); ?></td>
-                                <td>
-                                    <span class="badge badge-<?php echo htmlspecialchars($row['tone']); ?>">
-                                        <?php echo htmlspecialchars($row['status']); ?>
-                                    </span>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
+                    <tbody id="js-payroll-table-body">
+                        <tr>
+                            <td colspan="8" style="text-align: center; padding: 30px; color: #888;">
+                                Đang tải dữ liệu bảng lương...
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </article>
 
+        <!-- KHỐI 4: CHI TIẾT TỔNG HỢP (SIDEBAR PHẢI) -->
         <aside class="card">
             <div class="card-header">
                 <h2 class="section-title">Chi tiết tổng hợp</h2>
@@ -200,37 +122,187 @@ require __DIR__ . '/../components/page-header.php';
                 <div class="payroll-detail-card">
                     <div class="payroll-detail-row">
                         <span>Lương cơ bản</span>
-                        <strong>96.000.000đ</strong>
+                        <strong id="side-base-salary">0đ</strong>
                     </div>
-
                     <div class="payroll-detail-row">
                         <span>Thưởng KPI</span>
-                        <strong>8.950.000đ</strong>
+                        <strong id="side-bonus">0đ</strong>
                     </div>
-
                     <div class="payroll-detail-row">
-                        <span>Phạt đi muộn</span>
-                        <strong>-1.200.000đ</strong>
+                        <span>Phạt đi muộn/về sớm</span>
+                        <strong id="side-penalty">0đ</strong>
                     </div>
-
-                    <div class="payroll-detail-row">
-                        <span>Phụ cấp</span>
-                        <strong>5.400.000đ</strong>
-                    </div>
-
                     <div class="payroll-detail-row total">
                         <span>Tổng thực nhận</span>
-                        <strong>100.150.000đ</strong>
+                        <strong id="side-net-salary">0đ</strong>
                     </div>
                 </div>
 
-                <button class="btn btn-primary btn-block" type="button" style="margin-top: 24px;" data-payroll-action="mock-save">
-                    Xem báo cáo chi tiết
+                <button class="btn btn-primary btn-block" type="button" style="margin-top: 24px;" onclick="loadPayrollData()">
+                    Cập nhật mới nhất
                 </button>
             </div>
         </aside>
     </section>
 </section>
+
+<!-- ========================================== -->
+<!-- SCRIPT XỬ LÝ FETCH API VÀ RENDER DỮ LIỆU ĐỘNG -->
+<!-- ========================================== -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    loadPayrollData();
+});
+
+// Format tiền tệ VNĐ
+const formatCurrency = (value) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+};
+
+// Lấy chữ cái đầu của tên
+const getInitials = (name) => {
+    if (!name) return 'NV';
+    const parts = name.split(' ');
+    const last = parts[parts.length - 1];
+    const first = parts[0];
+    return (first.charAt(0) + (parts.length > 1 ? last.charAt(0) : '')).toUpperCase();
+};
+
+async function loadPayrollData() {
+    const token = localStorage.getItem('cah_token');
+    const baseUrl = '/creative-agency-hub/public';
+    const month = document.getElementById('filter-month').value;
+    const year = new Date().getFullYear();
+
+    const tbody = document.getElementById('js-payroll-table-body');
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">Đang tính toán...</td></tr>';
+
+    try {
+        const response = await fetch(`${baseUrl}/api/payroll/summary?month=${month}&year=${year}`, {
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const res = await response.json();
+
+        if (res.status === 'success') {
+            const data = res.data;
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">Chưa có dữ liệu lương tháng này.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            let totalBase = 0, totalNet = 0, totalBonus = 0, totalPenalty = 0;
+            let totalDays = 0, totalKpi = 0, warnings = 0;
+
+            data.forEach(emp => {
+                // Tính tổng cho các chỉ số
+                totalBase += emp.financial.actual_salary; // Lương ngày công thực tế
+                totalNet += emp.financial.net_salary;
+                totalBonus += emp.financial.bonus;
+                totalPenalty += emp.financial.penalty;
+                totalDays += emp.attendance.actual_days;
+                totalKpi += emp.kpi.percent;
+                
+                if (emp.kpi.percent < 80) warnings++;
+
+                // Xác định trạng thái màu sắc dựa vào KPI
+                let statusTone = 'success';
+                let statusText = 'Đã chốt';
+                if (emp.kpi.percent < 80) { statusTone = 'danger'; statusText = 'Cần kiểm tra'; }
+                else if (emp.attendance.late > 0) { statusTone = 'warning'; statusText = 'Có đi muộn'; }
+
+                html += `
+                    <tr>
+                        <td>
+                            <div class="employee-cell">
+                                <div class="employee-avatar">${getInitials(emp.full_name)}</div>
+                                <div class="employee-name">
+                                    <strong>${emp.full_name}</strong>
+                                    <small>ID: ${emp.employee_id}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="text-transform: capitalize;">${emp.role}</td>
+                        <td><strong>${emp.attendance.actual_days} / ${emp.attendance.standard_days}</strong></td>
+                        <td>${emp.attendance.late}</td>
+                        <td><strong>${emp.kpi.percent}%</strong></td>
+                        <td>${formatCurrency(emp.base_salary)}</td>
+                        <td class="salary-amount">${formatCurrency(emp.financial.net_salary)}</td>
+                        <td>
+                            <span class="badge badge-${statusTone}">
+                                ${statusText}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            // 1. Gắn HTML vào bảng
+            tbody.innerHTML = html;
+
+            // 2. Cập nhật khối Thống kê trên cùng
+            document.getElementById('stat-total-salary').innerText = (totalNet / 1000000).toFixed(1) + 'M';
+            document.getElementById('stat-total-days').innerText = totalDays;
+            document.getElementById('stat-emp-count').innerText = data.length + ' nhân sự';
+            document.getElementById('stat-avg-kpi').innerText = Math.round(totalKpi / data.length) + '%';
+            document.getElementById('stat-warnings').innerText = warnings < 10 ? '0'+warnings : warnings;
+
+            // 3. Cập nhật khối Sidebar tổng hợp
+            document.getElementById('side-base-salary').innerText = formatCurrency(totalBase);
+            document.getElementById('side-bonus').innerText = formatCurrency(totalBonus);
+            document.getElementById('side-penalty').innerText = '-' + formatCurrency(totalPenalty);
+            document.getElementById('side-net-salary').innerText = formatCurrency(totalNet);
+
+        } else {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: red;">Lỗi: ${res.message}</td></tr>`;
+        }
+    } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: red;">Lỗi kết nối máy chủ!</td></tr>`;
+        console.error(error);
+    }
+}
+
+// Hàm xử lý tải file Excel với JWT Token
+async function exportExcel() {
+    const token = localStorage.getItem('cah_token');
+    const baseUrl = '/creative-agency-hub/public';
+    const month = document.getElementById('filter-month').value;
+    const year = new Date().getFullYear();
+
+    try {
+        const response = await fetch(`${baseUrl}/api/payroll/export?month=${month}&year=${year}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error("Không thể xuất file");
+
+        // Nhận dữ liệu dạng Blob (File)
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        // Tạo thẻ a ảo để kích hoạt tải xuống
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `Bang_Luong_Thang_${month}_${year}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Dọn dẹp
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+    } catch (error) {
+        alert("Lỗi xuất Excel: " + error.message);
+    }
+}
+</script>
 
 <?php
 $content = ob_get_clean();
