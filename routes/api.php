@@ -7,16 +7,17 @@
 
 return [
 
-    // AUTH (Public)
+    // ==============================================================================
+    // AUTH (XÁC THỰC)
+    // ==============================================================================
     ['POST', '/api/auth/login-internal', 'Auth\\AuthController@loginInternal', null],
     ['POST', '/api/auth/login-client',   'Auth\\AuthController@loginClient', null],
     ['POST', '/api/auth/register-client','Auth\\AuthController@registerClient', null],
 
-
     // AUTH (Private)
     ['GET', '/api/auth/me', 'Auth\\AuthController@me', ['admin', 'manager', 'employee', 'client']],
 
-     // Hệ thống xử lý Đăng xuất (Điều hướng về Login)
+    // Hệ thống xử lý Đăng xuất (Điều hướng về Login)
     ['GET', '/auth/logout', 'Auth\\LogoutController@index', null],
 
     // ==============================================================================
@@ -27,7 +28,6 @@ return [
     // ==============================================================================
     // HRM (QUẢN TRỊ NHÂN SỰ & TỔ CHỨC)
     // ==============================================================================
-    // Route mới đã được tích hợp vào kiến trúc mảng
     ['GET', '/api/organization/data', 'OrganizationController@getOrgData', ['admin', 'manager', 'employee']],
     ['POST', '/api/organization/store', 'OrganizationController@storeDepartment', ['admin', 'manager']],
     ['POST', '/api/organization/positions/store', 'OrganizationController@storePosition', ['admin', 'manager']],
@@ -92,7 +92,14 @@ return [
     // ==============================================================================
     // PAYROLL (CHẤM CÔNG & NGHỈ PHÉP)
     // ==============================================================================
-    ['POST',  '/api/attendance/checkin',   'Payroll\\AttendanceController@checkin', ['admin', 'manager', 'employee']],
+    // DÒNG QUAN TRỌNG: Tải dữ liệu lịch sử và thống kê
+    ['GET',   '/api/attendance',          'Payroll\\AttendanceController@index',    ['admin', 'manager', 'employee']], 
+    
+    // Xử lý Check-in và Check-out thực tế
+    ['POST',  '/api/attendance/checkin',  'Payroll\\AttendanceController@checkin',  ['admin', 'manager', 'employee']],
+    ['POST',  '/api/attendance/checkout', 'Payroll\\AttendanceController@checkout', ['admin', 'manager', 'employee']],
+
+    // Quản lý nghỉ phép
     ['POST',  '/api/leaves',               'Payroll\\LeaveController@store',        ['admin', 'manager', 'employee']],
     ['PATCH', '/api/leaves/:id/approve',   'Payroll\\LeaveController@approve',      ['admin', 'manager']],
 

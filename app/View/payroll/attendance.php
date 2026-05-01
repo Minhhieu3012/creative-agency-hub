@@ -1,4 +1,5 @@
 <?php
+// Khởi tạo thông tin trang
 $pageTitle = 'Chấm công | Creative Agency Hub';
 $pageCss = ['payroll.css', 'hrm.css'];
 $pageJs = ['payroll.js'];
@@ -6,17 +7,14 @@ $activeMenu = 'attendance';
 $topbarTitle = 'Web Check-in';
 $brandName = 'Creative Agency Hub';
 
-$history = $history ?? [
-    ['date' => '21/10/2026', 'checkin' => '08:02', 'checkout' => '17:35', 'status' => 'Đúng giờ', 'tone' => 'success'],
-    ['date' => '20/10/2026', 'checkin' => '08:16', 'checkout' => '17:42', 'status' => 'Đi muộn', 'tone' => 'warning'],
-    ['date' => '19/10/2026', 'checkin' => '07:58', 'checkout' => '17:31', 'status' => 'Đúng giờ', 'tone' => 'success'],
-    ['date' => '18/10/2026', 'checkin' => '--', 'checkout' => '--', 'status' => 'Nghỉ phép', 'tone' => 'info'],
-];
+// Mảng history này sẽ được JavaScript ghi đè khi dữ liệu từ API tải xong
+$history = $history ?? [];
 
 ob_start();
 ?>
 
 <section class="payroll-shell">
+    <!-- Hero Section: Đồng hồ và Nút bấm -->
     <article class="attendance-hero">
         <div class="attendance-copy">
             <span>Creative Agency Hub • Web Check-in</span>
@@ -45,7 +43,7 @@ ob_start();
             <div class="attendance-status">
                 <div class="attendance-status-item">
                     <span>Trạng thái hôm nay</span>
-                    <strong data-checkin-status>Chưa check-in</strong>
+                    <strong data-checkin-status>Đang kiểm tra...</strong>
                 </div>
 
                 <div class="attendance-status-item">
@@ -56,12 +54,13 @@ ob_start();
         </div>
     </article>
 
+    <!-- Thống kê nhanh: Sẽ được payroll.js cập nhật qua ID -->
     <div class="stat-grid">
         <article class="stat-card">
             <div class="stat-card-icon">◷</div>
             <div class="stat-card-body">
                 <span>Ngày công tháng này</span>
-                <strong>21</strong>
+                <strong id="js-stat-total">0</strong>
                 <small>Trên tổng 22 ngày</small>
             </div>
         </article>
@@ -70,8 +69,8 @@ ob_start();
             <div class="stat-card-icon">✓</div>
             <div class="stat-card-body">
                 <span>Đúng giờ</span>
-                <strong>18</strong>
-                <small>Tỷ lệ 86%</small>
+                <strong id="js-stat-ontime">0</strong>
+                <small id="js-stat-rate">Tỷ lệ 0%</small>
             </div>
         </article>
 
@@ -79,7 +78,7 @@ ob_start();
             <div class="stat-card-icon">△</div>
             <div class="stat-card-body">
                 <span>Đi muộn</span>
-                <strong>02</strong>
+                <strong id="js-stat-late">0</strong>
                 <small>Cần cải thiện</small>
             </div>
         </article>
@@ -88,12 +87,13 @@ ob_start();
             <div class="stat-card-icon">!</div>
             <div class="stat-card-body">
                 <span>Thiếu checkout</span>
-                <strong>01</strong>
+                <strong id="js-stat-missing">0</strong>
                 <small>Cần bổ sung</small>
             </div>
         </article>
     </div>
 
+    <!-- Lưới hiển thị Lịch sử và Timeline -->
     <section class="payroll-grid">
         <article class="card employee-table-card">
             <div class="card-header dashboard-card-title-row">
@@ -119,25 +119,18 @@ ob_start();
                         </tr>
                     </thead>
 
-                    <tbody>
-                        <?php foreach ($history as $row): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($row['date']); ?></td>
-                                <td><strong><?php echo htmlspecialchars($row['checkin']); ?></strong></td>
-                                <td><strong><?php echo htmlspecialchars($row['checkout']); ?></strong></td>
-                                <td>
-                                    <span class="badge badge-<?php echo htmlspecialchars($row['tone']); ?>">
-                                        <?php echo htmlspecialchars($row['status']); ?>
-                                    </span>
-                                </td>
-                                <td>Ghi nhận từ Web Check-in</td>
-                            </tr>
-                        <?php endforeach; ?>
+                    <tbody id="js-attendance-history">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 40px; color: #999;">
+                                Đang tải lịch sử chấm công...
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </article>
 
+        <!-- Sidebar: Timeline tĩnh (có thể mở rộng thành động sau) -->
         <aside class="card">
             <div class="card-body">
                 <h2 class="section-title">Timeline hôm nay</h2>
