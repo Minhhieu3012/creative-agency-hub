@@ -18,7 +18,8 @@ $pageAction = '
         <a href="/creative-agency-hub/app/View/tasks/kanban.php">☑ Kanban</a>
         <a class="is-active" href="/creative-agency-hub/app/View/tasks/gantt.php">▥ Gantt Chart</a>
     </div>
-    <a class="btn btn-primary" href="/creative-agency-hub/app/View/tasks/kanban.php">＋ Tạo task mới</a>
+    <!-- LỖI GỐC ĐÃ SỬA: Đổi thẻ a href thành button kích hoạt Modal -->
+    <button class="btn btn-primary" type="button" data-add-task>＋ Tạo task mới</button>
 </div>';
 require __DIR__ . '/../components/page-header.php';
 ?>
@@ -147,6 +148,8 @@ require __DIR__ . '/../components/page-header.php';
 </section>
 
 <?php
+// LỖI GỐC ĐÃ SỬA: Bổ sung components/modal.php để giao diện JS có chỗ gọi Popup
+require __DIR__ . '/../components/modal.php';
 $content = ob_get_clean();
 require __DIR__ . '/../layouts/app.php';
 ?>
