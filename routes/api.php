@@ -25,8 +25,13 @@ return [
     ['GET', '/api/dashboard/stats', 'DashboardController@getStats', ['admin', 'manager']],
 
     // ==============================================================================
-    // HRM (QUẢN TRỊ NHÂN SỰ)
+    // HRM (QUẢN TRỊ NHÂN SỰ & TỔ CHỨC)
     // ==============================================================================
+    // Route mới đã được tích hợp vào kiến trúc mảng
+    ['GET', '/api/organization/data', 'OrganizationController@getOrgData', ['admin', 'manager', 'employee']],
+    ['POST', '/api/organization/store', 'OrganizationController@storeDepartment', ['admin', 'manager']],
+    ['POST', '/api/organization/positions/store', 'OrganizationController@storePosition', ['admin', 'manager']],
+
     ['GET',    '/api/employees',             'HRM\\EmployeeController@index',        ['admin', 'manager']],
     ['POST',   '/api/employees',             'HRM\\EmployeeController@store',        ['admin']],
     ['GET',    '/api/employees/:id',         'HRM\\EmployeeController@show',         ['admin', 'manager']],

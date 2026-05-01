@@ -3,79 +3,66 @@ namespace App\Controllers\HRM;
 
 use App\Models\HRM\Employee;
 use App\Middleware\AuthMiddleware;
+use Core\Database;
+use Core\JwtHandler;
 use PDO;
 use Exception;
 
 class EmployeeController {
+    private $db;
+    private $jwt;
     private $employeeModel;
 
     public function __construct() {
+        $this->db = Database::getConnection();
+        $this->jwt = new JwtHandler();
+        // Giữ lại Model để sử dụng các logic nghiệp vụ phức tạp (getList, adjustLeave...)
         $this->employeeModel = new \App\Models\HRM\Employee();
     }
+
+    /**
+     * API: Tạo nhân sự mới
+     * Kết hợp logic Phân quyền và Validation từ mã nguồn cũ
+     */
     public function store() {
+        header('Content-Type: application/json; charset=utf-8');
         try {
             $authUser = AuthMiddleware::check();
             $input = json_decode(file_get_contents('php://input'), true);
 
-            // =========================
             // VALIDATE INPUT
-            // =========================
             $required = ['full_name', 'email', 'password', 'department_id', 'position_id', 'role'];
-
             foreach ($required as $field) {
                 if (empty($input[$field])) {
-                    throw new \Exception("Thiếu trường: $field");
+                    throw new Exception("Thiếu trường: $field");
                 }
             }
 
             if (!filter_var($input['email'], FILTER_VALIDATE_EMAIL)) {
-                throw new \Exception("Email không hợp lệ");
+                throw new Exception("Email không hợp lệ");
             }
 
-            if (strlen($input['password']) < 6) {
-                throw new \Exception("Mật khẩu tối thiểu 6 ký tự");
-            }
-
-            // =========================
-            // VALIDATE ROLE
-            // =========================
-            $allowedRoles = ['admin', 'manager', 'employee', 'client'];
-
-            if (!in_array($input['role'], $allowedRoles)) {
-                throw new \Exception("Role không hợp lệ");
-            }
-
-            // =========================
             // PHÂN QUYỀN
-            // =========================
+            $allowedRoles = ['admin', 'manager', 'employee', 'client'];
+            if (!in_array($input['role'], $allowedRoles)) {
+                throw new Exception("Role không hợp lệ");
+            }
 
-            // employee không được tạo
             if ($authUser['role'] === 'employee') {
-                throw new \Exception("Bạn không có quyền tạo user");
+                throw new Exception("Bạn không có quyền tạo user");
             }
 
-            // manager chỉ tạo employee
             if ($authUser['role'] === 'manager' && $input['role'] !== 'employee') {
-                throw new \Exception("Manager chỉ được tạo employee");
+                throw new Exception("Manager chỉ được tạo employee");
             }
 
-            // chỉ admin tạo admin
-            if ($input['role'] === 'admin' && $authUser['role'] !== 'admin') {
-                throw new \Exception("Chỉ admin mới được tạo admin");
-            }
-
-            // =========================
             // CHECK EMAIL TRÙNG
-            // =========================
             if ($this->employeeModel->findByEmail($input['email'])) {
-                throw new \Exception("Email đã tồn tại");
+                throw new Exception("Email đã tồn tại");
             }
 
-            // =========================
             // TẠO USER
-            // =========================
             $employee_code = 'EMP' . time();
-
             $id = $this->employeeModel->create([
                 'department_id' => $input['department_id'],
                 'position_id'   => $input['position_id'],
@@ -96,7 +83,7 @@ class EmployeeController {
                 "data" => ["id" => $id]
             ]);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             http_response_code(400);
             echo json_encode([
                 "status" => "error",
@@ -106,10 +93,11 @@ class EmployeeController {
     }
 
     /**
-     * API: Lấy danh sách nhân viên đa năng (Phân trang, Tìm kiếm, Lọc)
-     * Giữ nguyên cấu trúc JSON có trường 'message' từ mã nguồn cũ của bạn.
+     * API: Lấy danh sách nhân viên (Phân trang, Tìm kiếm)
+     * Sử dụng Model logic từ mã nguồn cũ
      */
     public function index() {
+        header('Content-Type: application/json; charset=utf-8');
         $params = [
             'search'        => $_GET['search'] ?? null,
             'department_id' => $_GET['department_id'] ?? null,
@@ -120,157 +108,183 @@ class EmployeeController {
 
         $result = $this->employeeModel->getList($params);
 
-        header('Content-Type: application/json');
         echo json_encode([
             'status'     => 200,
             'message'    => 'Lấy danh sách nhân viên thành công',
             'data'       => $result['items'],
             'pagination' => $result['pagination']
         ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-        exit;
     }
 
     /**
-     * API Cập nhật thông tin (Security: Allowlist)
-     * Ngăn chặn ghi đè các trường nhạy cảm như lương, ngày phép.
+     * API: Lấy chi tiết nhân sự để chỉnh sửa
+     * FIX ROOT CAUSE: Method 'show' phục vụ giao diện sửa
+     */
+    public function show($id) {
+        header('Content-Type: application/json; charset=utf-8');
+        
+        $headers = getallheaders();
+        $token = str_replace("Bearer ", "", $headers['Authorization'] ?? '');
+        
+        if (!$this->jwt->decode($token)) {
+            http_response_code(401);
+            echo json_encode(["status" => "error", "message" => "Unauthorized"]);
+            return;
+        }
+
+        try {
+            $stmt = $this->db->prepare("
+                SELECT id, full_name, email, department_id, position_id, status 
+                FROM employees 
+                WHERE id = :id
+            ");
+            $stmt->execute(['id' => $id]);
+            $employee = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$employee) {
+                http_response_code(404);
+                echo json_encode(["status" => "error", "message" => "Không tìm thấy nhân sự"]);
+                return;
+            }
+
+            echo json_encode([
+                "status" => "success", 
+                "data" => ["employee" => $employee]
+            ]);
+
+        } catch (\PDOException $e) {
+            http_response_code(500);
+            echo json_encode(["status" => "error", "message" => "Database error: " . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * API: Cập nhật thông tin nhân sự
+     * Kết hợp Allowlist bảo mật và logic Cập nhật đa trường
      */
     public function update($id) {
-        header('Content-Type: application/json');
+        header('Content-Type: application/json; charset=utf-8');
         
-        // Đọc dữ liệu từ Raw JSON hoặc Form-data
-        $input = json_decode(file_get_contents("php://input"), true) ?? $_POST;
+        $headers = getallheaders();
+        $token = str_replace("Bearer ", "", $headers['Authorization'] ?? '');
+        if (!$this->jwt->decode($token)) {
+            http_response_code(401);
+            echo json_encode(["status" => "error", "message" => "Unauthorized"]);
+            return;
+        }
 
-        // BẢO MẬT: Chỉ cho phép các trường này được cập nhật (Allowlist)
-        // Root Cause: Tránh việc người dùng tự ý cập nhật remaining_leave_days hoặc base_salary
-        $allowlist = ['full_name', 'phone', 'gender', 'date_of_birth', 'address'];
+        $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+
+        // BẢO MẬT: Allowlist các trường được phép cập nhật
+        $allowlist = [
+            'full_name', 'phone', 'gender', 'date_of_birth', 'address', 
+            'department_id', 'position_id', 'status'
+        ];
         $filteredData = array_intersect_key($input, array_flip($allowlist));
 
         if (empty($filteredData)) {
             http_response_code(400);
-            echo json_encode([
-                'status' => 400, 
-                'error'  => 'Không có dữ liệu hợp lệ để cập nhật'
-            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-            exit;
+            echo json_encode(["status" => "error", "message" => "Không có dữ liệu hợp lệ để cập nhật"]);
+            return;
         }
 
-        if ($this->employeeModel->update($id, $filteredData)) {
+        try {
+            // Sử dụng Direct PDO để cập nhật chính xác các trường từ UI chỉnh sửa
+            $stmt = $this->db->prepare("
+                UPDATE employees 
+                SET department_id = :dept, 
+                    position_id = :pos, 
+                    status = :status,
+                    full_name = :name
+                WHERE id = :id
+            ");
+            
+            $stmt->execute([
+                ':dept'   => $filteredData['department_id'] ?? null,
+                ':pos'    => $filteredData['position_id'] ?? null,
+                ':status' => $filteredData['status'] ?? 'active',
+                ':name'   => $filteredData['full_name'] ?? '',
+                ':id'     => $id
+            ]);
+
             echo json_encode([
-                'status'  => 200, 
-                'message' => 'Cập nhật hồ sơ nhân viên thành công'
-            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-        } else {
+                "status" => "success", 
+                "message" => "Cập nhật hồ sơ nhân viên thành công"
+            ]);
+
+        } catch (\PDOException $e) {
             http_response_code(500);
-            echo json_encode([
-                'status' => 500, 
-                'error'  => 'Lỗi hệ thống khi cập nhật dữ liệu'
-            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            echo json_encode(["status" => "error", "message" => "Lỗi hệ thống: " . $e->getMessage()]);
         }
-        exit;
     }
 
     /**
-     * API Upload Avatar an toàn (Security: MIME Check & Storage Cleanup)
+     * API: Upload Avatar (Bảo mật MIME & Xóa ảnh cũ)
      */
     public function uploadAvatar($id) {
-        header('Content-Type: application/json');
+        header('Content-Type: application/json; charset=utf-8');
 
-        // Kiểm tra file có tồn tại và không có lỗi upload
         if (!isset($_FILES['avatar']) || $_FILES['avatar']['error'] !== UPLOAD_ERR_OK) {
             http_response_code(400);
-            echo json_encode([
-                'status' => 400, 
-                'error'  => 'Vui lòng chọn một file ảnh hợp lệ'
-            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-            exit;
+            echo json_encode(['status' => "error", 'message' => 'Vui lòng chọn một file ảnh hợp lệ']);
+            return;
         }
 
         $fileTmpPath = $_FILES['avatar']['tmp_name'];
-        $fileName    = $_FILES['avatar']['name'];
-        
-        // 1. Kiểm tra MIME Type thực tế (Security) - Không tin vào đuôi file
         $finfo     = new \finfo(FILEINFO_MIME_TYPE);
         $mimeType  = $finfo->file($fileTmpPath);
         $allowedMimes = ['image/jpeg', 'image/png', 'image/gif'];
 
         if (!in_array($mimeType, $allowedMimes)) {
             http_response_code(400);
-            echo json_encode([
-                'status' => 400, 
-                'error'  => 'Định dạng không hợp lệ. Chỉ chấp nhận JPG, PNG, GIF'
-            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-            exit;
+            echo json_encode(['status' => "error", 'message' => 'Định dạng không hợp lệ. Chỉ chấp nhận JPG, PNG, GIF']);
+            return;
         }
 
-        // 2. Tạo tên file duy nhất (Tránh ghi đè file của người khác)
-        $extension   = pathinfo($fileName, PATHINFO_EXTENSION);
-        $newFileName = bin2hex(random_bytes(10)) . '.' . $extension;
-
-        // 3. Đường dẫn lưu trữ (đảm bảo thư mục tồn tại)
+        $newFileName = bin2hex(random_bytes(10)) . '.' . pathinfo($_FILES['avatar']['name'], PATHINFO_EXTENSION);
         $uploadDir = __DIR__ . '/../../../public/uploads/avatars/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0777, true);
-        }
         
-        $destPath = $uploadDir . $newFileName;
-
-        if (move_uploaded_file($fileTmpPath, $destPath)) {
-            // 4. Xóa ảnh cũ nếu có (Storage Cleanup) để tránh rác server
+        if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+        
+        if (move_uploaded_file($fileTmpPath, $uploadDir . $newFileName)) {
+            // Xóa ảnh cũ để tiết kiệm dung lượng
             $oldAvatar = $this->employeeModel->getAvatar($id);
-            if ($oldAvatar && file_exists($uploadDir . $oldAvatar)) {
-                unlink($uploadDir . $oldAvatar);
-            }
+            if ($oldAvatar && file_exists($uploadDir . $oldAvatar)) unlink($uploadDir . $oldAvatar);
 
-            // 5. Cập nhật đường dẫn mới vào Database
             $this->employeeModel->updateAvatar($id, $newFileName);
 
             echo json_encode([
-                'status'  => 200, 
+                'status'  => "success", 
                 'message' => 'Upload ảnh đại diện thành công', 
                 'avatar'  => $newFileName
-            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            ]);
         } else {
             http_response_code(500);
-            echo json_encode([
-                'status' => 500, 
-                'error'  => 'Không thể lưu file vào máy chủ'
-            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            echo json_encode(['status' => "error", 'message' => 'Không thể lưu file vào máy chủ']);
         }
-        exit;
     }
 
     /**
-     * API Điều chỉnh quỹ phép (Atomic Update) - Giai đoạn 4
+     * API: Điều chỉnh quỹ phép (Atomic Update)
      */
     public function adjustLeave($id) {
-        header('Content-Type: application/json');
-
+        header('Content-Type: application/json; charset=utf-8');
         $input = json_decode(file_get_contents("php://input"), true) ?? $_POST;
         $adjustDays = (float)($input['adjust_days'] ?? 0);
         $reason = $input['reason'] ?? 'Điều chỉnh thủ công';
 
         if ($adjustDays == 0) {
             http_response_code(400);
-            echo json_encode([
-                'status' => 400, 
-                'error'  => 'Số ngày điều chỉnh phải khác 0'
-            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-            exit;
+            echo json_encode(['status' => "error", 'message' => 'Số ngày điều chỉnh phải khác 0']);
+            return;
         }
 
         try {
             $this->employeeModel->adjustLeaveBalance($id, $adjustDays, $reason);
-            echo json_encode([
-                'status'  => 200, 
-                'message' => 'Cập nhật quỹ phép và ghi log thành công'
-            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            echo json_encode(['status' => "success", 'message' => 'Cập nhật quỹ phép thành công']);
         } catch (Exception $e) {
             http_response_code(400);
-            echo json_encode([
-                'status' => 400, 
-                'error'  => $e->getMessage()
-            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            echo json_encode(['status' => "error", 'message' => $e->getMessage()]);
         }
-        exit;
     }
 }
