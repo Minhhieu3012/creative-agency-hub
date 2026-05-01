@@ -1,4 +1,7 @@
 <?php
+/**
+ * TRANG XIN NGHỈ PHÉP - KẾT HỢP DỮ LIỆU ĐỘNG
+ */
 $pageTitle = 'Xin nghỉ phép | Creative Agency Hub';
 $pageCss = ['payroll.css'];
 $pageJs = ['payroll.js'];
@@ -6,16 +9,13 @@ $activeMenu = 'leave_request';
 $topbarTitle = 'Leave Request';
 $brandName = 'Creative Agency Hub';
 
-$leaveHistory = $leaveHistory ?? [
-    ['title' => 'Nghỉ phép năm', 'date' => '12/10/2026 - 13/10/2026', 'status' => 'Đã duyệt', 'tone' => 'success'],
-    ['title' => 'Nghỉ nửa ngày', 'date' => '05/10/2026', 'status' => 'Đã duyệt', 'tone' => 'success'],
-    ['title' => 'Nghỉ việc cá nhân', 'date' => '25/10/2026', 'status' => 'Chờ duyệt', 'tone' => 'warning'],
-];
+// Đã loại bỏ mảng $leaveHistory giả để ưu tiên dữ liệu thực từ API thông qua payroll.js.
 
 ob_start();
 ?>
 
 <?php
+// Tích hợp Component Header trang[cite: 5]
 $pageHeading = 'Xin Nghỉ phép';
 $pageSubtitle = 'Gửi đơn nghỉ trực tuyến, theo dõi quỹ phép còn lại và lịch sử phê duyệt.';
 $pageAction = '<a class="btn btn-light" href="/creative-agency-hub/app/View/payroll/manager_approvals.php">Xem phê duyệt</a>';
@@ -24,17 +24,18 @@ require __DIR__ . '/../components/page-header.php';
 
 <section class="payroll-grid">
     <div class="payroll-shell">
+        <!-- Thẻ Quỹ phép: Sử dụng ID để JavaScript cập nhật dữ liệu từ employees table[cite: 4, 5] -->
         <article class="leave-balance-card">
             <div>
                 <h2>Quỹ phép còn lại</h2>
 
                 <div class="leave-balance-number">
-                    <strong>08</strong>
+                    <strong id="js-leave-balance">--</strong>
                     <span>ngày</span>
                 </div>
 
-                <p>
-                    Tổng phép năm: 12 ngày • Đã sử dụng: 04 ngày • Đang chờ duyệt: 01 ngày.
+                <p id="js-leave-summary">
+                    Đang kết nối dữ liệu quỹ phép...
                 </p>
             </div>
 
@@ -43,31 +44,22 @@ require __DIR__ . '/../components/page-header.php';
             </button>
         </article>
 
+        <!-- Thẻ Lịch sử: Chuyển sang chế độ Render động qua JavaScript[cite: 4, 5] -->
         <article class="card">
             <div class="card-header dashboard-card-title-row">
                 <h2>Lịch sử đơn nghỉ</h2>
-                <button class="btn btn-soft" type="button" data-payroll-action="mock-save">Lọc</button>
+                <button class="btn btn-soft" type="button">Lọc</button>
             </div>
 
             <div class="card-body">
-                <div class="leave-history">
-                    <?php foreach ($leaveHistory as $leave): ?>
-                        <div class="leave-history-item">
-                            <div>
-                                <h3><?php echo htmlspecialchars($leave['title']); ?></h3>
-                                <p><?php echo htmlspecialchars($leave['date']); ?></p>
-                            </div>
-
-                            <span class="badge badge-<?php echo htmlspecialchars($leave['tone']); ?>">
-                                <?php echo htmlspecialchars($leave['status']); ?>
-                            </span>
-                        </div>
-                    <?php endforeach; ?>
+                <div class="leave-history" id="js-leave-history">
+                    <p style="text-align:center; color:#999; padding: 20px;">Đang tải lịch sử đơn nghỉ...</p>
                 </div>
             </div>
         </article>
     </div>
 
+    <!-- Thẻ Tạo đơn mới: Giữ nguyên cấu trúc Form để đồng bộ với xử lý Submit trong payroll.js[cite: 4, 5] -->
     <article class="card leave-form-card">
         <div class="card-header">
             <h2 class="section-title">Tạo đơn nghỉ mới</h2>

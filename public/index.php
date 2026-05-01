@@ -88,7 +88,7 @@ try {
                 RoleMiddleware::handle($authUser, $roles);
             }
 
-            $controller = new $controllerClass();
+            $controller = new $controllerClass($authUser);
             call_user_func_array([$controller, $action], $matches);
             exit;
         }

@@ -4,25 +4,41 @@
     const token = localStorage.getItem('cah_token');
     const baseUrl = '/creative-agency-hub/public'; 
 
-    /**
-     * 1. HÀM TẢI DỮ LIỆU (MỚI): Lấy lịch sử và thống kê từ Database
-     */
+    // --- 1. LOGIC CHUNG (HELPER) ---
+    const callApi = async (endpoint, method = 'GET', body = null) => {
+        const options = {
+            method,
+            headers: { 
+                'Authorization': 'Bearer ' + token, 
+                'Content-Type': 'application/json' 
+            }
+        };
+        if (body) options.body = JSON.stringify(body);
+        const res = await fetch(`${baseUrl}/api${endpoint}`, options);
+        return await res.json();
+    };
+
+    // --- 2. ĐỒNG HỒ THỜI GIAN THỰC ---
+    function updateClock() {
+        const clock = document.querySelector("[data-attendance-clock]");
+        const dateEl = document.querySelector("[data-attendance-date]");
+        if (!clock) return;
+        const now = new Date();
+        clock.textContent = new Intl.DateTimeFormat("vi-VN", { 
+            hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false 
+        }).format(now);
+        if (dateEl) dateEl.textContent = new Intl.DateTimeFormat("vi-VN", { 
+            weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" 
+        }).format(now);
+    }
+
+    // --- 3. XỬ LÝ CHẤM CÔNG (ATTENDANCE) ---
     async function loadAttendanceData() {
         if (!token) return;
-
         try {
-            const response = await fetch(`${baseUrl}/api/attendance`, {
-                method: 'GET',
-                headers: { 
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json' 
-                }
-            });
-
-            const result = await response.json();
-
-            if (result.status === "success") {
-                const { stats, history, today } = result.data;
+            const res = await callApi('/attendance');
+            if (res.status === "success") {
+                const { stats, history, today } = res.data;
 
                 // A. Đổ dữ liệu vào các thẻ thống kê
                 const elements = {
@@ -31,7 +47,6 @@
                     'js-stat-late': stats.late,
                     'js-stat-missing': stats.missing_out
                 };
-
                 for (let id in elements) {
                     const el = document.getElementById(id);
                     if (el) el.innerText = elements[id];
@@ -51,9 +66,14 @@
                         statusLabel.innerText = today.check_out_time ? "Đã hoàn thành" : "Đã vào làm";
                         statusLabel.className = "badge-success";
                     }
-                    // Khóa nút nếu đã check-in/out
-                    if (today.check_in_time) document.querySelector('[data-payroll-action="check-in"]').disabled = true;
-                    if (today.check_out_time) document.querySelector('[data-payroll-action="check-out"]').disabled = true;
+                    if (today.check_in_time) {
+                        const btnIn = document.querySelector('[data-payroll-action="check-in"]');
+                        if (btnIn) btnIn.disabled = true;
+                    }
+                    if (today.check_out_time) {
+                        const btnOut = document.querySelector('[data-payroll-action="check-out"]');
+                        if (btnOut) btnOut.disabled = true;
+                    }
                 }
 
                 // D. Vẽ bảng lịch sử chấm công
@@ -78,37 +98,16 @@
                     }
                 }
             }
-        } catch (error) {
-            console.error("Lỗi tải lịch sử:", error);
-        }
+        } catch (error) { console.error("Lỗi tải lịch sử chấm công:", error); }
     }
 
-    /**
-     * 2. ĐỒNG HỒ THỜI GIAN THỰC[cite: 4]
-     */
-    function updateClock() {
-        const clock = document.querySelector("[data-attendance-clock]");
-        const dateEl = document.querySelector("[data-attendance-date]");
-        if (!clock) return;
-        const now = new Date();
-        clock.textContent = new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(now);
-        if (dateEl) dateEl.textContent = new Intl.DateTimeFormat("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" }).format(now);
-    }
-
-    /**
-     * 3. XỬ LÝ CLICK CHECK-IN/OUT
-     */
     async function handleAttendanceAction(action, button) {
-        const endpoint = action === "check-in" ? "/api/attendance/checkin" : "/api/attendance/checkout";
+        const endpoint = action === "check-in" ? "/attendance/checkin" : "/attendance/checkout";
         try {
-            const response = await fetch(`${baseUrl}${endpoint}`, {
-                method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
-            });
-            const result = await response.json();
+            const result = await callApi(endpoint, 'POST');
             if (result.status === "success") {
                 if (window.CAHToast) CAHToast.success("Thành công", result.message);
-                loadAttendanceData(); // Tải lại dữ liệu ngay sau khi bấm nút thành công
+                loadAttendanceData(); 
             } else {
                 if (window.CAHToast) CAHToast.error("Thất bại", result.message);
             }
@@ -117,20 +116,93 @@
         }
     }
 
-    // KHỞI CHẠY KHI TẢI TRANG
+    // --- 4. XỬ LÝ NGHỈ PHÉP (LEAVE) ---
+    async function loadLeaveData() {
+        if (!token) return;
+        const balanceEl = document.getElementById('js-leave-balance');
+        const historyWrap = document.getElementById('js-leave-history');
+
+        try {
+            const res = await callApi('/leaves');
+            if (res.status === 'success') {
+                if (balanceEl) balanceEl.innerText = res.data.balance;
+                document.getElementById('js-leave-summary').innerText = `Quỹ phép năm hiện có: ${res.data.balance} ngày.`;
+
+                if (historyWrap) {
+                    if (res.data.history.length === 0) {
+                        historyWrap.innerHTML = '<p style="text-align:center; padding:20px;">Bạn chưa có đơn nghỉ nào.</p>';
+                    } else {
+                        historyWrap.innerHTML = res.data.history.map(item => `
+                            <div class="leave-history-item">
+                                <div>
+                                    <h3>${item.leave_type === 'annual' ? 'Nghỉ phép năm' : 'Nghỉ việc riêng'}</h3>
+                                    <p>${item.start_date} - ${item.end_date} (${item.duration} ngày)</p>
+                                </div>
+                                <span class="badge badge-${item.status === 'Approved' ? 'success' : (item.status === 'Pending' ? 'warning' : 'danger')}">
+                                    ${item.status === 'Approved' ? 'ĐÃ DUYỆT' : (item.status === 'Pending' ? 'CHỜ DUYỆT' : 'TỪ CHỐI')}
+                                </span>
+                            </div>
+                        `).join('');
+                    }
+                }
+            } else {
+                throw new Error(res.message);
+            }
+        } catch (error) {
+            console.error("Lỗi tải lịch sử nghỉ phép:", error);
+            if (historyWrap) historyWrap.innerHTML = `<p style="text-align:center; color:red; padding:20px;">Lỗi: ${error.message}</p>`;
+        }
+    }
+
+    // --- 5. KHỞI TẠO & LẮNG NGHE SỰ KIỆN ---
     document.addEventListener("DOMContentLoaded", () => {
+        // Trang Chấm công
         if (document.querySelector("[data-attendance-clock]")) {
             updateClock();
             setInterval(updateClock, 1000);
+            loadAttendanceData();
         }
-        loadAttendanceData(); // Tự động lấy lịch sử khi vào trang
+        
+        // Trang Nghỉ phép
+        if (document.getElementById('js-leave-history')) {
+            loadLeaveData();
+        }
     });
 
     document.addEventListener("click", function (event) {
         const btn = event.target.closest("[data-payroll-action]");
         if (btn) {
             const action = btn.dataset.payrollAction;
-            if (action === "check-in" || action === "check-out") handleAttendanceAction(action, btn);
+            if (action === "check-in" || action === "check-out") {
+                handleAttendanceAction(action, btn);
+            }
+        }
+    });
+
+    document.addEventListener("submit", async function (event) {
+        const form = event.target.closest("[data-leave-form]");
+        if (!form) return;
+        event.preventDefault();
+
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
+
+        const formData = new FormData(form);
+        const payload = Object.fromEntries(formData.entries());
+
+        try {
+            const res = await callApi('/leaves', 'POST', payload);
+            if (res.status === 'success') {
+                if (window.CAHToast) CAHToast.success("Thành công", res.message);
+                form.reset();
+                loadLeaveData(); 
+            } else {
+                throw new Error(res.message);
+            }
+        } catch (error) {
+            if (window.CAHToast) CAHToast.error("Thất bại", error.message);
+        } finally {
+            if (submitBtn) submitBtn.disabled = false;
         }
     });
 })();

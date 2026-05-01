@@ -92,15 +92,12 @@ return [
     // ==============================================================================
     // PAYROLL (CHẤM CÔNG & NGHỈ PHÉP)
     // ==============================================================================
-    // DÒNG QUAN TRỌNG: Tải dữ liệu lịch sử và thống kê
-    ['GET',   '/api/attendance',          'Payroll\\AttendanceController@index',    ['admin', 'manager', 'employee']], 
-    
-    // Xử lý Check-in và Check-out thực tế
-    ['POST',  '/api/attendance/checkin',  'Payroll\\AttendanceController@checkin',  ['admin', 'manager', 'employee']],
-    ['POST',  '/api/attendance/checkout', 'Payroll\\AttendanceController@checkout', ['admin', 'manager', 'employee']],
+    ['GET',   '/api/leaves',                'Payroll\\LeaveController@index',        ['admin', 'manager', 'employee']],
+    ['POST',  '/api/leaves',                'Payroll\\LeaveController@store',        ['admin', 'manager', 'employee']],
+    ['PATCH', '/api/leaves/:id/approve',    'Payroll\\LeaveController@approve',      ['admin', 'manager']],
 
-    // Quản lý nghỉ phép
-    ['POST',  '/api/leaves',               'Payroll\\LeaveController@store',        ['admin', 'manager', 'employee']],
-    ['PATCH', '/api/leaves/:id/approve',   'Payroll\\LeaveController@approve',      ['admin', 'manager']],
+    ['GET',   '/api/attendance',            'Payroll\\AttendanceController@index',    ['admin', 'employee']],
+    ['POST',  '/api/attendance/checkin',    'Payroll\\AttendanceController@checkin',  ['admin', 'employee']],
+    ['POST',  '/api/attendance/checkout',   'Payroll\\AttendanceController@checkout', ['admin', 'employee']],
 
 ];
