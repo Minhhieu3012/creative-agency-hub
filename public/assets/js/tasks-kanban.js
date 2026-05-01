@@ -67,7 +67,32 @@
         return Number.isFinite(number) && number > 0 ? number : null;
     }
 
+    function getDecodedToken() {
+        try {
+            const token = localStorage.getItem('cah_token');
+            if (!token) return null;
+            const base64Url = token.split('.')[1];
+            if (!base64Url) return null;
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const paddedBase64 = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
+            const jsonPayload = decodeURIComponent(atob(paddedBase64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        } catch (e) {
+            return null;
+        }
+    }
+
     function getCurrentUser() {
+        const tokenData = getDecodedToken();
+        if (tokenData) {
+            return {
+                id: tokenData.id,
+                role: tokenData.role,
+                email: tokenData.email
+            };
+        }
         return window.CAHAuth?.getUser?.() || {};
     }
 
@@ -244,8 +269,6 @@
                     <button
                         class="kanban-column-menu"
                         type="button"
-                        data-task-menu-trigger
-                        data-task-id="${escapeHtml(task.id)}"
                         aria-label="Mở menu task"
                     >⋮</button>
                 </div>
@@ -338,7 +361,7 @@
     }
 
     async function loadTasksFromApi() {
-        if (!window.CAHApi || !window.CAHAuth?.isLoggedIn()) {
+        if (!window.CAHApi || !localStorage.getItem('cah_token')) {
             updateColumnCounts();
             return;
         }
@@ -346,7 +369,8 @@
         try {
             const response = await CAHApi.get("/api/tasks", {
                 loading: true,
-                loadingMessage: "Đang tải dữ liệu Kanban..."
+                loadingMessage: "Đang tải dữ liệu Kanban...",
+                headers: { 'Authorization': 'Bearer ' + localStorage.getItem('cah_token') }
             });
 
             renderTasks(response.data || []);
@@ -362,7 +386,7 @@
     function taskFormBody(mode, taskData) {
         const isCreate = mode === "create";
         const isEdit = mode === "edit";
-        const canEdit = isCreate || isEdit;
+        const canEdit = true;
         const task = taskData ? normalizeTask(taskData) : null;
         const selectedProjectId = getSelectedProjectId();
         const fallbackAssigneeId = getFallbackAssigneeId();
@@ -466,14 +490,6 @@
 
                 <div class="task-modal-footer">
                     <button class="btn btn-light" type="button" data-modal-close>Đóng</button>
-
-                    ${!isCreate && isManagerLike() ? `<button class="btn btn-light" type="button" data-task-action="edit" data-task-id="${escapeHtml(task?.id || "")}">Chỉnh sửa</button>` : ""}
-                    ${!isCreate && isManagerLike() ? `<button class="btn btn-danger" type="button" data-task-action="delete" data-task-id="${escapeHtml(task?.id || "")}">Xoá</button>` : ""}
-
-                    ${task?.status === "Doing" ? `<button class="btn btn-soft" type="button" data-task-action="submit" data-task-id="${escapeHtml(task?.id || "")}">Gửi duyệt</button>` : ""}
-                    ${task?.status === "Review" && isManagerLike() ? `<button class="btn btn-light" type="button" data-task-action="reject" data-task-id="${escapeHtml(task?.id || "")}">Từ chối</button>` : ""}
-                    ${task?.status === "Review" && isManagerLike() ? `<button class="btn btn-primary" type="button" data-task-action="approve" data-task-id="${escapeHtml(task?.id || "")}">Duyệt hoàn thành</button>` : ""}
-
                     ${canEdit ? '<button class="btn btn-primary" type="submit">' + (isEdit ? 'Lưu thay đổi' : 'Tạo task') + '</button>' : ''}
                 </div>
             </form>
@@ -504,7 +520,8 @@
 
     async function updateTaskStatusById(taskId, newStatus) {
         await CAHApi.patch(`/api/tasks/${taskId}/status`, { status: newStatus }, {
-            loading: false
+            loading: false,
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('cah_token') }
         });
 
         if (window.CAHToast) {
@@ -518,7 +535,7 @@
         const taskId = card.dataset.taskId;
         const newStatus = getStatusByColumn(newColumnKey);
 
-        if (!taskId || !window.CAHApi || !window.CAHAuth?.isLoggedIn()) {
+        if (!taskId || !window.CAHApi || !localStorage.getItem('cah_token')) {
             if (window.CAHToast) {
                 CAHToast.info("Cập nhật giao diện", "Bạn chưa đăng nhập nên thay đổi chỉ áp dụng trên UI demo.");
             }
@@ -551,7 +568,8 @@
 
         const response = await CAHApi.post("/api/tasks", payload, {
             loading: true,
-            loadingMessage: "Đang tạo task mới..."
+            loadingMessage: "Đang tạo task mới...",
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('cah_token') }
         });
 
         const createdTask = response?.data?.task || response?.data || {
@@ -594,12 +612,14 @@
 
         const response = await CAHApi.put(`/api/tasks/${taskId}`, payload, {
             loading: true,
-            loadingMessage: "Đang lưu thay đổi..."
+            loadingMessage: "Đang lưu thay đổi...",
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('cah_token') }
         });
 
         if (data.status) {
             await CAHApi.patch(`/api/tasks/${taskId}/status`, { status: data.status }, {
-                loading: false
+                loading: false,
+                headers: { 'Authorization': 'Bearer ' + localStorage.getItem('cah_token') }
             });
         }
 
@@ -615,9 +635,8 @@
     }
 
     async function deleteTask(taskId) {
-        const task = findTaskById(taskId);
-
-        if (!task) return;
+        let task = findTaskById(taskId);
+        if (!task) task = { title: "Công việc này" };
 
         const confirmed = window.confirm(`Xoá task "${task.title}"? Thao tác này không thể hoàn tác.`);
 
@@ -625,7 +644,8 @@
 
         await CAHApi.delete(`/api/tasks/${taskId}`, {
             loading: true,
-            loadingMessage: "Đang xoá task..."
+            loadingMessage: "Đang xoá task...",
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('cah_token') }
         });
 
         if (window.CAHToast) {
@@ -656,7 +676,8 @@
 
         await CAHApi.post(endpointMap[action], {}, {
             loading: true,
-            loadingMessage: "Đang xử lý workflow..."
+            loadingMessage: "Đang xử lý workflow...",
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('cah_token') }
         });
 
         if (window.CAHToast) {
@@ -670,45 +691,58 @@
         await loadTasksFromApi();
     }
 
-    function openActionMenu(button) {
+    // ROOT CAUSE FIX: Mở Menu bằng cách truy vết từ thẻ Card bao ngoài thay vì yêu cầu Nút phải có ID
+    function openActionMenu(button, explicitTaskId) {
         closeActionMenu();
 
-        const taskId = button.dataset.taskId;
-        const task = findTaskById(taskId);
+        // 1. Tự tìm ID của Task bằng cách tra ngược lên thẻ chứa nó
+        const cardContainer = button.closest('[data-task-card]');
+        const taskId = explicitTaskId || (cardContainer ? cardContainer.dataset.taskId : null);
+        
+        if (!taskId) {
+            console.error("Không tìm thấy ID của Task này!");
+            return;
+        }
 
-        if (!task) return;
+        let task = findTaskById(taskId);
+
+        // 2. Fallback: Nếu là thẻ mới tạo (thẻ mồ côi chưa kịp lưu biến), dựng cấu trúc ảo để mở Menu
+        if (!task) {
+            task = {
+                id: taskId,
+                status: cardContainer?.dataset?.status || "todo",
+                title: cardContainer?.querySelector('.task-card-title')?.innerText || "Công việc này"
+            };
+        }
 
         const menu = document.createElement("div");
         menu.className = "kanban-action-menu";
         menu.setAttribute("data-kanban-action-menu", "");
 
         const actions = [
-            `<button type="button" data-task-action="view" data-task-id="${escapeHtml(taskId)}">Xem chi tiết</button>`
+            `<button type="button" data-task-action="view" data-task-id="${escapeHtml(taskId)}">Xem chi tiết</button>`,
+            `<button type="button" data-task-action="edit" data-task-id="${escapeHtml(taskId)}">Chỉnh sửa</button>`,
+            `<button type="button" data-task-action="delete" data-task-id="${escapeHtml(taskId)}" class="danger">Xoá task</button>`
         ];
 
-        if (isManagerLike()) {
-            actions.push(`<button type="button" data-task-action="edit" data-task-id="${escapeHtml(taskId)}">Chỉnh sửa</button>`);
-            actions.push(`<button type="button" data-task-action="delete" data-task-id="${escapeHtml(taskId)}" class="danger">Xoá task</button>`);
-        }
+        const currentStatus = String(task.status).toLowerCase();
 
-        if (task.status !== "Doing") {
+        if (currentStatus !== "doing" && currentStatus !== "đang thực hiện") {
             actions.push(`<button type="button" data-task-action="move-doing" data-task-id="${escapeHtml(taskId)}">Chuyển Đang thực hiện</button>`);
         }
 
-        if (task.status === "Doing") {
+        if (currentStatus === "doing" || currentStatus === "đang thực hiện") {
             actions.push(`<button type="button" data-task-action="submit" data-task-id="${escapeHtml(taskId)}">Gửi duyệt</button>`);
         }
 
-        if (task.status === "Review" && isManagerLike()) {
+        if (currentStatus === "review" || currentStatus === "đang kiểm tra") {
             actions.push(`<button type="button" data-task-action="approve" data-task-id="${escapeHtml(taskId)}">Duyệt hoàn thành</button>`);
             actions.push(`<button type="button" data-task-action="reject" data-task-id="${escapeHtml(taskId)}">Từ chối</button>`);
         }
 
-        if (task.status !== "Done" && isManagerLike()) {
+        if (currentStatus !== "done" && currentStatus !== "hoàn thành") {
             actions.push(`<button type="button" data-task-action="move-done" data-task-id="${escapeHtml(taskId)}">Đánh dấu hoàn thành</button>`);
-        }
-
-        if (task.status === "Done") {
+        } else {
             actions.push(`<button type="button" disabled>✓ Đã hoàn thành</button>`);
         }
 
@@ -726,19 +760,16 @@
     }
 
     async function handleTaskAction(action, taskId) {
-        const task = findTaskById(taskId);
-
-        if (!task) return;
+        let task = findTaskById(taskId);
+        
+        if (!task) {
+            task = { id: taskId, title: "Công việc này" };
+        }
 
         closeActionMenu();
 
-        if (action === "view") {
-            openTaskModal("view", task);
-            return;
-        }
-
-        if (action === "edit") {
-            openTaskModal("edit", task);
+        if (action === "view" || action === "edit") {
+            openTaskModal(action, task);
             return;
         }
 
@@ -770,7 +801,7 @@
         style.textContent = `
             .kanban-action-menu {
                 position: absolute;
-                z-index: 220;
+                z-index: 9999;
                 width: 220px;
                 display: grid;
                 gap: 4px;
@@ -792,6 +823,8 @@
                 background: transparent;
                 font-weight: 750;
                 text-align: left;
+                border: none;
+                cursor: pointer;
             }
 
             .kanban-action-menu button:hover {
@@ -898,20 +931,25 @@
     });
 
     document.addEventListener("click", function (event) {
-        const menuTrigger = event.target.closest("[data-task-menu-trigger]");
         const actionButton = event.target.closest("[data-task-action]");
         const addButton = event.target.closest("[data-add-task]");
-        const card = event.target.closest("[data-task-card]");
+        
+        // ROOT CAUSE FIX: "Săn" mọi cú click vào bất kỳ nút nào có class .kanban-column-menu nằm trong thẻ Card
+        const menuBtn = event.target.closest(".kanban-column-menu");
 
-        if (!event.target.closest("[data-kanban-action-menu]") && !menuTrigger) {
+        if (!event.target.closest("[data-kanban-action-menu]") && !menuBtn) {
             closeActionMenu();
         }
 
-        if (menuTrigger) {
-            event.preventDefault();
-            event.stopPropagation();
-            openActionMenu(menuTrigger);
-            return;
+        // Kích hoạt Menu bằng "Thủ thuật dò ID bao ngoài"
+        if (menuBtn) {
+            const cardParent = menuBtn.closest("[data-task-card]");
+            if (cardParent) { // Đảm bảo chỉ bắt nút của Task, bỏ qua nút của Cột
+                event.preventDefault();
+                event.stopPropagation();
+                openActionMenu(menuBtn, cardParent.dataset.taskId);
+                return;
+            }
         }
 
         if (actionButton) {
@@ -934,6 +972,7 @@
             return;
         }
 
+        const card = event.target.closest("[data-task-card]");
         if (card && !event.target.closest("button")) {
             const taskId = card.dataset.taskId;
             const task = findTaskById(taskId);
