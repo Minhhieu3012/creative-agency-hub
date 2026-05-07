@@ -56,7 +56,10 @@ class ProjectModel {
             WHERE t.project_id = :project_id
         ");
 
-        $stmt->execute([':project_id' => $projectId]);
+        $stmt->execute([
+            ':project_id' => $projectId
+        ]);
+
         $stats = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
         $progressStmt = $this->db->prepare("
@@ -65,7 +68,10 @@ class ProjectModel {
             WHERE project_id = :project_id
         ");
 
-        $progressStmt->execute([':project_id' => $projectId]);
+        $progressStmt->execute([
+            ':project_id' => $projectId
+        ]);
+
         $statuses = $progressStmt->fetchAll(PDO::FETCH_COLUMN);
 
         $progress = 0;
@@ -158,6 +164,8 @@ class ProjectModel {
             'created_at' => null,
             'updated_at' => null,
             'manager_name' => 'Chưa gán quản lý',
+            'manager_email' => null,
+            'manager_role' => null,
             'tasks' => (int)($stats['task_count'] ?? 0),
             'open_tasks' => (int)($stats['open_task_count'] ?? 0),
             'done_tasks' => (int)($stats['done_task_count'] ?? 0),
@@ -171,14 +179,21 @@ class ProjectModel {
 
     public function getByManager($managerId) {
         $stmt = $this->db->prepare("
-            SELECT p.*, e.full_name AS manager_name
+            SELECT 
+                p.*,
+                e.full_name AS manager_name,
+                e.email AS manager_email,
+                e.role AS manager_role
             FROM projects p
             LEFT JOIN employees e ON p.manager_id = e.id
             WHERE p.manager_id = ?
             ORDER BY p.created_at DESC
         ");
 
-        $stmt->execute([$managerId]);
+        $stmt->execute([
+            $managerId
+        ]);
+
         $projects = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $projects = array_map(function ($project) {
@@ -196,7 +211,11 @@ class ProjectModel {
 
     public function getAll() {
         $stmt = $this->db->query("
-            SELECT p.*, e.full_name AS manager_name
+            SELECT 
+                p.*,
+                e.full_name AS manager_name,
+                e.email AS manager_email,
+                e.role AS manager_role
             FROM projects p
             LEFT JOIN employees e ON p.manager_id = e.id
             ORDER BY p.created_at DESC
@@ -223,14 +242,21 @@ class ProjectModel {
         }
 
         $stmt = $this->db->prepare("
-            SELECT p.*, e.full_name AS manager_name
+            SELECT 
+                p.*,
+                e.full_name AS manager_name,
+                e.email AS manager_email,
+                e.role AS manager_role
             FROM projects p
             LEFT JOIN employees e ON p.manager_id = e.id
             WHERE p.id = ?
             LIMIT 1
         ");
 
-        $stmt->execute([$id]);
+        $stmt->execute([
+            $id
+        ]);
+
         $project = $stmt->fetch(PDO::FETCH_ASSOC);
 
         return $project ? $this->enrichProject($project) : false;
@@ -238,14 +264,21 @@ class ProjectModel {
 
     public function create($data) {
         $stmt = $this->db->prepare("
-            INSERT INTO projects (name, description, manager_id, status)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO projects (
+                name,
+                description,
+                manager_id,
+                client_id,
+                status
+            )
+            VALUES (?, ?, ?, ?, ?)
         ");
 
         $stmt->execute([
             $data['name'],
             $data['description'],
             $data['manager_id'],
+            $data['client_id'] ?? null,
             $data['status']
         ]);
 
@@ -255,7 +288,13 @@ class ProjectModel {
     public function update($id, $data) {
         $stmt = $this->db->prepare("
             UPDATE projects
-            SET name = ?, description = ?, manager_id = ?, status = ?
+            SET 
+                name = ?,
+                description = ?,
+                manager_id = ?,
+                client_id = ?,
+                status = ?,
+                updated_at = NOW()
             WHERE id = ?
         ");
 
@@ -263,6 +302,7 @@ class ProjectModel {
             $data['name'],
             $data['description'],
             $data['manager_id'],
+            $data['client_id'] ?? null,
             $data['status'],
             $id
         ]);
@@ -270,7 +310,9 @@ class ProjectModel {
 
     public function delete($id) {
         $stmt = $this->db->prepare("DELETE FROM projects WHERE id = ?");
-        return $stmt->execute([$id]);
+        return $stmt->execute([
+            $id
+        ]);
     }
 
     public function existsManager($id) {
@@ -278,12 +320,30 @@ class ProjectModel {
             SELECT id
             FROM employees
             WHERE id = ?
-              AND deleted_at IS NULL
+              AND role IN ('admin', 'manager')
               AND status = 'active'
+              AND deleted_at IS NULL
             LIMIT 1
         ");
 
-        $stmt->execute([$id]);
+        $stmt->execute([
+            $id
+        ]);
+
         return $stmt->fetch() ? true : false;
+    }
+
+    public function countTasksByProject($id): int {
+        $stmt = $this->db->prepare("
+            SELECT COUNT(id)
+            FROM tasks
+            WHERE project_id = ?
+        ");
+
+        $stmt->execute([
+            $id
+        ]);
+
+        return (int)$stmt->fetchColumn();
     }
 }

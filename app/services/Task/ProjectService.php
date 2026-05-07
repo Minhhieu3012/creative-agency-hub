@@ -21,8 +21,33 @@ class ProjectService {
         return (int)($this->authUser['id'] ?? 0);
     }
 
-    private function validate($data, $isUpdate = false) {
+    private function normalizeStatus($status) {
+        $status = trim((string)($status ?: 'Active'));
 
+        $map = [
+            'active' => 'Active',
+            'đang triển khai' => 'Active',
+            'completed' => 'Completed',
+            'done' => 'Completed',
+            'hoàn thành' => 'Completed',
+            'archived' => 'Archived',
+            'đã lưu trữ' => 'Archived',
+        ];
+
+        return $map[strtolower($status)] ?? $status;
+    }
+
+    private function normalizeNullableInt($value) {
+        if ($value === null || $value === '' || $value === false) {
+            return null;
+        }
+
+        $number = (int)$value;
+
+        return $number > 0 ? $number : null;
+    }
+
+    private function validate($data, $isUpdate = false) {
         if (empty($data['name'])) {
             throw new Exception("Tên project không được để trống");
         }
@@ -32,7 +57,9 @@ class ProjectService {
         }
 
         $validStatus = ['Active', 'Completed', 'Archived'];
-        if (!empty($data['status']) && !in_array($data['status'], $validStatus, true)) {
+        $status = $this->normalizeStatus($data['status'] ?? 'Active');
+
+        if (!in_array($status, $validStatus, true)) {
             throw new Exception("Status không hợp lệ");
         }
 
@@ -42,7 +69,7 @@ class ProjectService {
             }
 
             if (!$this->model->existsManager((int)$data['manager_id'])) {
-                throw new Exception("Manager không tồn tại");
+                throw new Exception("Người phụ trách không tồn tại hoặc không phải Admin/Manager đang hoạt động");
             }
         }
 
@@ -78,9 +105,8 @@ class ProjectService {
         }
 
         /*
-         * BỔ SUNG AN TOÀN:
-         * "__unassigned__" là nhóm ảo dùng để gom các task chưa có project_id.
-         * Đây không phải project thật trong DB, nên chỉ cho xem, không check manager_id.
+         * "__unassigned__" là nhóm ảo gom task chưa có project_id.
+         * Đây không phải project thật trong bảng projects nên chỉ cho xem, không update/delete.
          */
         if (!empty($project['is_virtual'])) {
             if (!in_array($this->getRole(), ['admin', 'manager'], true)) {
@@ -91,8 +117,7 @@ class ProjectService {
         }
 
         // MANAGER chỉ được xem project của mình
-        if ($this->getRole() === 'manager' &&
-            (int)$project['manager_id'] !== $this->getUserId()) {
+        if ($this->getRole() === 'manager' && (int)$project['manager_id'] !== $this->getUserId()) {
             throw new Exception("Bạn không có quyền truy cập project này");
         }
 
@@ -108,24 +133,34 @@ class ProjectService {
     // CREATE
     // =========================
     public function create($data) {
-
         if (!in_array($this->getRole(), ['admin', 'manager'], true)) {
             throw new Exception("Bạn không có quyền tạo project");
         }
 
-        $this->validate($data);
+        $data['name'] = trim((string)($data['name'] ?? ''));
+        $data['description'] = trim((string)($data['description'] ?? ''));
+        $data['status'] = $this->normalizeStatus($data['status'] ?? 'Active');
 
         // Nếu là manager → ép manager_id = chính nó
         if ($this->getRole() === 'manager') {
             $data['manager_id'] = $this->getUserId();
+        } else {
+            $data['manager_id'] = $this->normalizeNullableInt($data['manager_id'] ?? null);
         }
 
-        $data['status'] = $data['status'] ?? 'Active';
+        $data['client_id'] = $this->normalizeNullableInt($data['client_id'] ?? null);
+
+        $this->validate($data);
+
+        if (!$data['manager_id']) {
+            throw new Exception("Vui lòng chọn người phụ trách dự án");
+        }
 
         return $this->model->create([
             'name' => $data['name'],
-            'description' => $data['description'] ?? null,
-            'manager_id' => $data['manager_id'] ?? null,
+            'description' => $data['description'] !== '' ? $data['description'] : null,
+            'manager_id' => $data['manager_id'],
+            'client_id' => $data['client_id'],
             'status' => $data['status']
         ]);
     }
@@ -134,12 +169,6 @@ class ProjectService {
     // UPDATE
     // =========================
     public function update($id, $data) {
-
-        /*
-         * BỔ SUNG AN TOÀN:
-         * Không cho update nhóm ảo "Công việc chưa gán dự án"
-         * vì nó không tồn tại thật trong bảng projects.
-         */
         if ((string)$id === '__unassigned__') {
             throw new Exception("Nhóm task chưa gán dự án là dữ liệu tổng hợp, không thể cập nhật trực tiếp");
         }
@@ -151,20 +180,34 @@ class ProjectService {
         }
 
         // MANAGER chỉ sửa project của mình
-        if ($this->getRole() === 'manager' &&
-            (int)$project['manager_id'] !== $this->getUserId()) {
+        if ($this->getRole() === 'manager' && (int)$project['manager_id'] !== $this->getUserId()) {
             throw new Exception("Bạn không có quyền sửa project này");
         }
 
+        $data['name'] = trim((string)($data['name'] ?? ($project['name'] ?? '')));
+        $data['description'] = trim((string)($data['description'] ?? ($project['description'] ?? '')));
+        $data['status'] = $this->normalizeStatus($data['status'] ?? ($project['status'] ?? 'Active'));
+
+        if ($this->getRole() === 'admin') {
+            $data['manager_id'] = $this->normalizeNullableInt($data['manager_id'] ?? ($project['manager_id'] ?? null));
+        } else {
+            $data['manager_id'] = (int)$project['manager_id'];
+        }
+
+        $data['client_id'] = $this->normalizeNullableInt($data['client_id'] ?? ($project['client_id'] ?? null));
+
         $this->validate($data, true);
+
+        if (!$data['manager_id']) {
+            throw new Exception("Vui lòng chọn người phụ trách dự án");
+        }
 
         return $this->model->update($id, [
             'name' => $data['name'],
-            'description' => $data['description'] ?? null,
-            'manager_id' => $this->getRole() === 'admin'
-                ? ($data['manager_id'] ?? $project['manager_id'])
-                : $project['manager_id'], // KHÔNG cho manager đổi
-            'status' => $data['status'] ?? $project['status']
+            'description' => $data['description'] !== '' ? $data['description'] : null,
+            'manager_id' => $data['manager_id'],
+            'client_id' => $data['client_id'],
+            'status' => $data['status']
         ]);
     }
 
@@ -172,11 +215,6 @@ class ProjectService {
     // DELETE
     // =========================
     public function delete($id) {
-
-        /*
-         * BỔ SUNG AN TOÀN:
-         * Không cho xoá nhóm ảo vì đây chỉ là view tổng hợp task project_id NULL.
-         */
         if ((string)$id === '__unassigned__') {
             throw new Exception("Nhóm task chưa gán dự án là dữ liệu tổng hợp, không thể xoá");
         }
@@ -187,9 +225,14 @@ class ProjectService {
             throw new Exception("Bạn không có quyền xoá");
         }
 
-        if ($this->getRole() === 'manager' &&
-            (int)$project['manager_id'] !== $this->getUserId()) {
+        if ($this->getRole() === 'manager' && (int)$project['manager_id'] !== $this->getUserId()) {
             throw new Exception("Bạn không có quyền xoá project này");
+        }
+
+        $taskCount = $this->model->countTasksByProject($id);
+
+        if ($taskCount > 0) {
+            throw new Exception("Project đang có task, không thể xoá trực tiếp. Hãy chuyển/xoá task trước.");
         }
 
         return $this->model->delete($id);

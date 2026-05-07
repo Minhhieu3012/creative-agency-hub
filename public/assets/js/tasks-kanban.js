@@ -4,6 +4,8 @@
     const board = document.querySelector("[data-kanban-board]");
     if (!board) return;
 
+    const BASE_URL = "/creative-agency-hub";
+
     const STATUS_TO_COLUMN = {
         "pending approval": "pending",
         "pending": "pending",
@@ -41,14 +43,6 @@
         done: "Hoàn thành"
     };
 
-    const PROGRESS_BY_COLUMN = {
-        pending: 0,
-        todo: 10,
-        doing: 55,
-        review: 82,
-        done: 100
-    };
-
     const PRIORITY_TONE = {
         Low: "info",
         Medium: "primary",
@@ -58,20 +52,22 @@
         high: "danger"
     };
 
-    const DEFAULT_PROJECT_ID = 1;
-    const DEFAULT_ASSIGNEE_ID = 2;
-    const DEFAULT_WATCHER_ID = 1;
-
     let draggedCard = null;
     let previousDropState = null;
     let latestTasks = [];
+    let latestProjects = [];
+    let latestEmployees = [];
 
     injectActionStyles();
+
+    function getToken() {
+        return localStorage.getItem("cah_token") || localStorage.getItem("cah_auth_token") || "";
+    }
 
     function escapeHtml(value) {
         return window.CAHApp?.escapeHtml
             ? CAHApp.escapeHtml(value)
-            : String(value || "")
+            : String(value ?? "")
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
                 .replace(/>/g, "&gt;")
@@ -86,10 +82,6 @@
         return Number.isFinite(number) && number > 0 ? number : null;
     }
 
-    function getToken() {
-        return localStorage.getItem("cah_token") || localStorage.getItem("cah_auth_token") || "";
-    }
-
     function getDecodedToken() {
         try {
             const token = getToken();
@@ -100,12 +92,12 @@
 
             const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
             const paddedBase64 = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, "=");
-            const jsonPayload = decodeURIComponent(atob(paddedBase64).split("").map(function (char) {
-                return "%" + ("00" + char.charCodeAt(0).toString(16)).slice(-2);
+            const jsonPayload = decodeURIComponent(atob(paddedBase64).split("").map(function (c) {
+                return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
             }).join(""));
 
             return JSON.parse(jsonPayload);
-        } catch (error) {
+        } catch (e) {
             return null;
         }
     }
@@ -121,7 +113,18 @@
             };
         }
 
+        try {
+            const storedUser = JSON.parse(localStorage.getItem("cah_user") || localStorage.getItem("cah_auth_user") || "null");
+            if (storedUser) return storedUser;
+        } catch (error) {
+            // Ignore localStorage parse fallback.
+        }
+
         return window.CAHAuth?.getUser?.() || {};
+    }
+
+    function getCurrentRole() {
+        return String(getCurrentUser()?.role || "").toLowerCase();
     }
 
     function getCurrentUserId() {
@@ -129,24 +132,30 @@
 
         return toNumberOrNull(user?.id)
             || toNumberOrNull(user?.employee_id)
-            || DEFAULT_WATCHER_ID;
+            || 1;
     }
 
     function isManagerLike() {
-        const role = String(getCurrentUser()?.role || "").toLowerCase();
+        const role = getCurrentRole();
         return role === "admin" || role === "manager";
     }
 
     function isEmployee() {
-        return String(getCurrentUser()?.role || "").toLowerCase() === "employee";
+        return getCurrentRole() === "employee";
     }
 
     function getFallbackAssigneeId() {
-        if (isEmployee()) {
+        const user = getCurrentUser();
+
+        if (String(user?.role || "").toLowerCase() === "employee") {
             return getCurrentUserId();
         }
 
-        return DEFAULT_ASSIGNEE_ID;
+        const firstEmployee = latestEmployees.find((employee) => {
+            return String(employee.role || "").toLowerCase() === "employee" && String(employee.status || "").toLowerCase() === "active";
+        });
+
+        return toNumberOrNull(firstEmployee?.id) || getCurrentUserId();
     }
 
     function normalizePriority(priority) {
@@ -154,7 +163,13 @@
 
         if (value === "low") return "Low";
         if (value === "high") return "High";
+
         return "Medium";
+    }
+
+    function normalizeStatus(status) {
+        const key = String(status || "To do").trim().toLowerCase();
+        return STATUS_TO_COLUMN[key] ? getStatusByColumn(STATUS_TO_COLUMN[key]) : "To do";
     }
 
     function getColumnByStatus(status) {
@@ -166,36 +181,39 @@
         return COLUMN_TO_STATUS[column] || "To do";
     }
 
-    function normalizeStatus(status) {
-        const column = getColumnByStatus(status);
-        return getStatusByColumn(column);
+    function getProjectNameById(projectId) {
+        const project = latestProjects.find((item) => String(item.id) === String(projectId));
+        return project?.name || "";
+    }
+
+    function getEmployeeNameById(employeeId) {
+        const employee = latestEmployees.find((item) => String(item.id) === String(employeeId));
+        return employee?.full_name || employee?.email || "";
     }
 
     function getSelectedProjectId() {
-        const selectors = [
-            "[data-project-filter]",
-            "[name='project_id_filter']",
-            "[name='project_id']",
-            "[data-task-project-id]"
-        ];
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectIdFromUrl = toNumberOrNull(urlParams.get("project_id"));
 
-        for (const selector of selectors) {
-            const element = document.querySelector(selector);
-            if (!element) continue;
-
-            const value = element.dataset.taskProjectId || element.value;
-            const number = toNumberOrNull(value);
-
-            if (number) return number;
+        if (projectIdFromUrl) {
+            return projectIdFromUrl;
         }
 
-        return DEFAULT_PROJECT_ID;
+        const projectFilter = document.querySelector("[data-project-filter]");
+        const filterValue = toNumberOrNull(projectFilter?.value);
+
+        if (filterValue) {
+            return filterValue;
+        }
+
+        const firstProject = latestProjects.find((project) => !project.is_virtual);
+        return toNumberOrNull(firstProject?.id);
     }
 
     function updateColumnCounts() {
         document.querySelectorAll("[data-kanban-column]").forEach((column) => {
             const count = column.querySelectorAll("[data-task-card]").length;
-            const countEl = column.querySelector("[data-column-count], .kanban-count");
+            const countEl = column.querySelector("[data-column-count]");
 
             if (countEl) {
                 countEl.textContent = count;
@@ -204,7 +222,15 @@
     }
 
     function getTaskProgress(status) {
-        return PROGRESS_BY_COLUMN[getColumnByStatus(status)] ?? 10;
+        const column = getColumnByStatus(status);
+
+        return {
+            pending: 0,
+            todo: 10,
+            doing: 55,
+            review: 82,
+            done: 100
+        }[column] || 10;
     }
 
     function getInitials(task) {
@@ -224,6 +250,8 @@
 
     function normalizeTask(task) {
         const normalizedStatus = normalizeStatus(task?.status);
+        const projectId = task?.project_id || "";
+        const assigneeId = task?.assignee_id || "";
 
         return {
             id: task?.id,
@@ -232,15 +260,14 @@
             status: normalizedStatus,
             priority: normalizePriority(task?.priority),
             deadline: task?.deadline || "",
-            assignee_id: task?.assignee_id || "",
-            assignee_name: task?.assignee_name || "",
+            assignee_id: assigneeId,
+            assignee_name: task?.assignee_name || getEmployeeNameById(assigneeId),
             assigner_id: task?.assigner_id || "",
             assigner_name: task?.assigner_name || "",
             watcher_id: task?.watcher_id || "",
             watcher_name: task?.watcher_name || "",
-            project_id: task?.project_id || "",
-            project_name: task?.project_name || "",
-            assigner_role: task?.assigner_role || ""
+            project_id: projectId,
+            project_name: task?.project_name || getProjectNameById(projectId)
         };
     }
 
@@ -253,6 +280,10 @@
         const initials = escapeHtml(getInitials(task));
         const doneClass = columnKey === "done" ? " is-completed" : "";
         const pendingClass = columnKey === "pending" ? " is-pending-approval" : "";
+        const projectText = task.project_name || (task.project_id ? `Dự án #${task.project_id}` : "Chưa gán dự án");
+        const pendingBadge = columnKey === "pending"
+            ? '<span class="badge badge-warning">CHỜ DUYỆT</span>'
+            : "";
 
         return `
             <article
@@ -271,9 +302,7 @@
                     <span class="badge badge-${escapeHtml(priorityTone)}">
                         ${escapeHtml(String(task.priority).toUpperCase())}
                     </span>
-
-                    ${columnKey === "pending" ? '<span class="badge badge-warning">CHỜ DUYỆT</span>' : ""}
-
+                    ${pendingBadge}
                     <button
                         class="kanban-column-menu"
                         type="button"
@@ -283,6 +312,7 @@
 
                 <h3 class="task-card-title">${escapeHtml(task.title)}</h3>
                 <p class="task-card-desc">${escapeHtml(task.description)}</p>
+                <p class="task-card-desc task-project-label">${escapeHtml(projectText)}</p>
 
                 <div class="task-card-progress">
                     <div class="progress-line">
@@ -317,11 +347,10 @@
         latestTasks = Array.isArray(tasks) ? tasks.map(normalizeTask) : [];
 
         if (latestTasks.length === 0) {
-            const pendingList = document.querySelector('[data-kanban-column][data-status="pending"] [data-kanban-list]')
-                || document.querySelector('[data-kanban-column][data-status="todo"] [data-kanban-list]');
+            const todoList = document.querySelector('[data-kanban-column][data-status="todo"] [data-kanban-list]');
 
-            if (pendingList) {
-                pendingList.innerHTML = `
+            if (todoList) {
+                todoList.innerHTML = `
                     <div class="ui-empty-state" style="min-height: 220px;">
                         <div class="ui-empty-icon">☑</div>
                         <div class="ui-empty-content">
@@ -348,6 +377,59 @@
         updateColumnCounts();
     }
 
+    function getFilteredTasks() {
+        const projectFilter = document.querySelector("[data-project-filter]");
+        const assigneeFilter = document.querySelector("[data-assignee-filter]") || document.querySelector("#js-filter-assignee");
+        const timeFilter = document.querySelector("[data-time-filter]") || document.querySelector("#js-filter-time");
+
+        const selectedProjectId = projectFilter?.value || "";
+        const selectedAssigneeId = assigneeFilter?.value || "";
+        const selectedTime = timeFilter?.value || "";
+
+        let filtered = [...latestTasks];
+
+        if (selectedProjectId) {
+            filtered = filtered.filter((task) => String(task.project_id || "") === String(selectedProjectId));
+        }
+
+        if (selectedAssigneeId) {
+            filtered = filtered.filter((task) => String(task.assignee_id || "") === String(selectedAssigneeId));
+        }
+
+        if (selectedTime) {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+
+            filtered = filtered.filter((task) => {
+                if (!task.deadline) return false;
+
+                const deadline = new Date(`${String(task.deadline).slice(0, 10)}T00:00:00`);
+                if (Number.isNaN(deadline.getTime())) return false;
+
+                if (selectedTime === "overdue") {
+                    return deadline < now && getColumnByStatus(task.status) !== "done";
+                }
+
+                if (selectedTime === "today") {
+                    return deadline.getFullYear() === now.getFullYear()
+                        && deadline.getMonth() === now.getMonth()
+                        && deadline.getDate() === now.getDate();
+                }
+
+                if (selectedTime === "week") {
+                    const nextWeek = new Date(now);
+                    nextWeek.setDate(now.getDate() + 7);
+
+                    return deadline >= now && deadline <= nextWeek;
+                }
+
+                return true;
+            });
+        }
+
+        return filtered;
+    }
+
     function findTaskById(taskId) {
         return latestTasks.find((task) => String(task.id) === String(taskId));
     }
@@ -369,37 +451,209 @@
         updateColumnCounts();
     }
 
+    async function apiRequest(endpoint, options = {}) {
+        if (window.CAHApi) {
+            const method = String(options.method || "GET").toLowerCase();
+            const body = options.body ? JSON.parse(options.body) : undefined;
+
+            const requestOptions = {
+                loading: options.loading ?? false,
+                loadingMessage: options.loadingMessage || "",
+                headers: {
+                    Authorization: "Bearer " + getToken()
+                }
+            };
+
+            if (method === "get") return CAHApi.get(endpoint, requestOptions);
+            if (method === "post") return CAHApi.post(endpoint, body || {}, requestOptions);
+            if (method === "put") return CAHApi.put(endpoint, body || {}, requestOptions);
+            if (method === "patch") return CAHApi.patch(endpoint, body || {}, requestOptions);
+            if (method === "delete") return CAHApi.delete(endpoint, requestOptions);
+        }
+
+        const response = await fetch(`${BASE_URL}/public${endpoint}`, {
+            ...options,
+            headers: {
+                Accept: "application/json",
+                Authorization: "Bearer " + getToken(),
+                ...(options.headers || {})
+            }
+        });
+
+        const text = await response.text();
+        let payload;
+
+        try {
+            payload = JSON.parse(text);
+        } catch (error) {
+            console.error("Raw API response:", text);
+            throw new Error("API trả về dữ liệu không hợp lệ.");
+        }
+
+        if (!response.ok || payload.status === "error") {
+            throw new Error(payload.message || `HTTP ${response.status}`);
+        }
+
+        return payload;
+    }
+
+    async function loadProjectsFromApi() {
+        if (!getToken()) return;
+
+        try {
+            const response = await apiRequest("/api/projects?_=" + Date.now());
+            latestProjects = Array.isArray(response.data)
+                ? response.data.filter((project) => !project.is_virtual)
+                : [];
+
+            populateProjectControls();
+        } catch (error) {
+            latestProjects = [];
+            populateProjectControls();
+        }
+    }
+
+    async function loadEmployeesFromApi() {
+        if (!getToken()) return;
+
+        try {
+            const response = await apiRequest("/api/employees?_=" + Date.now());
+            latestEmployees = Array.isArray(response.data) ? response.data : [];
+            populateEmployeeControls();
+        } catch (error) {
+            latestEmployees = [];
+            populateEmployeeControls();
+        }
+    }
+
     async function loadTasksFromApi() {
-        if (!window.CAHApi || !getToken()) {
+        if (!getToken()) {
             updateColumnCounts();
             return;
         }
 
         try {
-            const response = await CAHApi.get("/api/tasks", {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = toNumberOrNull(urlParams.get("project_id"));
+
+            let endpoint = "/api/tasks?_=" + Date.now();
+
+            if (projectId) {
+                endpoint += "&project_id=" + encodeURIComponent(projectId);
+            }
+
+            const response = await apiRequest(endpoint, {
+                method: "GET",
                 loading: true,
-                loadingMessage: "Đang tải dữ liệu Kanban...",
-                headers: {
-                    Authorization: "Bearer " + getToken()
-                }
+                loadingMessage: "Đang tải dữ liệu Kanban..."
             });
 
-            renderTasks(response.data || []);
+            latestTasks = Array.isArray(response.data) ? response.data.map(normalizeTask) : [];
+            renderTasks(getFilteredTasks());
         } catch (error) {
             updateColumnCounts();
 
             if (window.CAHToast) {
-                CAHToast.info("Dùng dữ liệu tạm", "Không tải được task từ API, giao diện đang giữ dữ liệu hiện tại.");
+                CAHToast.error("Không tải được Kanban", error.message || "API task đang lỗi.");
             }
         }
     }
 
+    function populateProjectControls() {
+        const projectFilter = document.querySelector("[data-project-filter]");
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectIdFromUrl = urlParams.get("project_id");
+
+        if (projectFilter) {
+            const currentValue = projectFilter.value;
+            projectFilter.innerHTML = '<option value="">Dự án: Tất cả</option>';
+
+            latestProjects.forEach((project) => {
+                const option = document.createElement("option");
+                option.value = project.id;
+                option.textContent = project.name || `Dự án #${project.id}`;
+                projectFilter.appendChild(option);
+            });
+
+            if (projectIdFromUrl) {
+                projectFilter.value = projectIdFromUrl;
+            } else if ([...projectFilter.options].some((option) => option.value === currentValue)) {
+                projectFilter.value = currentValue;
+            }
+        }
+    }
+
+    function populateEmployeeControls() {
+        const assigneeFilter = document.querySelector("[data-assignee-filter]") || document.querySelector("#js-filter-assignee");
+
+        if (assigneeFilter) {
+            const currentValue = assigneeFilter.value;
+            assigneeFilter.innerHTML = '<option value="">Người phụ trách: Tất cả</option>';
+
+            latestEmployees
+                .filter((employee) => String(employee.role || "").toLowerCase() === "employee" && String(employee.status || "").toLowerCase() === "active")
+                .forEach((employee) => {
+                    const option = document.createElement("option");
+                    option.value = employee.id;
+                    option.textContent = employee.full_name || employee.email || `Nhân sự #${employee.id}`;
+                    assigneeFilter.appendChild(option);
+                });
+
+            if ([...assigneeFilter.options].some((option) => option.value === currentValue)) {
+                assigneeFilter.value = currentValue;
+            }
+        }
+    }
+
+    function projectOptionsHtml(selectedId) {
+        if (latestProjects.length === 0) {
+            return '<option value="">Chưa có dự án, hãy tạo project trước</option>';
+        }
+
+        return latestProjects.map((project) => {
+            const selected = String(project.id) === String(selectedId) ? "selected" : "";
+            return `<option value="${escapeHtml(project.id)}" ${selected}>${escapeHtml(project.name || `Dự án #${project.id}`)}</option>`;
+        }).join("");
+    }
+
+    function employeeOptionsHtml(selectedId) {
+        const employees = latestEmployees.filter((employee) => {
+            return String(employee.role || "").toLowerCase() === "employee" && String(employee.status || "").toLowerCase() === "active";
+        });
+
+        if (employees.length === 0) {
+            return '<option value="">Chưa có employee active</option>';
+        }
+
+        return employees.map((employee) => {
+            const selected = String(employee.id) === String(selectedId) ? "selected" : "";
+            return `<option value="${escapeHtml(employee.id)}" ${selected}>${escapeHtml(employee.full_name || employee.email || `Nhân sự #${employee.id}`)}</option>`;
+        }).join("");
+    }
+
+    function watcherOptionsHtml(selectedId) {
+        const users = latestEmployees.filter((employee) => {
+            return String(employee.status || "").toLowerCase() === "active";
+        });
+
+        if (users.length === 0) {
+            return `<option value="${escapeHtml(getCurrentUserId())}">Người đang đăng nhập</option>`;
+        }
+
+        return users.map((employee) => {
+            const selected = String(employee.id) === String(selectedId) ? "selected" : "";
+            const role = employee.role ? ` · ${String(employee.role).toUpperCase()}` : "";
+            return `<option value="${escapeHtml(employee.id)}" ${selected}>${escapeHtml((employee.full_name || employee.email || `Nhân sự #${employee.id}`) + role)}</option>`;
+        }).join("");
+    }
+
     function taskFormBody(mode, taskData) {
         const isEdit = mode === "edit";
+        const canEdit = true;
         const task = taskData ? normalizeTask(taskData) : null;
-        const selectedProjectId = getSelectedProjectId();
-        const fallbackAssigneeId = getFallbackAssigneeId();
-        const fallbackWatcherId = getCurrentUserId();
+        const selectedProjectId = task?.project_id || getSelectedProjectId() || "";
+        const fallbackAssigneeId = task?.assignee_id || getFallbackAssigneeId() || "";
+        const fallbackWatcherId = task?.watcher_id || getCurrentUserId() || "";
 
         return `
             <form class="task-modal-form" data-task-form data-task-form-mode="${escapeHtml(mode)}" data-task-id="${escapeHtml(task?.id || "")}">
@@ -411,14 +665,30 @@
                         name="title"
                         value="${escapeHtml(task?.title || "")}"
                         placeholder="Nhập tên công việc"
-                        required
+                        ${canEdit ? "required" : "readonly"}
                     >
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
+                        <label class="form-label">Dự án</label>
+                        <select class="form-select" name="project_id" ${canEdit ? "required" : "disabled"}>
+                            ${projectOptionsHtml(selectedProjectId)}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Người thực hiện</label>
+                        <select class="form-select" name="assignee_id" ${canEdit ? "required" : "disabled"}>
+                            ${employeeOptionsHtml(fallbackAssigneeId)}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
                         <label class="form-label">Trạng thái</label>
-                        <select class="form-select" name="status">
+                        <select class="form-select" name="status" ${canEdit ? "" : "disabled"}>
                             <option value="Pending approval" ${task?.status === "Pending approval" ? "selected" : ""}>Chờ duyệt</option>
                             <option value="To do" ${!task || task?.status === "To do" ? "selected" : ""}>Cần làm</option>
                             <option value="Doing" ${task?.status === "Doing" ? "selected" : ""}>Đang thực hiện</option>
@@ -429,7 +699,7 @@
 
                     <div class="form-group">
                         <label class="form-label">Độ ưu tiên</label>
-                        <select class="form-select" name="priority">
+                        <select class="form-select" name="priority" ${canEdit ? "" : "disabled"}>
                             <option value="Low" ${task?.priority === "Low" ? "selected" : ""}>Thấp</option>
                             <option value="Medium" ${!task || task?.priority === "Medium" ? "selected" : ""}>Trung bình</option>
                             <option value="High" ${task?.priority === "High" ? "selected" : ""}>Cao</option>
@@ -445,43 +715,15 @@
                             type="date"
                             name="deadline"
                             value="${escapeHtml(task?.deadline || "")}"
-                            required
+                            ${canEdit ? "required" : "readonly"}
                         >
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Project ID</label>
-                        <input
-                            class="form-control"
-                            type="number"
-                            name="project_id"
-                            value="${escapeHtml(task?.project_id || selectedProjectId)}"
-                            min="1"
-                        >
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Assignee ID</label>
-                        <input
-                            class="form-control"
-                            type="number"
-                            name="assignee_id"
-                            value="${escapeHtml(task?.assignee_id || fallbackAssigneeId)}"
-                            min="1"
-                        >
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Watcher ID</label>
-                        <input
-                            class="form-control"
-                            type="number"
-                            name="watcher_id"
-                            value="${escapeHtml(task?.watcher_id || fallbackWatcherId)}"
-                            min="1"
-                        >
+                        <label class="form-label">Người theo dõi</label>
+                        <select class="form-select" name="watcher_id" ${canEdit ? "" : "disabled"}>
+                            ${watcherOptionsHtml(fallbackWatcherId)}
+                        </select>
                     </div>
                 </div>
 
@@ -491,19 +733,26 @@
                         class="form-textarea"
                         name="description"
                         placeholder="Mô tả ngắn về công việc"
+                        ${canEdit ? "" : "readonly"}
                     >${escapeHtml(task?.description || "")}</textarea>
                 </div>
 
                 <div class="task-modal-footer">
                     <button class="btn btn-light" type="button" data-modal-close>Đóng</button>
-                    <button class="btn btn-primary" type="submit">${isEdit ? "Lưu thay đổi" : "Tạo task"}</button>
+                    ${task?.id ? `<button class="btn btn-danger" type="button" data-delete-task="${escapeHtml(task.id)}">Xóa task</button>` : ""}
+                    ${canEdit ? '<button class="btn btn-primary" type="submit">' + (isEdit ? 'Lưu thay đổi' : 'Tạo task') + '</button>' : ''}
                 </div>
             </form>
         `;
     }
 
     function openTaskModal(mode, taskData) {
-        if (!window.CAHModal) return;
+        if (!window.CAHModal) {
+            if (window.CAHToast) {
+                CAHToast.error("Không mở được modal", "Không tìm thấy CAHModal.");
+            }
+            return;
+        }
 
         const titleMap = {
             create: "Tạo công việc mới",
@@ -512,10 +761,8 @@
         };
 
         const subtitleMap = {
-            create: isEmployee()
-                ? "Task do Employee tạo sẽ chuyển vào Chờ duyệt trước khi vào Cần làm."
-                : "Task do Admin/Manager tạo sẽ đi thẳng vào Cần làm.",
-            view: "Xem thông tin task và xử lý workflow.",
+            create: "Task sẽ được lưu vào database và tự đồng bộ lại Kanban.",
+            view: "Xem thông tin task, gửi duyệt hoặc xử lý hoàn thành.",
             edit: "Cập nhật nội dung task và đồng bộ lại Kanban."
         };
 
@@ -527,11 +774,10 @@
     }
 
     async function updateTaskStatusById(taskId, newStatus) {
-        await CAHApi.patch(`/api/tasks/${taskId}/status`, { status: newStatus }, {
-            loading: false,
-            headers: {
-                Authorization: "Bearer " + getToken()
-            }
+        await apiRequest(`/api/tasks/${taskId}/status`, {
+            method: "PATCH",
+            body: JSON.stringify({ status: newStatus }),
+            loading: false
         });
 
         if (window.CAHToast) {
@@ -545,7 +791,7 @@
         const taskId = card.dataset.taskId;
         const newStatus = getStatusByColumn(newColumnKey);
 
-        if (!taskId || !window.CAHApi || !getToken()) {
+        if (!taskId || !getToken()) {
             if (window.CAHToast) {
                 CAHToast.info("Cập nhật giao diện", "Bạn chưa đăng nhập nên thay đổi chỉ áp dụng trên UI demo.");
             }
@@ -568,30 +814,40 @@
     }
 
     async function createTaskFromForm(form) {
-        const data = window.CAHApp?.formToObject ? CAHApp.formToObject(form) : {};
+        const data = window.CAHApp?.formToObject ? CAHApp.formToObject(form) : Object.fromEntries(new FormData(form));
+
+        const projectId = toNumberOrNull(data.project_id);
+        const assigneeId = toNumberOrNull(data.assignee_id);
+
+        if (!projectId) {
+            throw new Error("Vui lòng chọn dự án trước khi tạo task.");
+        }
+
+        if (!assigneeId) {
+            throw new Error("Vui lòng chọn người thực hiện task.");
+        }
 
         const payload = {
             title: data.title,
             description: data.description || "",
             priority: data.priority || "Medium",
             deadline: data.deadline,
-            project_id: toNumberOrNull(data.project_id) || getSelectedProjectId(),
-            assignee_id: toNumberOrNull(data.assignee_id) || getFallbackAssigneeId(),
-            watcher_id: toNumberOrNull(data.watcher_id) || getCurrentUserId()
+            project_id: projectId,
+            assignee_id: assigneeId,
+            watcher_id: toNumberOrNull(data.watcher_id) || getCurrentUserId(),
+            status: isEmployee() ? "Pending approval" : (data.status || "To do")
         };
 
-        const response = await CAHApi.post("/api/tasks", payload, {
+        const response = await apiRequest("/api/tasks", {
+            method: "POST",
+            body: JSON.stringify(payload),
             loading: true,
-            loadingMessage: "Đang tạo task mới...",
-            headers: {
-                Authorization: "Bearer " + getToken()
-            }
+            loadingMessage: "Đang tạo task mới..."
         });
 
         const createdTask = response?.data?.task || response?.data || {
             id: response?.data?.id,
             ...payload,
-            status: isEmployee() ? "Pending approval" : "To do",
             assigner_id: getCurrentUserId()
         };
 
@@ -610,10 +866,21 @@
 
     async function updateTaskFromForm(form) {
         const taskId = form.dataset.taskId;
-        const data = window.CAHApp?.formToObject ? CAHApp.formToObject(form) : {};
+        const data = window.CAHApp?.formToObject ? CAHApp.formToObject(form) : Object.fromEntries(new FormData(form));
 
         if (!taskId) {
             throw new Error("Thiếu ID task.");
+        }
+
+        const projectId = toNumberOrNull(data.project_id);
+        const assigneeId = toNumberOrNull(data.assignee_id);
+
+        if (!projectId) {
+            throw new Error("Vui lòng chọn dự án.");
+        }
+
+        if (!assigneeId) {
+            throw new Error("Vui lòng chọn người thực hiện.");
         }
 
         const payload = {
@@ -621,19 +888,26 @@
             description: data.description || "",
             priority: data.priority || "Medium",
             deadline: data.deadline,
-            project_id: toNumberOrNull(data.project_id) || getSelectedProjectId(),
-            assignee_id: toNumberOrNull(data.assignee_id) || null,
+            project_id: projectId,
+            assignee_id: assigneeId,
             watcher_id: toNumberOrNull(data.watcher_id) || null,
             status: data.status || undefined
         };
 
-        const response = await CAHApi.put(`/api/tasks/${taskId}`, payload, {
+        const response = await apiRequest(`/api/tasks/${taskId}`, {
+            method: "PUT",
+            body: JSON.stringify(payload),
             loading: true,
-            loadingMessage: "Đang lưu thay đổi...",
-            headers: {
-                Authorization: "Bearer " + getToken()
-            }
+            loadingMessage: "Đang lưu thay đổi..."
         });
+
+        if (data.status) {
+            await apiRequest(`/api/tasks/${taskId}/status`, {
+                method: "PATCH",
+                body: JSON.stringify({ status: data.status }),
+                loading: false
+            });
+        }
 
         if (window.CAHModal) {
             CAHModal.close();
@@ -654,12 +928,10 @@
 
         if (!confirmed) return;
 
-        await CAHApi.delete(`/api/tasks/${taskId}`, {
+        await apiRequest(`/api/tasks/${taskId}`, {
+            method: "DELETE",
             loading: true,
-            loadingMessage: "Đang xoá task...",
-            headers: {
-                Authorization: "Bearer " + getToken()
-            }
+            loadingMessage: "Đang xoá task..."
         });
 
         if (window.CAHToast) {
@@ -681,19 +953,18 @@
         };
 
         const messageMap = {
-            submit: "Task đã được gửi sang Đang kiểm tra.",
-            approve: "Task đã được duyệt.",
+            submit: "Đã gửi task sang trạng thái chờ duyệt.",
+            approve: "Task đã được duyệt và chuyển sang Hoàn thành.",
             reject: "Task đã bị từ chối và chuyển về Đang thực hiện."
         };
 
         if (!endpointMap[action]) return;
 
-        await CAHApi.post(endpointMap[action], {}, {
+        await apiRequest(endpointMap[action], {
+            method: "POST",
+            body: JSON.stringify({}),
             loading: true,
-            loadingMessage: "Đang xử lý workflow...",
-            headers: {
-                Authorization: "Bearer " + getToken()
-            }
+            loadingMessage: "Đang xử lý workflow..."
         });
 
         if (window.CAHToast) {
@@ -734,342 +1005,273 @@
         menu.setAttribute("data-kanban-action-menu", "");
 
         const actions = [
-            `<button type="button" data-task-action="view" data-task-id="${escapeHtml(taskId)}">Xem chi tiết</button>`
+            `<button type="button" data-task-action="view" data-task-id="${escapeHtml(taskId)}">👁 Xem chi tiết</button>`,
+            `<button type="button" data-task-action="edit" data-task-id="${escapeHtml(taskId)}">✎ Chỉnh sửa</button>`
         ];
 
-        if (isManagerLike()) {
-            actions.push(`<button type="button" data-task-action="edit" data-task-id="${escapeHtml(taskId)}">Chỉnh sửa</button>`);
-            actions.push(`<button type="button" data-task-action="delete" data-task-id="${escapeHtml(taskId)}" class="danger">Xoá task</button>`);
+        if (columnKey !== "doing" && columnKey !== "pending" && columnKey !== "done") {
+            actions.push(`<button type="button" data-task-action="move-doing" data-task-id="${escapeHtml(taskId)}">→ Chuyển Đang thực hiện</button>`);
         }
 
-        if (columnKey === "pending") {
-            if (isManagerLike()) {
-                actions.push(`<button type="button" data-task-action="approve" data-task-id="${escapeHtml(taskId)}">Duyệt vào Cần làm</button>`);
-                actions.push(`<button type="button" data-task-action="reject" data-task-id="${escapeHtml(taskId)}">Từ chối</button>`);
-            } else {
-                actions.push(`<button type="button" disabled>Đang chờ Admin/Manager duyệt</button>`);
-            }
-        }
-
-        if (columnKey === "todo") {
-            actions.push(`<button type="button" data-task-action="move-doing" data-task-id="${escapeHtml(taskId)}">Chuyển Đang thực hiện</button>`);
-        }
-
-        if (columnKey === "doing") {
-            actions.push(`<button type="button" data-task-action="submit" data-task-id="${escapeHtml(taskId)}">Gửi kiểm tra hoàn thành</button>`);
-        }
-
-        if (columnKey === "review") {
-            if (isManagerLike()) {
-                actions.push(`<button type="button" data-task-action="approve" data-task-id="${escapeHtml(taskId)}">Duyệt hoàn thành</button>`);
-                actions.push(`<button type="button" data-task-action="reject" data-task-id="${escapeHtml(taskId)}">Từ chối</button>`);
-            } else {
-                actions.push(`<button type="button" disabled>Đang chờ kiểm tra</button>`);
-            }
+        if (columnKey !== "review" && columnKey !== "pending" && columnKey !== "done") {
+            actions.push(`<button type="button" data-task-action="move-review" data-task-id="${escapeHtml(taskId)}">→ Chuyển Đang kiểm tra</button>`);
         }
 
         if (columnKey !== "done" && isManagerLike()) {
-            actions.push(`<button type="button" data-task-action="move-done" data-task-id="${escapeHtml(taskId)}">Đánh dấu hoàn thành</button>`);
+            actions.push(`<button type="button" data-task-action="approve" data-task-id="${escapeHtml(taskId)}">✓ Duyệt hoàn thành</button>`);
         }
 
-        if (columnKey === "done") {
-            actions.push(`<button type="button" disabled>✓ Đã hoàn thành</button>`);
+        if (columnKey !== "pending" && isEmployee()) {
+            actions.push(`<button type="button" data-task-action="submit" data-task-id="${escapeHtml(taskId)}">↥ Gửi duyệt</button>`);
         }
+
+        if (columnKey === "pending" && isManagerLike()) {
+            actions.push(`<button type="button" data-task-action="reject" data-task-id="${escapeHtml(taskId)}">↩ Từ chối</button>`);
+        }
+
+        actions.push(`<button type="button" class="danger" data-task-action="delete" data-task-id="${escapeHtml(taskId)}">🗑 Xóa task</button>`);
 
         menu.innerHTML = actions.join("");
 
         document.body.appendChild(menu);
 
         const rect = button.getBoundingClientRect();
-        menu.style.top = `${rect.bottom + window.scrollY + 8}px`;
-        menu.style.left = `${Math.max(12, rect.right + window.scrollX - 220)}px`;
+        const menuWidth = 220;
+
+        menu.style.position = "fixed";
+        menu.style.top = `${rect.bottom + 8}px`;
+        menu.style.left = `${Math.min(rect.left, window.innerWidth - menuWidth - 16)}px`;
+        menu.style.zIndex = "9999";
     }
 
     function closeActionMenu() {
         document.querySelectorAll("[data-kanban-action-menu]").forEach((menu) => menu.remove());
     }
 
-    async function handleTaskAction(action, taskId) {
-        let task = findTaskById(taskId);
+    function getColumnFromEventTarget(target) {
+        return target.closest("[data-kanban-column]");
+    }
 
-        if (!task) {
-            task = { id: taskId, title: "Công việc này" };
-        }
+    function bindBoardEvents() {
+        document.addEventListener("click", async (event) => {
+            const addButton = event.target.closest("[data-add-task]");
+            const menuButton = event.target.closest(".kanban-column-menu");
+            const taskCard = event.target.closest("[data-task-card]");
+            const menuAction = event.target.closest("[data-task-action]");
+            const deleteButton = event.target.closest("[data-delete-task]");
 
-        closeActionMenu();
+            if (addButton) {
+                event.preventDefault();
 
-        if (action === "view" || action === "edit") {
-            openTaskModal(action, task);
-            return;
-        }
+                if (latestProjects.length === 0) {
+                    if (window.CAHToast) {
+                        CAHToast.error("Chưa có dự án", "Hãy tạo project trước rồi mới tạo task.");
+                    } else {
+                        alert("Hãy tạo project trước rồi mới tạo task.");
+                    }
 
-        if (action === "delete") {
-            await deleteTask(taskId);
-            return;
-        }
+                    return;
+                }
 
-        if (action === "submit" || action === "approve" || action === "reject") {
-            await approvalAction(taskId, action);
-            return;
-        }
+                openTaskModal("create");
+                return;
+            }
 
-        if (action === "move-doing") {
-            await updateTaskStatusById(taskId, "Doing");
-            return;
-        }
+            if (deleteButton) {
+                event.preventDefault();
+                await deleteTask(deleteButton.dataset.deleteTask);
+                return;
+            }
 
-        if (action === "move-done") {
-            await updateTaskStatusById(taskId, "Done");
-        }
+            if (menuAction) {
+                event.preventDefault();
+
+                const taskId = menuAction.dataset.taskId;
+                const action = menuAction.dataset.taskAction;
+                const task = findTaskById(taskId);
+
+                closeActionMenu();
+
+                try {
+                    if (action === "view") openTaskModal("view", task);
+                    if (action === "edit") openTaskModal("edit", task);
+                    if (action === "delete") await deleteTask(taskId);
+                    if (action === "move-doing") await updateTaskStatusById(taskId, "Doing");
+                    if (action === "move-review") await updateTaskStatusById(taskId, "Review");
+                    if (action === "submit") await approvalAction(taskId, "submit");
+                    if (action === "approve") await approvalAction(taskId, "approve");
+                    if (action === "reject") await approvalAction(taskId, "reject");
+                } catch (error) {
+                    if (window.CAHToast) {
+                        CAHToast.error("Không thể xử lý", error.message || "Có lỗi khi xử lý task.");
+                    }
+                }
+
+                return;
+            }
+
+            if (menuButton && taskCard) {
+                event.preventDefault();
+                event.stopPropagation();
+                openActionMenu(menuButton);
+                return;
+            }
+
+            if (!event.target.closest("[data-kanban-action-menu]")) {
+                closeActionMenu();
+            }
+        });
+
+        document.addEventListener("submit", async (event) => {
+            const form = event.target.closest("[data-task-form]");
+            if (!form) return;
+
+            event.preventDefault();
+
+            try {
+                const mode = form.dataset.taskFormMode;
+
+                if (mode === "edit") {
+                    await updateTaskFromForm(form);
+                } else {
+                    await createTaskFromForm(form);
+                }
+            } catch (error) {
+                if (window.CAHToast) {
+                    CAHToast.error("Không thể lưu task", error.message || "Vui lòng kiểm tra dữ liệu.");
+                } else {
+                    alert(error.message || "Không thể lưu task.");
+                }
+            }
+        });
+
+        document.addEventListener("dragstart", (event) => {
+            const card = event.target.closest("[data-task-card]");
+            if (!card) return;
+
+            draggedCard = card;
+            previousDropState = {
+                list: card.parentElement,
+                nextSibling: card.nextSibling,
+                status: card.dataset.status
+            };
+
+            card.classList.add("is-dragging");
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", card.dataset.taskId || "");
+        });
+
+        document.addEventListener("dragend", () => {
+            if (draggedCard) {
+                draggedCard.classList.remove("is-dragging");
+            }
+
+            document.querySelectorAll("[data-kanban-column]").forEach((column) => {
+                column.classList.remove("is-over");
+            });
+
+            draggedCard = null;
+        });
+
+        document.querySelectorAll("[data-kanban-column]").forEach((column) => {
+            column.addEventListener("dragover", (event) => {
+                event.preventDefault();
+                column.classList.add("is-over");
+            });
+
+            column.addEventListener("dragleave", (event) => {
+                if (!column.contains(event.relatedTarget)) {
+                    column.classList.remove("is-over");
+                }
+            });
+
+            column.addEventListener("drop", async (event) => {
+                event.preventDefault();
+                column.classList.remove("is-over");
+
+                if (!draggedCard) return;
+
+                const list = column.querySelector("[data-kanban-list]");
+                const newColumnKey = column.dataset.status;
+
+                if (!list || !newColumnKey) return;
+
+                list.appendChild(draggedCard);
+                draggedCard.dataset.status = newColumnKey;
+                updateColumnCounts();
+
+                await updateTaskStatus(draggedCard, newColumnKey);
+            });
+        });
+
+        document.querySelector("[data-project-filter]")?.addEventListener("change", () => renderTasks(getFilteredTasks()));
+        document.querySelector("[data-assignee-filter]")?.addEventListener("change", () => renderTasks(getFilteredTasks()));
+        document.querySelector("#js-filter-assignee")?.addEventListener("change", () => renderTasks(getFilteredTasks()));
+        document.querySelector("[data-time-filter]")?.addEventListener("change", () => renderTasks(getFilteredTasks()));
+        document.querySelector("#js-filter-time")?.addEventListener("change", () => renderTasks(getFilteredTasks()));
+        document.querySelector("[data-filter-task]")?.addEventListener("click", () => renderTasks(getFilteredTasks()));
+        document.querySelector("#js-btn-filter")?.addEventListener("click", () => renderTasks(getFilteredTasks()));
     }
 
     function injectActionStyles() {
-        if (document.querySelector("[data-kanban-action-style]")) return;
+        if (document.getElementById("kanban-action-menu-style")) return;
 
         const style = document.createElement("style");
-        style.setAttribute("data-kanban-action-style", "");
+        style.id = "kanban-action-menu-style";
         style.textContent = `
-            .kanban-board {
-                grid-template-columns: repeat(5, minmax(260px, 1fr));
-            }
-
-            .kanban-dot.pending {
-                background: #f59e0b;
-            }
-
-            .task-card.is-pending-approval {
-                border-color: rgba(245, 158, 11, .35);
-                background: linear-gradient(180deg, rgba(255, 251, 235, .72), #fff);
-            }
-
             .kanban-action-menu {
-                position: absolute;
-                z-index: 9999;
-                width: 240px;
+                width: 220px;
+                padding: 8px;
+                border: 1px solid rgba(15, 23, 42, .12);
+                border-radius: 14px;
+                background: #fff;
+                box-shadow: 0 24px 60px rgba(15, 23, 42, .16);
                 display: grid;
                 gap: 4px;
-                padding: 8px;
-                border-radius: 16px;
-                border: 1px solid rgba(15, 23, 42, 0.1);
-                background: #fff;
-                box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
             }
 
             .kanban-action-menu button {
-                min-height: 38px;
-                display: flex;
-                align-items: center;
-                justify-content: flex-start;
-                padding: 0 12px;
+                width: 100%;
+                min-height: 36px;
+                padding: 0 10px;
+                border: 0;
                 border-radius: 10px;
-                color: #22314d;
-                background: transparent;
-                font-weight: 750;
                 text-align: left;
-                border: none;
+                color: #0f172a;
+                background: transparent;
+                font-size: 13px;
+                font-weight: 800;
                 cursor: pointer;
             }
 
             .kanban-action-menu button:hover {
-                color: var(--primary);
-                background: var(--mint);
+                color: #00513a;
+                background: #e9fbf4;
             }
 
             .kanban-action-menu button.danger {
-                color: var(--danger);
+                color: #b91c1c;
             }
 
             .kanban-action-menu button.danger:hover {
-                background: var(--danger-soft);
-            }
-
-            .kanban-action-menu button:disabled {
-                opacity: .58;
-                cursor: default;
-            }
-
-            .task-card.is-completed {
-                opacity: .82;
-            }
-
-            .task-card.is-completed .task-card-title {
-                text-decoration: line-through;
-                color: #64748b;
-            }
-
-            .btn-danger {
-                color: #fff;
-                background: var(--danger);
-            }
-
-            .btn-danger:hover {
-                filter: brightness(.95);
-            }
-
-            @media (max-width: 1280px) {
-                .kanban-board {
-                    grid-template-columns: repeat(5, minmax(280px, 1fr));
-                    overflow-x: auto;
-                }
+                color: #991b1b;
+                background: #fee2e2;
             }
         `;
+
         document.head.appendChild(style);
     }
 
-    document.addEventListener("dragstart", function (event) {
-        const card = event.target.closest("[data-task-card]");
-        if (!card) return;
+    async function init() {
+        bindBoardEvents();
 
-        draggedCard = card;
-        previousDropState = {
-            list: card.parentElement,
-            nextSibling: card.nextElementSibling,
-            status: card.dataset.status
-        };
+        await Promise.allSettled([
+            loadProjectsFromApi(),
+            loadEmployeesFromApi()
+        ]);
 
-        card.classList.add("is-dragging");
-        event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData("text/plain", card.dataset.taskId || "");
-    });
+        await loadTasksFromApi();
+    }
 
-    document.addEventListener("dragend", function () {
-        if (draggedCard) {
-            draggedCard.classList.remove("is-dragging");
-        }
-
-        document.querySelectorAll(".kanban-column.is-over").forEach((column) => {
-            column.classList.remove("is-over");
-        });
-
-        draggedCard = null;
-        previousDropState = null;
-        updateColumnCounts();
-    });
-
-    document.querySelectorAll("[data-kanban-column]").forEach((column) => {
-        column.addEventListener("dragover", function (event) {
-            event.preventDefault();
-            column.classList.add("is-over");
-        });
-
-        column.addEventListener("dragleave", function (event) {
-            if (!column.contains(event.relatedTarget)) {
-                column.classList.remove("is-over");
-            }
-        });
-
-        column.addEventListener("drop", function (event) {
-            event.preventDefault();
-
-            if (!draggedCard) return;
-
-            const list = column.querySelector("[data-kanban-list]");
-            if (!list) return;
-
-            const newColumnKey = column.dataset.status || "todo";
-            const oldStatus = draggedCard.dataset.status;
-
-            list.appendChild(draggedCard);
-            draggedCard.dataset.status = newColumnKey;
-            column.classList.remove("is-over");
-            updateColumnCounts();
-
-            if (oldStatus !== newColumnKey) {
-                updateTaskStatus(draggedCard, newColumnKey);
-            }
-        });
-    });
-
-    document.addEventListener("click", function (event) {
-        const actionButton = event.target.closest("[data-task-action]");
-        const addButton = event.target.closest("[data-add-task]");
-        const menuBtn = event.target.closest(".kanban-column-menu");
-
-        if (!event.target.closest("[data-kanban-action-menu]") && !menuBtn) {
-            closeActionMenu();
-        }
-
-        if (menuBtn) {
-            const cardParent = menuBtn.closest("[data-task-card]");
-
-            if (cardParent) {
-                event.preventDefault();
-                event.stopPropagation();
-                openActionMenu(menuBtn, cardParent.dataset.taskId);
-                return;
-            }
-        }
-
-        if (actionButton) {
-            event.preventDefault();
-            event.stopPropagation();
-
-            const action = actionButton.dataset.taskAction;
-            const taskId = actionButton.dataset.taskId;
-
-            handleTaskAction(action, taskId).catch((error) => {
-                if (window.CAHToast) {
-                    CAHToast.error("Không thể xử lý task", error.message || "API chưa xử lý được yêu cầu.");
-                }
-            });
-            return;
-        }
-
-        if (addButton) {
-            openTaskModal("create");
-            return;
-        }
-
-        const card = event.target.closest("[data-task-card]");
-
-        if (card && !event.target.closest("button")) {
-            const taskId = card.dataset.taskId;
-            const task = findTaskById(taskId);
-
-            openTaskModal("view", task || {
-                id: taskId,
-                title: card.dataset.title || "",
-                description: card.dataset.description || "",
-                project_id: card.dataset.projectId || "",
-                assignee_id: card.dataset.assigneeId || "",
-                watcher_id: card.datasetWatcherId || "",
-                status: getStatusByColumn(card.dataset.status || "todo")
-            });
-        }
-    });
-
-    document.addEventListener("keydown", function (event) {
-        if (event.key === "Escape") {
-            closeActionMenu();
-        }
-    });
-
-    document.addEventListener("submit", function (event) {
-        const form = event.target.closest("[data-task-form]");
-        if (!form) return;
-
-        event.preventDefault();
-
-        const mode = form.dataset.taskFormMode;
-        const title = form.querySelector("[name='title']");
-        const deadline = form.querySelector("[name='deadline']");
-
-        if (!title?.value.trim() || !deadline?.value.trim()) {
-            if (window.CAHToast) {
-                CAHToast.error("Thiếu thông tin", "Vui lòng nhập tên công việc và deadline.");
-            }
-            return;
-        }
-
-        const handler = mode === "edit" ? updateTaskFromForm : createTaskFromForm;
-
-        handler(form).catch((error) => {
-            if (window.CAHToast) {
-                CAHToast.error("Không thể lưu task", error.message || "API chưa xử lý được yêu cầu.");
-            }
-        });
-    });
-
-    updateColumnCounts();
-    loadTasksFromApi();
+    init();
 })();

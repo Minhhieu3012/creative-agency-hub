@@ -181,6 +181,13 @@ class TaskController {
                 $this->normalizeNullableInt($input['project_id'] ?? null)
             );
 
+            if (!$projectId) {
+                $this->jsonResponse([
+                    'status' => 'error',
+                    'message' => 'Vui lòng chọn dự án hợp lệ trước khi tạo task.'
+                ], 422);
+            }
+
             $assigneeId = $this->resolveSafeEmployeeId(
                 $this->normalizeNullableInt($input['assignee_id'] ?? null)
             );
@@ -194,7 +201,13 @@ class TaskController {
                 $watcherId = $watcherId ?: (int)$authUser['id'];
                 $initialStatus = 'Pending approval';
             } else {
-                $assigneeId = $assigneeId ?: (int)$authUser['id'];
+                if (!$assigneeId) {
+                    $this->jsonResponse([
+                        'status' => 'error',
+                        'message' => 'Vui lòng chọn nhân viên thực hiện task.'
+                    ], 422);
+                }
+
                 $watcherId = $watcherId ?: (int)$authUser['id'];
                 $initialStatus = 'To do';
             }
@@ -348,9 +361,23 @@ class TaskController {
                 $this->normalizeNullableInt($input['project_id'] ?? null)
             );
 
+            if (!$projectId) {
+                $this->jsonResponse([
+                    'status' => 'error',
+                    'message' => 'Vui lòng chọn dự án hợp lệ.'
+                ], 422);
+            }
+
             $assigneeId = $this->resolveSafeEmployeeId(
                 $this->normalizeNullableInt($input['assignee_id'] ?? null)
             );
+
+            if (!$assigneeId) {
+                $this->jsonResponse([
+                    'status' => 'error',
+                    'message' => 'Vui lòng chọn nhân viên thực hiện hợp lệ.'
+                ], 422);
+            }
 
             $watcherId = $this->resolveSafeEmployeeId(
                 $this->normalizeNullableInt($input['watcher_id'] ?? null)

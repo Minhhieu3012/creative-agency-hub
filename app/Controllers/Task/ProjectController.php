@@ -6,7 +6,7 @@ use App\Middleware\AuthMiddleware;
 use Throwable;
 
 class ProjectController {
-    private ProjectService $service;
+    private $service;
 
     public function __construct() {
         $authUser = AuthMiddleware::check();
@@ -25,9 +25,14 @@ class ProjectController {
     }
 
     private function getInput(): array {
-        $input = json_decode(file_get_contents('php://input'), true);
+        $raw = file_get_contents('php://input');
+        $input = json_decode($raw, true);
 
-        return is_array($input) ? $input : ($_POST ?? []);
+        if (is_array($input)) {
+            return $input;
+        }
+
+        return $_POST ?? [];
     }
 
     private function resolveId($id) {
@@ -75,7 +80,9 @@ class ProjectController {
             $this->json([
                 "status" => "success",
                 "message" => "Tạo project thành công",
-                "data" => ["id" => $id]
+                "data" => [
+                    "id" => $id
+                ]
             ], 201);
         } catch (Throwable $e) {
             $this->json([

@@ -12,9 +12,12 @@
     const milestoneWrap = document.querySelector("[data-gantt-milestones]");
     const resourceWrap = document.querySelector("[data-gantt-resources]");
 
+    const BASE_URL = "/creative-agency-hub";
+
     let currentMode = "week";
     let tasks = [];
     let projects = [];
+    let employees = [];
 
     const RANGE_LABELS = {
         week: ["TH 2", "TH 3", "TH 4", "TH 5", "TH 6", "TH 7", "CN"],
@@ -30,6 +33,24 @@
 
     function getToken() {
         return localStorage.getItem("cah_token") || localStorage.getItem("cah_auth_token") || "";
+    }
+
+    function escapeHtml(value) {
+        return window.CAHApp?.escapeHtml
+            ? CAHApp.escapeHtml(value)
+            : String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+    }
+
+    function toNumberOrNull(value) {
+        if (value === undefined || value === null || value === "") return null;
+
+        const number = Number(value);
+        return Number.isFinite(number) && number > 0 ? number : null;
     }
 
     function getDecodedToken() {
@@ -63,6 +84,13 @@
             };
         }
 
+        try {
+            const storedUser = JSON.parse(localStorage.getItem("cah_user") || localStorage.getItem("cah_auth_user") || "null");
+            if (storedUser) return storedUser;
+        } catch (error) {
+            // Ignore fallback parse.
+        }
+
         return window.CAHAuth?.getUser?.() || {};
     }
 
@@ -71,41 +99,35 @@
         return toNumberOrNull(user?.id) || toNumberOrNull(user?.employee_id) || 1;
     }
 
-    function getFallbackAssigneeId() {
-        const user = getCurrentUser();
-        return String(user?.role || "").toLowerCase() === "employee" ? getCurrentUserId() : 2;
-    }
-
-    function escapeHtml(value) {
-        return window.CAHApp?.escapeHtml
-            ? CAHApp.escapeHtml(value)
-            : String(value ?? "")
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-    }
-
-    function toNumberOrNull(value) {
-        if (value === undefined || value === null || value === "") return null;
-
-        const number = Number(value);
-        return Number.isFinite(number) && number > 0 ? number : null;
+    function isEmployee() {
+        return String(getCurrentUser()?.role || "").toLowerCase() === "employee";
     }
 
     function normalizeStatus(status) {
         const value = String(status || "To do").trim().toLowerCase();
 
-        if (value === "done" || value.includes("hoàn")) return "Done";
+        if (value === "done" || value === "completed" || value.includes("hoàn")) return "Done";
         if (value === "review" || value.includes("kiểm")) return "Review";
         if (value === "doing" || value.includes("thực")) return "Doing";
-        if (value === "pending approval" || value.includes("chờ duyệt")) return "Pending approval";
+        if (value === "pending approval" || value === "pending" || value.includes("chờ duyệt")) return "Pending approval";
 
         return "To do";
     }
 
+    function getProjectNameById(projectId) {
+        const project = projects.find((item) => String(item.id) === String(projectId));
+        return project?.name || "";
+    }
+
+    function getEmployeeNameById(employeeId) {
+        const employee = employees.find((item) => String(item.id) === String(employeeId));
+        return employee?.full_name || employee?.email || "";
+    }
+
     function normalizeTask(task) {
+        const projectId = task?.project_id || "";
+        const assigneeId = task?.assignee_id || "";
+
         return {
             id: task?.id || "",
             title: task?.title || "Chưa có tiêu đề",
@@ -113,10 +135,10 @@
             status: normalizeStatus(task?.status),
             priority: task?.priority || "Medium",
             deadline: task?.deadline || "",
-            project_id: task?.project_id || "",
-            project_name: task?.project_name || (task?.project_id ? `Dự án #${task.project_id}` : "Chưa gán dự án"),
-            assignee_id: task?.assignee_id || "",
-            assignee_name: task?.assignee_name || "",
+            project_id: projectId,
+            project_name: task?.project_name || getProjectNameById(projectId) || (projectId ? `Dự án #${projectId}` : "Chưa gán dự án"),
+            assignee_id: assigneeId,
+            assignee_name: task?.assignee_name || getEmployeeNameById(assigneeId),
             assigner_name: task?.assigner_name || "",
             watcher_name: task?.watcher_name || "",
             created_at: task?.created_at || "",
@@ -140,6 +162,7 @@
 
         if (normalized === "Done") return "done";
         if (normalized === "Doing" || normalized === "Review") return "running";
+        if (normalized === "Pending approval") return "pending";
 
         return "planned";
     }
@@ -196,11 +219,7 @@
         let filtered = [...tasks];
 
         if (projectId) {
-            if (projectId === "__unassigned__") {
-                filtered = filtered.filter((task) => !task.project_id);
-            } else {
-                filtered = filtered.filter((task) => String(task.project_id || "") === String(projectId));
-            }
+            filtered = filtered.filter((task) => String(task.project_id || "") === String(projectId));
         }
 
         if (monthFilterVal) {
@@ -335,6 +354,7 @@
                         <strong>${escapeHtml(task.title)}</strong>
                         <div style="margin-top: 6px; color: #8190a6; font-size: 12px;">Deadline: ${escapeHtml(task.deadline || "Chưa có")}</div>
                         <div style="margin-top: 4px; color: #94a3b8; font-size: 12px;">${escapeHtml(task.project_name)}</div>
+                        ${task.assignee_name ? `<div style="margin-top: 4px; color: #94a3b8; font-size: 12px;">Phụ trách: ${escapeHtml(task.assignee_name)}</div>` : ""}
                     </td>
                     ${cells}
                 </tr>
@@ -385,6 +405,7 @@
                 <div class="activity-icon ${index === 0 ? "primary" : "info"}">${index + 1}</div>
                 <div class="activity-content">
                     <strong>${escapeHtml(task.title)}</strong>
+                    <p>${escapeHtml(task.project_name || "Chưa gán dự án")}</p>
                     <time>${escapeHtml(task.deadline || "Chưa có deadline")}</time>
                 </div>
             </div>
@@ -431,7 +452,7 @@
             });
         }
 
-        const response = await fetch(`/creative-agency-hub/public${endpoint}`, {
+        const response = await fetch(`${BASE_URL}/public${endpoint}`, {
             cache: "no-store",
             headers: {
                 Authorization: "Bearer " + getToken(),
@@ -440,7 +461,15 @@
             }
         });
 
-        const payload = await response.json();
+        const text = await response.text();
+        let payload;
+
+        try {
+            payload = JSON.parse(text);
+        } catch (error) {
+            console.error("Raw API response:", text);
+            throw new Error("API trả về dữ liệu không hợp lệ.");
+        }
 
         if (!response.ok || payload.status === "error") {
             throw new Error(payload.message || "Không thể tải dữ liệu.");
@@ -453,10 +482,10 @@
         if (!projectFilter) return;
 
         const currentValue = projectFilter.value;
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectIdFromUrl = urlParams.get("project_id");
 
         projectFilter.innerHTML = `<option value="">Tất cả dự án</option>`;
-
-        const hasUnassignedTasks = tasks.some((task) => !task.project_id);
 
         projects.forEach((project) => {
             if (!project || project.is_virtual) return;
@@ -467,65 +496,123 @@
             projectFilter.appendChild(option);
         });
 
-        if (hasUnassignedTasks) {
-            const option = document.createElement("option");
-            option.value = "__unassigned__";
-            option.textContent = "Công việc chưa gán dự án";
-            projectFilter.appendChild(option);
-        }
-
-        if ([...projectFilter.options].some((option) => option.value === currentValue)) {
+        if (projectIdFromUrl && [...projectFilter.options].some((option) => option.value === projectIdFromUrl)) {
+            projectFilter.value = projectIdFromUrl;
+        } else if ([...projectFilter.options].some((option) => option.value === currentValue)) {
             projectFilter.value = currentValue;
         }
     }
 
-    async function loadTasksAndProjects() {
+    async function loadTasksProjectsEmployees() {
         if (!getToken()) {
             tasks = [];
             projects = [];
+            employees = [];
             renderGantt();
             return;
         }
 
         try {
-            const [taskResponse, projectResponse] = await Promise.allSettled([
-                apiGet("/api/tasks?_=" + Date.now()),
-                apiGet("/api/projects?_=" + Date.now())
+            const [projectResponse, employeeResponse] = await Promise.allSettled([
+                apiGet("/api/projects?_=" + Date.now()),
+                apiGet("/api/employees?_=" + Date.now())
             ]);
-
-            if (taskResponse.status === "fulfilled") {
-                tasks = Array.isArray(taskResponse.value.data)
-                    ? taskResponse.value.data.map(normalizeTask)
-                    : [];
-            } else {
-                tasks = [];
-            }
 
             if (projectResponse.status === "fulfilled") {
                 projects = Array.isArray(projectResponse.value.data)
-                    ? projectResponse.value.data
+                    ? projectResponse.value.data.filter((project) => !project.is_virtual)
                     : [];
             } else {
                 projects = [];
             }
 
+            if (employeeResponse.status === "fulfilled") {
+                employees = Array.isArray(employeeResponse.value.data)
+                    ? employeeResponse.value.data
+                    : [];
+            } else {
+                employees = [];
+            }
+
             populateProjectFilter();
+
+            const taskResponse = await apiGet("/api/tasks?_=" + Date.now());
+            tasks = Array.isArray(taskResponse.data)
+                ? taskResponse.data.map(normalizeTask)
+                : [];
+
             renderGantt();
         } catch (error) {
             tasks = [];
-            projects = [];
             renderGantt();
+
+            if (window.CAHToast) {
+                CAHToast.error("Không tải được Gantt", error.message || "API đang lỗi.");
+            }
         }
+    }
+
+    function projectOptionsHtml(selectedId) {
+        if (projects.length === 0) {
+            return '<option value="">Chưa có dự án, hãy tạo project trước</option>';
+        }
+
+        return projects.map((project) => {
+            const selected = String(project.id) === String(selectedId) ? "selected" : "";
+            return `<option value="${escapeHtml(project.id)}" ${selected}>${escapeHtml(project.name || `Dự án #${project.id}`)}</option>`;
+        }).join("");
+    }
+
+    function employeeOptionsHtml(selectedId) {
+        const employeeList = employees.filter((employee) => {
+            return String(employee.role || "").toLowerCase() === "employee" && String(employee.status || "").toLowerCase() === "active";
+        });
+
+        if (employeeList.length === 0) {
+            return '<option value="">Chưa có employee active</option>';
+        }
+
+        return employeeList.map((employee) => {
+            const selected = String(employee.id) === String(selectedId) ? "selected" : "";
+            return `<option value="${escapeHtml(employee.id)}" ${selected}>${escapeHtml(employee.full_name || employee.email || `Nhân sự #${employee.id}`)}</option>`;
+        }).join("");
+    }
+
+    function watcherOptionsHtml(selectedId) {
+        const users = employees.filter((employee) => String(employee.status || "").toLowerCase() === "active");
+
+        if (users.length === 0) {
+            return `<option value="${escapeHtml(getCurrentUserId())}">Người đang đăng nhập</option>`;
+        }
+
+        return users.map((employee) => {
+            const selected = String(employee.id) === String(selectedId) ? "selected" : "";
+            const role = employee.role ? ` · ${String(employee.role).toUpperCase()}` : "";
+            return `<option value="${escapeHtml(employee.id)}" ${selected}>${escapeHtml((employee.full_name || employee.email || `Nhân sự #${employee.id}`) + role)}</option>`;
+        }).join("");
     }
 
     function openCreateTaskModal() {
         if (!window.CAHModal) return;
 
-        const selectedProject = projectFilter?.value || "";
-        const defaultProjectId = selectedProject && selectedProject !== "__unassigned__" ? selectedProject : "";
+        if (projects.length === 0) {
+            if (window.CAHToast) {
+                CAHToast.error("Chưa có dự án", "Hãy tạo project trước rồi mới tạo task.");
+            } else {
+                alert("Hãy tạo project trước rồi mới tạo task.");
+            }
+
+            return;
+        }
+
+        const selectedProject = projectFilter?.value || projects[0]?.id || "";
+        const fallbackEmployee = employees.find((employee) => String(employee.role || "").toLowerCase() === "employee" && String(employee.status || "").toLowerCase() === "active");
+        const fallbackAssigneeId = isEmployee() ? getCurrentUserId() : (fallbackEmployee?.id || "");
+        const fallbackWatcherId = getCurrentUserId();
 
         CAHModal.open({
             title: "Tạo công việc mới",
+            subtitle: "Task sẽ thuộc project đã chọn và đồng bộ sang Kanban/Gantt.",
             body: `
             <form class="task-modal-form" data-task-form data-task-form-mode="create">
                 <div class="form-group">
@@ -535,10 +622,28 @@
 
                 <div class="form-row">
                     <div class="form-group">
+                        <label class="form-label">Dự án</label>
+                        <select class="form-select" name="project_id" required>
+                            ${projectOptionsHtml(selectedProject)}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Người thực hiện</label>
+                        <select class="form-select" name="assignee_id" required>
+                            ${employeeOptionsHtml(fallbackAssigneeId)}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
                         <label class="form-label">Trạng thái</label>
                         <select class="form-select" name="status">
-                            <option value="To do">Cần làm</option>
+                            <option value="Pending approval">Chờ duyệt</option>
+                            <option value="To do" selected>Cần làm</option>
                             <option value="Doing">Đang thực hiện</option>
+                            <option value="Review">Đang kiểm tra</option>
                         </select>
                     </div>
 
@@ -559,9 +664,16 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Project ID</label>
-                        <input class="form-control" type="number" name="project_id" value="${escapeHtml(defaultProjectId)}" min="1" placeholder="Để trống nếu chưa gán dự án">
+                        <label class="form-label">Người theo dõi</label>
+                        <select class="form-select" name="watcher_id">
+                            ${watcherOptionsHtml(fallbackWatcherId)}
+                        </select>
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Mô tả</label>
+                    <textarea class="form-textarea" name="description" placeholder="Mô tả ngắn về công việc"></textarea>
                 </div>
 
                 <div class="task-modal-footer">
@@ -576,49 +688,90 @@
         const formData = new FormData(form);
         const data = Object.fromEntries(formData);
 
+        const projectId = toNumberOrNull(data.project_id);
+        const assigneeId = toNumberOrNull(data.assignee_id);
+
+        if (!projectId) {
+            throw new Error("Vui lòng chọn dự án.");
+        }
+
+        if (!assigneeId) {
+            throw new Error("Vui lòng chọn người thực hiện.");
+        }
+
         const payload = {
             title: data.title,
+            description: data.description || "",
             deadline: data.deadline,
-            project_id: toNumberOrNull(data.project_id),
-            status: data.status,
-            priority: data.priority,
-            assignee_id: getFallbackAssigneeId(),
-            watcher_id: getCurrentUserId()
+            project_id: projectId,
+            status: isEmployee() ? "Pending approval" : (data.status || "To do"),
+            priority: data.priority || "Medium",
+            assignee_id: assigneeId,
+            watcher_id: toNumberOrNull(data.watcher_id) || getCurrentUserId()
         };
 
-        await CAHApi.post("/api/tasks", payload, {
-            loading: true,
-            headers: {
-                Authorization: "Bearer " + getToken()
+        if (window.CAHApi) {
+            await CAHApi.post("/api/tasks", payload, {
+                loading: true,
+                headers: {
+                    Authorization: "Bearer " + getToken()
+                }
+            });
+        } else {
+            const response = await fetch(`${BASE_URL}/public/api/tasks`, {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                    "Content-Type": "application/json",
+                    Authorization: "Bearer " + getToken()
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || result.status === "error") {
+                throw new Error(result.message || "Không tạo được task.");
             }
-        });
+        }
 
         if (window.CAHModal) {
             CAHModal.close();
         }
 
-        await loadTasksAndProjects();
+        if (window.CAHToast) {
+            CAHToast.success("Tạo task thành công", "Task mới đã đồng bộ sang Gantt.");
+        }
+
+        await loadTasksProjectsEmployees();
     }
 
     rangeButtons.forEach((btn) => btn.addEventListener("click", () => setActiveRange(btn)));
     projectFilter?.addEventListener("change", renderGantt);
     monthFilter?.addEventListener("change", renderGantt);
 
-    document.addEventListener("click", (e) => {
-        if (e.target.closest("[data-add-task]")) {
-            e.preventDefault();
+    document.addEventListener("click", (event) => {
+        if (event.target.closest("[data-add-task]")) {
+            event.preventDefault();
             openCreateTaskModal();
         }
     });
 
-    document.addEventListener("submit", (e) => {
-        const form = e.target.closest("[data-task-form]");
+    document.addEventListener("submit", (event) => {
+        const form = event.target.closest("[data-task-form]");
 
         if (form) {
-            e.preventDefault();
-            createTaskFromForm(form);
+            event.preventDefault();
+
+            createTaskFromForm(form).catch((error) => {
+                if (window.CAHToast) {
+                    CAHToast.error("Không thể tạo task", error.message || "Vui lòng kiểm tra dữ liệu.");
+                } else {
+                    alert(error.message || "Không thể tạo task.");
+                }
+            });
         }
     });
 
-    loadTasksAndProjects();
+    loadTasksProjectsEmployees();
 })();
