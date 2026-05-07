@@ -19,6 +19,89 @@ class Employee {
     }
 
     /**
+     * Lấy hồ sơ nhân viên theo ID đang đăng nhập.
+     * Dùng cho trang app/View/hrm/profile.php để thay dữ liệu fake bằng dữ liệu thật.
+     */
+    public function findProfileById($id) {
+        $sql = "SELECT
+                    e.id,
+                    e.department_id,
+                    e.position_id,
+                    e.manager_id,
+                    e.employee_code,
+                    e.full_name,
+                    e.email,
+                    e.role,
+                    e.phone,
+                    e.gender,
+                    e.date_of_birth,
+                    e.address,
+                    e.avatar,
+                    e.total_leave_days,
+                    e.remaining_leave_days,
+                    e.status,
+                    e.hire_date,
+                    e.resigned_date,
+                    e.created_at,
+                    e.updated_at,
+                    d.name AS department_name,
+                    p.name AS position_name,
+                    m.full_name AS manager_name
+                FROM employees e
+                LEFT JOIN departments d ON d.id = e.department_id
+                LEFT JOIN positions p ON p.id = e.position_id
+                LEFT JOIN employees m ON m.id = e.manager_id
+                WHERE e.id = :id
+                  AND e.deleted_at IS NULL
+                LIMIT 1";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':id' => $id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Fallback theo email khi cần debug local hoặc khi session chỉ có email.
+     */
+    public function findProfileByEmail($email) {
+        $sql = "SELECT
+                    e.id,
+                    e.department_id,
+                    e.position_id,
+                    e.manager_id,
+                    e.employee_code,
+                    e.full_name,
+                    e.email,
+                    e.role,
+                    e.phone,
+                    e.gender,
+                    e.date_of_birth,
+                    e.address,
+                    e.avatar,
+                    e.total_leave_days,
+                    e.remaining_leave_days,
+                    e.status,
+                    e.hire_date,
+                    e.resigned_date,
+                    e.created_at,
+                    e.updated_at,
+                    d.name AS department_name,
+                    p.name AS position_name,
+                    m.full_name AS manager_name
+                FROM employees e
+                LEFT JOIN departments d ON d.id = e.department_id
+                LEFT JOIN positions p ON p.id = e.position_id
+                LEFT JOIN employees m ON m.id = e.manager_id
+                WHERE e.email = :email
+                  AND e.deleted_at IS NULL
+                LIMIT 1";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':email' => $email]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
      * Lấy danh sách kèm Phân trang, Tìm kiếm và Lọc đa điều kiện
      * Kết hợp logic từ bản cũ (đầy đủ filter) và bản mới
      */
@@ -188,6 +271,7 @@ class Employee {
             throw $e;
         }
     }
+
     public function create($data) {
         $sql = "INSERT INTO employees (
             department_id,
