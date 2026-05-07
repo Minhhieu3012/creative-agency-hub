@@ -152,30 +152,45 @@
 
     const Auth = {
         tokenKey: "cah_auth_token",
+        legacyTokenKey: "cah_token",
         userKey: "cah_auth_user",
+        legacyUserKey: "cah_user",
 
         getToken() {
-            return localStorage.getItem(Auth.tokenKey) || "";
+            return localStorage.getItem(Auth.legacyTokenKey)
+                || localStorage.getItem(Auth.tokenKey)
+                || "";
         },
 
         setToken(token) {
             if (!token) return;
+
             localStorage.setItem(Auth.tokenKey, token);
+            localStorage.setItem(Auth.legacyTokenKey, token);
         },
 
         clearToken() {
             localStorage.removeItem(Auth.tokenKey);
+            localStorage.removeItem(Auth.legacyTokenKey);
             localStorage.removeItem(Auth.userKey);
+            localStorage.removeItem(Auth.legacyUserKey);
         },
 
         setUser(user) {
             if (!user) return;
-            localStorage.setItem(Auth.userKey, JSON.stringify(user));
+
+            const serialized = JSON.stringify(user);
+            localStorage.setItem(Auth.userKey, serialized);
+            localStorage.setItem(Auth.legacyUserKey, serialized);
         },
 
         getUser() {
             try {
-                return JSON.parse(localStorage.getItem(Auth.userKey) || "null");
+                return JSON.parse(
+                    localStorage.getItem(Auth.legacyUserKey)
+                    || localStorage.getItem(Auth.userKey)
+                    || "null"
+                );
             } catch (error) {
                 return null;
             }

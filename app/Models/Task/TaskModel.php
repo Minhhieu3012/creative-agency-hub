@@ -1,11 +1,50 @@
 <?php
 namespace App\Models\Task;
 
+use Core\Database;
+use PDO;
+use PDOException;
+
 class TaskModel {
-    private \PDO $pdo;
+    private PDO $pdo;
 
     public function __construct() {
-        $this->pdo = \Core\Database::getConnection();
+        $this->pdo = Database::getConnection();
+        $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    }
+
+    public function employeeExists(?int $employeeId): bool {
+        if (!$employeeId) {
+            return false;
+        }
+
+        $stmt = $this->pdo->prepare("
+            SELECT id
+            FROM employees
+            WHERE id = ?
+              AND status = 'active'
+              AND deleted_at IS NULL
+            LIMIT 1
+        ");
+
+        $stmt->execute([$employeeId]);
+        return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function projectExists(?int $projectId): bool {
+        if (!$projectId) {
+            return false;
+        }
+
+        $stmt = $this->pdo->prepare("
+            SELECT id
+            FROM projects
+            WHERE id = ?
+            LIMIT 1
+        ");
+
+        $stmt->execute([$projectId]);
+        return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     public function getAllTasks($filters = []) {
@@ -25,6 +64,7 @@ class TaskModel {
                     p.name AS project_name,
                     p.manager_id AS project_manager_id,
                     assigner.full_name AS assigner_name,
+                    assigner.role AS assigner_role,
                     assignee.full_name AS assignee_name,
                     watcher.full_name AS watcher_name,
                     t.created_at,
@@ -88,8 +128,8 @@ class TaskModel {
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute($params);
 
-            return $stmt->fetchAll();
-        } catch (\PDOException $e) {
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
             error_log("Lỗi Model getAllTasks: " . $e->getMessage());
             return [];
         }
@@ -112,6 +152,7 @@ class TaskModel {
                     p.name AS project_name,
                     p.manager_id AS project_manager_id,
                     assigner.full_name AS assigner_name,
+                    assigner.role AS assigner_role,
                     assignee.full_name AS assignee_name,
                     watcher.full_name AS watcher_name,
                     t.created_at,
@@ -122,12 +163,13 @@ class TaskModel {
                 LEFT JOIN employees assignee ON t.assignee_id = assignee.id
                 LEFT JOIN employees watcher ON t.watcher_id = watcher.id
                 WHERE t.id = ?
+                LIMIT 1
             ");
 
             $stmt->execute([$id]);
 
-            return $stmt->fetch();
-        } catch (\PDOException $e) {
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
             error_log("Lỗi Model getTaskById: " . $e->getMessage());
             return false;
         }
@@ -141,7 +183,8 @@ class TaskModel {
         $assigner_id,
         $assignee_id = null,
         $watcher_id = null,
-        $project_id = null
+        $project_id = null,
+        $status = 'To do'
     ) {
         try {
             $stmt = $this->pdo->prepare("
@@ -156,7 +199,7 @@ class TaskModel {
                     watcher_id,
                     project_id
                 )
-                VALUES (?, ?, ?, ?, 'To do', ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
 
             $stmt->execute([
@@ -164,6 +207,7 @@ class TaskModel {
                 $description,
                 $priority,
                 $deadline,
+                $status,
                 $assigner_id,
                 $assignee_id,
                 $watcher_id,
@@ -171,9 +215,9 @@ class TaskModel {
             ]);
 
             return $this->pdo->lastInsertId();
-        } catch (\PDOException $e) {
+        } catch (PDOException $e) {
             error_log("Lỗi Model createTask: " . $e->getMessage());
-            return false;
+            throw $e;
         }
     }
 
@@ -197,7 +241,8 @@ class TaskModel {
                     deadline = ?,
                     assignee_id = ?,
                     watcher_id = ?,
-                    project_id = ?
+                    project_id = ?,
+                    updated_at = NOW()
                 WHERE id = ?
             ");
 
@@ -211,9 +256,9 @@ class TaskModel {
                 $project_id,
                 $id
             ]);
-        } catch (\PDOException $e) {
+        } catch (PDOException $e) {
             error_log("Lỗi Model updateTask: " . $e->getMessage());
-            return false;
+            throw $e;
         }
     }
 
@@ -221,14 +266,15 @@ class TaskModel {
         try {
             $stmt = $this->pdo->prepare("
                 UPDATE tasks
-                SET status = ?
+                SET status = ?,
+                    updated_at = NOW()
                 WHERE id = ?
             ");
 
             return $stmt->execute([$status, $id]);
-        } catch (\PDOException $e) {
+        } catch (PDOException $e) {
             error_log("Lỗi Model updateStatus: " . $e->getMessage());
-            return false;
+            throw $e;
         }
     }
 
@@ -246,7 +292,7 @@ class TaskModel {
                 try {
                     $stmt = $this->pdo->prepare("DELETE FROM {$table} WHERE task_id = ?");
                     $stmt->execute([$id]);
-                } catch (\PDOException $e) {
+                } catch (PDOException $e) {
                     error_log("Bỏ qua delete related {$table}: " . $e->getMessage());
                 }
             }
@@ -257,13 +303,13 @@ class TaskModel {
             $this->pdo->commit();
 
             return $result;
-        } catch (\PDOException $e) {
+        } catch (PDOException $e) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
 
             error_log("Lỗi Model deleteTask: " . $e->getMessage());
-            return false;
+            throw $e;
         }
     }
 
@@ -275,7 +321,7 @@ class TaskModel {
             ");
 
             return $stmt->execute([$user_id, $message]);
-        } catch (\PDOException $e) {
+        } catch (PDOException $e) {
             error_log("Lỗi Model createNotification: " . $e->getMessage());
             return false;
         }
@@ -293,15 +339,15 @@ class TaskModel {
             ");
 
             $stmt->execute([$taskId]);
-            $project = $stmt->fetch();
+            $project = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$project) {
                 return false;
             }
 
-            return (int) ($project['manager_id'] ?? 0) === (int) $userId
-                || (int) ($project['assigner_id'] ?? 0) === (int) $userId;
-        } catch (\PDOException $e) {
+            return (int)($project['manager_id'] ?? 0) === (int)$userId
+                || (int)($project['assigner_id'] ?? 0) === (int)$userId;
+        } catch (PDOException $e) {
             error_log("Lỗi Model isManagerOfProject: " . $e->getMessage());
             return false;
         }
@@ -317,8 +363,8 @@ class TaskModel {
 
             $stmt->execute([$projectId, $userId]);
 
-            return $stmt->fetch() ? true : false;
-        } catch (\PDOException $e) {
+            return $stmt->fetch(PDO::FETCH_ASSOC) ? true : false;
+        } catch (PDOException $e) {
             error_log("Lỗi Model isManagerOfProjectByProjectId: " . $e->getMessage());
             return false;
         }
@@ -336,8 +382,8 @@ class TaskModel {
 
             $stmt->execute([$userId]);
 
-            return $stmt->fetch();
-        } catch (\PDOException $e) {
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
             error_log("Lỗi Model getFirstProjectManagedBy: " . $e->getMessage());
             return false;
         }

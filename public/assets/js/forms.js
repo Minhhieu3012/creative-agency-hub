@@ -1,5 +1,5 @@
 /**
- * FORMS JS - XỬ LÝ ĐĂNG NHẬP THỰC TẾ (API FETCH)
+ * FORMS JS - XỬ LÝ FORM VÀ ĐĂNG NHẬP THỰC TẾ
  */
 (function () {
     "use strict";
@@ -51,6 +51,24 @@
         return data;
     }
 
+    function persistAuthSession(token, user) {
+        if (!token) return;
+
+        localStorage.setItem("cah_token", token);
+        localStorage.setItem("cah_auth_token", token);
+
+        if (user) {
+            const serializedUser = JSON.stringify(user);
+            localStorage.setItem("cah_user", serializedUser);
+            localStorage.setItem("cah_auth_user", serializedUser);
+        }
+
+        if (window.CAHAuth) {
+            CAHAuth.setToken(token);
+            CAHAuth.setUser(user);
+        }
+    }
+
     async function handleAuthLogin(form) {
         const data = getFormDataObject(form);
 
@@ -69,8 +87,7 @@
                 throw new Error("API đăng nhập chưa trả về token.");
             }
 
-            CAHAuth.setToken(token);
-            CAHAuth.setUser(user);
+            persistAuthSession(token, user);
 
             if (window.CAHToast) {
                 CAHToast.success("Đăng nhập thành công", response.message || "Đang chuyển trang...");
@@ -130,18 +147,24 @@
     }
 
     document.addEventListener("submit", async function (event) {
-
         const form = event.target.closest("[data-ui-form]");
         if (!form) return;
 
-        event.preventDefault(); // Chặn hành vi submit mặc định
+        event.preventDefault();
+
+        if (!validateRequired(form)) {
+            if (window.CAHToast) {
+                CAHToast.error("Thiếu thông tin", "Vui lòng nhập đầy đủ các trường bắt buộc.");
+            }
+            return;
+        }
+
         setLoading(form, true);
 
         try {
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
 
-            // Thực hiện Fetch thật đến API
             const response = await fetch(form.action, {
                 method: "POST",
                 headers: {
@@ -154,38 +177,45 @@
             const result = await response.json();
 
             if (response.ok && result.status === "success") {
-                if (window.CAHToast) CAHToast.success("Thành công", result.message || "Đăng nhập thành công!");
-                
-                // Lưu token nếu cần
-                if (result.data?.token) localStorage.setItem('cah_token', result.data.token);
-                if (result.data?.user) {
-                    localStorage.setItem('cah_user', JSON.stringify(result.data.user));
+                const token = result.data?.token;
+                const user = result.data?.user;
+
+                if (token) {
+                    persistAuthSession(token, user);
+                }
+
+                if (window.CAHToast) {
+                    CAHToast.success("Thành công", result.message || "Đăng nhập thành công!");
                 }
 
                 const redirect = form.dataset.redirect;
+
                 if (redirect) {
-                    setTimeout(() => window.location.href = redirect, 1000);
+                    setTimeout(() => {
+                        window.location.href = redirect;
+                    }, 1000);
                 }
             } else {
                 throw new Error(result.message || "Đăng nhập thất bại");
             }
-
         } catch (error) {
-            if (window.CAHToast) CAHToast.error("Lỗi", error.message);
+            if (window.CAHToast) {
+                CAHToast.error("Lỗi", error.message);
+            }
         } finally {
             setLoading(form, false);
         }
     });
 
-    // Xử lý ẩn hiện mật khẩu
     document.addEventListener("click", function (event) {
         const toggle = event.target.closest("[data-password-toggle]");
         if (!toggle) return;
+
         const target = document.querySelector(toggle.dataset.passwordToggle);
-        if (target) {
-            target.type = target.type === "password" ? "text" : "password";
-            toggle.textContent = target.type === "password" ? "👁" : "🙈";
-        }
+        if (!target) return;
+
+        target.type = target.type === "password" ? "text" : "password";
+        toggle.textContent = target.type === "password" ? "👁" : "🙈";
     });
 
     document.addEventListener("click", function (event) {
@@ -193,6 +223,11 @@
         if (!logout) return;
 
         event.preventDefault();
+
+        localStorage.removeItem("cah_token");
+        localStorage.removeItem("cah_user");
+        localStorage.removeItem("cah_auth_token");
+        localStorage.removeItem("cah_auth_user");
 
         if (window.CAHAuth) {
             CAHAuth.clearToken();
