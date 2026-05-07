@@ -133,6 +133,10 @@ document.addEventListener('DOMContentLoaded', function() {
         return `${employee.full_name || employee.email || 'Chưa đặt tên'} · ${role}`;
     }
 
+    function getEmployeeById(employeeId) {
+        return allEmployees.find((employee) => String(employee.id) === String(employeeId)) || null;
+    }
+
     function getManagerOptions() {
         const role = getCurrentRole();
         const candidates = allEmployees.filter((employee) => {
@@ -146,6 +150,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         return candidates;
+    }
+
+    function getClientOptions() {
+        return allEmployees.filter((employee) => {
+            const employeeRole = String(employee.role || '').toLowerCase();
+            return employeeRole === 'client' && employee.status === 'active' && !employee.deleted_at;
+        });
     }
 
     async function apiRequest(path, options = {}) {
@@ -177,11 +188,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function projectFormBody() {
         const managerOptions = getManagerOptions();
+        const clientOptions = getClientOptions();
         const isManager = getCurrentRole() === 'manager';
 
         const managerSelectHtml = managerOptions.length > 0
             ? managerOptions.map((employee) => `<option value="${escapeHtml(employee.id)}">${escapeHtml(normalizeEmployeeName(employee))}</option>`).join('')
             : '<option value="">Chưa có Admin/Manager active</option>';
+
+        const clientSelectHtml = clientOptions.length > 0
+            ? '<option value="">Chưa gán khách hàng</option>' + clientOptions.map((employee) => `<option value="${escapeHtml(employee.id)}">${escapeHtml(employee.full_name || employee.email || `Client #${employee.id}`)}${employee.email ? ' · ' + escapeHtml(employee.email) : ''}</option>`).join('')
+            : '<option value="">Chưa có tài khoản Client active</option>';
 
         return `
             <form class="task-modal-form" data-project-form>
@@ -201,9 +217,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         <select class="form-select" name="manager_id" ${isManager ? 'disabled' : ''} required>
                             ${managerSelectHtml}
                         </select>
-                        <small class="form-help">Lưu ID người phụ trách vào projects.manager_id, UI hiển thị tên.</small>
+                        <small class="form-help">Lưu ID người phụ trách vào projects.manager_id.</small>
                     </div>
 
+                    <div class="form-group">
+                        <label class="form-label">Khách hàng giám sát</label>
+                        <select class="form-select" name="client_id">
+                            ${clientSelectHtml}
+                        </select>
+                        <small class="form-help">Lưu ID khách hàng vào projects.client_id để Client Portal nhìn thấy dự án.</small>
+                    </div>
+                </div>
+
+                <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Trạng thái</label>
                         <select class="form-select" name="status">
@@ -230,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         CAHModal.open({
             title: 'Tạo dự án mới',
-            subtitle: 'Chọn người phụ trách để biết rõ ai quản lý dự án nào.',
+            subtitle: 'Chọn người phụ trách và khách hàng giám sát để biết rõ ai quản lý, ai được xem dự án.',
             body: projectFormBody()
         });
     }
@@ -240,12 +266,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const data = Object.fromEntries(formData);
 
         const managerId = toNumberOrNull(data.manager_id) || toNumberOrNull(getCurrentUser()?.id);
+        const clientId = toNumberOrNull(data.client_id);
+
+        if (!managerId) {
+            throw new Error('Vui lòng chọn người phụ trách dự án.');
+        }
 
         const payload = {
             name: data.name,
             description: data.description || '',
             manager_id: managerId,
-            client_id: null,
+            client_id: clientId,
             status: data.status || 'Active'
         };
 
@@ -262,7 +293,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (window.CAHToast) {
-            CAHToast.success('Đã tạo dự án', 'Project mới đã được thêm vào danh sách.');
+            CAHToast.success('Đã tạo dự án', clientId ? 'Project mới đã được gán cho khách hàng giám sát.' : 'Project mới đã được thêm vào danh sách.');
         }
 
         await loadData();
@@ -290,6 +321,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const managerName = project.manager_name || 'Chưa gán phụ trách';
             const managerEmail = project.manager_email || '';
 
+            const client = getEmployeeById(project.client_id);
+            const clientName = project.client_name || client?.full_name || client?.email || '';
+            const clientEmail = project.client_email || client?.email || '';
+
             return `
             <article class="project-card" data-project-card data-project-id="${escapeHtml(project.id)}">
                 <div class="project-card-head">
@@ -298,10 +333,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span class="project-status-pill">${escapeHtml(statusText)}</span>
                     </div>
                     <p>${escapeHtml(project.description || 'Chưa có mô tả')}</p>
+
                     <div class="project-owner-line">
                         <strong>Phụ trách:</strong>
                         <span>${escapeHtml(managerName)}</span>
                         ${managerEmail ? `<small>${escapeHtml(managerEmail)}</small>` : ''}
+                    </div>
+
+                    <div class="project-owner-line">
+                        <strong>Khách hàng:</strong>
+                        <span>${clientName ? escapeHtml(clientName) : 'Chưa gán khách hàng giám sát'}</span>
+                        ${clientEmail ? `<small>${escapeHtml(clientEmail)}</small>` : ''}
                     </div>
                 </div>
 
@@ -334,8 +376,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="project-card-footer">
                     <div class="avatar-stack">
                         <span title="${escapeHtml(managerName)}">${escapeHtml((managerName || 'CA').charAt(0).toUpperCase())}</span>
+                        <span title="${clientName ? escapeHtml(clientName) : 'Chưa gán khách hàng'}">${clientName ? escapeHtml((clientName || 'CL').charAt(0).toUpperCase()) : 'CL'}</span>
                         <span title="Task đang mở">${openTaskCount}</span>
-                        <span>+${extraMembers}</span>
                     </div>
                     <a href="/creative-agency-hub/app/View/tasks/kanban.php?project_id=${encodeURIComponent(project.id || '')}" class="btn btn-light">Xem bảng</a>
                 </div>
@@ -364,11 +406,14 @@ document.addEventListener('DOMContentLoaded', function() {
         let filtered = [...allProjects];
 
         if (searchVal) {
-            filtered = filtered.filter(p =>
-                (p.name && p.name.toLowerCase().includes(searchVal)) ||
-                (p.description && p.description.toLowerCase().includes(searchVal)) ||
-                (p.manager_name && p.manager_name.toLowerCase().includes(searchVal))
-            );
+            filtered = filtered.filter(p => {
+                const client = getEmployeeById(p.client_id);
+                return (p.name && p.name.toLowerCase().includes(searchVal)) ||
+                    (p.description && p.description.toLowerCase().includes(searchVal)) ||
+                    (p.manager_name && p.manager_name.toLowerCase().includes(searchVal)) ||
+                    (client?.full_name && client.full_name.toLowerCase().includes(searchVal)) ||
+                    (client?.email && client.email.toLowerCase().includes(searchVal));
+            });
         }
 
         if (statusVal) {

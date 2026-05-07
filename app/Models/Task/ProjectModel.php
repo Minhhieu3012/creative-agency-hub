@@ -15,7 +15,7 @@ class ProjectModel {
     private function progressByStatus(?string $status): int {
         $status = strtolower(trim((string)$status));
 
-        if ($status === 'done') {
+        if ($status === 'done' || $status === 'completed') {
             return 100;
         }
 
@@ -23,11 +23,11 @@ class ProjectModel {
             return 82;
         }
 
-        if ($status === 'doing') {
+        if ($status === 'doing' || $status === 'in_progress') {
             return 55;
         }
 
-        if ($status === 'pending approval') {
+        if ($status === 'pending approval' || $status === 'pending') {
             return 0;
         }
 
@@ -89,6 +89,7 @@ class ProjectModel {
         $project['tasks'] = (int)($stats['task_count'] ?? 0);
         $project['open_tasks'] = (int)($stats['open_task_count'] ?? 0);
         $project['done_tasks'] = (int)($stats['done_task_count'] ?? 0);
+        $project['done'] = (int)($stats['done_task_count'] ?? 0);
         $project['members'] = max(1, (int)($stats['assignee_count'] ?? 0));
         $project['progress'] = $progress;
         $project['deadline'] = $stats['nearest_deadline'] ?? null;
@@ -166,9 +167,12 @@ class ProjectModel {
             'manager_name' => 'Chưa gán quản lý',
             'manager_email' => null,
             'manager_role' => null,
+            'client_name' => null,
+            'client_email' => null,
             'tasks' => (int)($stats['task_count'] ?? 0),
             'open_tasks' => (int)($stats['open_task_count'] ?? 0),
             'done_tasks' => (int)($stats['done_task_count'] ?? 0),
+            'done' => (int)($stats['done_task_count'] ?? 0),
             'members' => max(1, (int)($stats['assignee_count'] ?? 0)),
             'progress' => $progress,
             'deadline' => $stats['nearest_deadline'] ?? null,
@@ -183,9 +187,12 @@ class ProjectModel {
                 p.*,
                 e.full_name AS manager_name,
                 e.email AS manager_email,
-                e.role AS manager_role
+                e.role AS manager_role,
+                client.full_name AS client_name,
+                client.email AS client_email
             FROM projects p
             LEFT JOIN employees e ON p.manager_id = e.id
+            LEFT JOIN employees client ON p.client_id = client.id
             WHERE p.manager_id = ?
             ORDER BY p.created_at DESC
         ");
@@ -209,15 +216,65 @@ class ProjectModel {
         return $projects;
     }
 
+    public function getVisibleForEmployee($employeeId) {
+        $employeeId = (int)$employeeId;
+
+        $stmt = $this->db->prepare("
+            SELECT 
+                p.*,
+                e.full_name AS manager_name,
+                e.email AS manager_email,
+                e.role AS manager_role,
+                client.full_name AS client_name,
+                client.email AS client_email
+            FROM projects p
+            LEFT JOIN employees e ON p.manager_id = e.id
+            LEFT JOIN employees client ON p.client_id = client.id
+            WHERE p.status <> 'Archived'
+               OR EXISTS (
+                    SELECT 1
+                    FROM tasks t
+                    WHERE t.project_id = p.id
+                      AND (
+                            t.assignee_id = :employee_id
+                         OR t.assigner_id = :employee_id
+                         OR t.watcher_id = :employee_id
+                      )
+               )
+            ORDER BY p.created_at DESC
+        ");
+
+        $stmt->execute([
+            ':employee_id' => $employeeId
+        ]);
+
+        $projects = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $projects = array_map(function ($project) {
+            return $this->enrichProject($project);
+        }, $projects);
+
+        $unassigned = $this->getUnassignedProjectCard($employeeId);
+
+        if ($unassigned) {
+            $projects[] = $unassigned;
+        }
+
+        return $projects;
+    }
+
     public function getAll() {
         $stmt = $this->db->query("
             SELECT 
                 p.*,
                 e.full_name AS manager_name,
                 e.email AS manager_email,
-                e.role AS manager_role
+                e.role AS manager_role,
+                client.full_name AS client_name,
+                client.email AS client_email
             FROM projects p
             LEFT JOIN employees e ON p.manager_id = e.id
+            LEFT JOIN employees client ON p.client_id = client.id
             ORDER BY p.created_at DESC
         ");
 
@@ -246,9 +303,12 @@ class ProjectModel {
                 p.*,
                 e.full_name AS manager_name,
                 e.email AS manager_email,
-                e.role AS manager_role
+                e.role AS manager_role,
+                client.full_name AS client_name,
+                client.email AS client_email
             FROM projects p
             LEFT JOIN employees e ON p.manager_id = e.id
+            LEFT JOIN employees client ON p.client_id = client.id
             WHERE p.id = ?
             LIMIT 1
         ");
@@ -260,6 +320,41 @@ class ProjectModel {
         $project = $stmt->fetch(PDO::FETCH_ASSOC);
 
         return $project ? $this->enrichProject($project) : false;
+    }
+
+    public function employeeCanSeeProject($projectId, $employeeId) {
+        if ((string)$projectId === '__unassigned__') {
+            return true;
+        }
+
+        $stmt = $this->db->prepare("
+            SELECT p.id
+            FROM projects p
+            WHERE p.id = ?
+              AND (
+                    p.status <> 'Archived'
+                    OR EXISTS (
+                        SELECT 1
+                        FROM tasks t
+                        WHERE t.project_id = p.id
+                          AND (
+                                t.assignee_id = ?
+                             OR t.assigner_id = ?
+                             OR t.watcher_id = ?
+                          )
+                    )
+              )
+            LIMIT 1
+        ");
+
+        $stmt->execute([
+            $projectId,
+            (int)$employeeId,
+            (int)$employeeId,
+            (int)$employeeId,
+        ]);
+
+        return $stmt->fetch(PDO::FETCH_ASSOC) ? true : false;
     }
 
     public function create($data) {
@@ -321,6 +416,24 @@ class ProjectModel {
             FROM employees
             WHERE id = ?
               AND role IN ('admin', 'manager')
+              AND status = 'active'
+              AND deleted_at IS NULL
+            LIMIT 1
+        ");
+
+        $stmt->execute([
+            $id
+        ]);
+
+        return $stmt->fetch() ? true : false;
+    }
+
+    public function existsClient($id) {
+        $stmt = $this->db->prepare("
+            SELECT id
+            FROM employees
+            WHERE id = ?
+              AND role = 'client'
               AND status = 'active'
               AND deleted_at IS NULL
             LIMIT 1

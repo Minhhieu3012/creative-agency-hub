@@ -18,7 +18,7 @@ class ProjectService {
     }
 
     private function getUserId() {
-        return (int)($this->authUser['id'] ?? 0);
+        return (int)($this->authUser['id'] ?? $this->authUser['employee_id'] ?? 0);
     }
 
     private function normalizeStatus($status) {
@@ -69,7 +69,17 @@ class ProjectService {
             }
 
             if (!$this->model->existsManager((int)$data['manager_id'])) {
-                throw new Exception("Người phụ trách không tồn tại hoặc không phải Admin/Manager đang hoạt động");
+                throw new Exception("Manager không tồn tại");
+            }
+        }
+
+        if (!empty($data['client_id'])) {
+            if (!is_numeric($data['client_id'])) {
+                throw new Exception("client_id phải là số");
+            }
+
+            if (method_exists($this->model, 'existsClient') && !$this->model->existsClient((int)$data['client_id'])) {
+                throw new Exception("Khách hàng giám sát không tồn tại hoặc không còn hoạt động");
             }
         }
 
@@ -90,7 +100,24 @@ class ProjectService {
             return $this->model->getByManager($this->getUserId());
         }
 
-        // EMPLOYEE → không có quyền
+        // EMPLOYEE → được xem project đang mở để chọn khi tạo task chờ duyệt
+        if ($this->getRole() === 'employee') {
+            if (method_exists($this->model, 'getVisibleForEmployee')) {
+                return $this->model->getVisibleForEmployee($this->getUserId());
+            }
+
+            $projects = $this->model->getAll();
+
+            return array_values(array_filter($projects, function ($project) {
+                if (!empty($project['is_virtual'])) {
+                    return false;
+                }
+
+                return ($project['status'] ?? 'Active') !== 'Archived';
+            }));
+        }
+
+        // CLIENT không dùng API nội bộ này, client portal có API riêng
         throw new Exception("Bạn không có quyền xem project");
     }
 
@@ -116,17 +143,38 @@ class ProjectService {
             return $project;
         }
 
+        // ADMIN xem mọi project
+        if ($this->getRole() === 'admin') {
+            return $project;
+        }
+
         // MANAGER chỉ được xem project của mình
-        if ($this->getRole() === 'manager' && (int)$project['manager_id'] !== $this->getUserId()) {
-            throw new Exception("Bạn không có quyền truy cập project này");
+        if ($this->getRole() === 'manager') {
+            if ((int)($project['manager_id'] ?? 0) !== $this->getUserId()) {
+                throw new Exception("Bạn không có quyền truy cập project này");
+            }
+
+            return $project;
         }
 
-        // EMPLOYEE cấm
+        // EMPLOYEE được xem project đang mở hoặc project có task liên quan tới mình
         if ($this->getRole() === 'employee') {
-            throw new Exception("Bạn không có quyền");
+            if (method_exists($this->model, 'employeeCanSeeProject')) {
+                if (!$this->model->employeeCanSeeProject((int)$project['id'], $this->getUserId())) {
+                    throw new Exception("Bạn không có quyền");
+                }
+
+                return $project;
+            }
+
+            if (($project['status'] ?? 'Active') === 'Archived') {
+                throw new Exception("Bạn không có quyền");
+            }
+
+            return $project;
         }
 
-        return $project;
+        throw new Exception("Bạn không có quyền");
     }
 
     // =========================
@@ -180,7 +228,7 @@ class ProjectService {
         }
 
         // MANAGER chỉ sửa project của mình
-        if ($this->getRole() === 'manager' && (int)$project['manager_id'] !== $this->getUserId()) {
+        if ($this->getRole() === 'manager' && (int)($project['manager_id'] ?? 0) !== $this->getUserId()) {
             throw new Exception("Bạn không có quyền sửa project này");
         }
 
@@ -191,10 +239,12 @@ class ProjectService {
         if ($this->getRole() === 'admin') {
             $data['manager_id'] = $this->normalizeNullableInt($data['manager_id'] ?? ($project['manager_id'] ?? null));
         } else {
-            $data['manager_id'] = (int)$project['manager_id'];
+            $data['manager_id'] = (int)($project['manager_id'] ?? 0);
         }
 
-        $data['client_id'] = $this->normalizeNullableInt($data['client_id'] ?? ($project['client_id'] ?? null));
+        $data['client_id'] = array_key_exists('client_id', $data)
+            ? $this->normalizeNullableInt($data['client_id'])
+            : $this->normalizeNullableInt($project['client_id'] ?? null);
 
         $this->validate($data, true);
 
@@ -225,14 +275,16 @@ class ProjectService {
             throw new Exception("Bạn không có quyền xoá");
         }
 
-        if ($this->getRole() === 'manager' && (int)$project['manager_id'] !== $this->getUserId()) {
+        if ($this->getRole() === 'manager' && (int)($project['manager_id'] ?? 0) !== $this->getUserId()) {
             throw new Exception("Bạn không có quyền xoá project này");
         }
 
-        $taskCount = $this->model->countTasksByProject($id);
+        if (method_exists($this->model, 'countTasksByProject')) {
+            $taskCount = $this->model->countTasksByProject($id);
 
-        if ($taskCount > 0) {
-            throw new Exception("Project đang có task, không thể xoá trực tiếp. Hãy chuyển/xoá task trước.");
+            if ($taskCount > 0) {
+                throw new Exception("Project đang có task, không thể xoá trực tiếp. Hãy chuyển/xoá task trước.");
+            }
         }
 
         return $this->model->delete($id);
