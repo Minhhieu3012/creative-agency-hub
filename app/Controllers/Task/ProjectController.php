@@ -3,81 +3,117 @@ namespace App\Controllers\Task;
 
 use App\Services\Task\ProjectService;
 use App\Middleware\AuthMiddleware;
+use Throwable;
 
 class ProjectController {
-    private $service;
+    private ProjectService $service;
 
     public function __construct() {
         $authUser = AuthMiddleware::check();
         $this->service = new ProjectService($authUser);
     }
 
-    private function getInput() {
-        return json_decode(file_get_contents('php://input'), true) ?? $_POST;
+    private function json(array $payload, int $statusCode = 200): void {
+        if (ob_get_length()) {
+            ob_clean();
+        }
+
+        http_response_code($statusCode);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+        exit;
     }
 
-    public function index() {
-        echo json_encode([
-            "status" => "success",
-            "data" => $this->service->getAll()
-        ]);
+    private function getInput(): array {
+        $input = json_decode(file_get_contents('php://input'), true);
+
+        return is_array($input) ? $input : ($_POST ?? []);
     }
 
-    public function show($id) {
+    private function resolveId($id) {
+        if (is_array($id)) {
+            return $id['id'] ?? $id[0] ?? null;
+        }
+
+        return $id;
+    }
+
+    public function index(): void {
         try {
-            $project = $this->service->getById($id);
+            $this->json([
+                "status" => "success",
+                "data" => $this->service->getAll()
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                "status" => "error",
+                "message" => $e->getMessage()
+            ], 403);
+        }
+    }
 
-            echo json_encode([
+    public function show($id): void {
+        try {
+            $project = $this->service->getById($this->resolveId($id));
+
+            $this->json([
                 "status" => "success",
                 "data" => $project
             ]);
-        } catch (\Exception $e) {
-            http_response_code(404);
-            echo json_encode(["status"=>"error","message"=>$e->getMessage()]);
+        } catch (Throwable $e) {
+            $this->json([
+                "status" => "error",
+                "message" => $e->getMessage()
+            ], 404);
         }
     }
 
-    public function store() {
+    public function store(): void {
         try {
             $id = $this->service->create($this->getInput());
 
-            http_response_code(201);
-            echo json_encode([
+            $this->json([
                 "status" => "success",
                 "message" => "Tạo project thành công",
-                "data" => ["id"=>$id]
-            ]);
-        } catch (\Exception $e) {
-            http_response_code(400);
-            echo json_encode(["status"=>"error","message"=>$e->getMessage()]);
+                "data" => ["id" => $id]
+            ], 201);
+        } catch (Throwable $e) {
+            $this->json([
+                "status" => "error",
+                "message" => $e->getMessage()
+            ], 400);
         }
     }
 
-    public function update($id) {
+    public function update($id): void {
         try {
-            $this->service->update($id, $this->getInput());
+            $this->service->update($this->resolveId($id), $this->getInput());
 
-            echo json_encode([
+            $this->json([
                 "status" => "success",
                 "message" => "Cập nhật thành công"
             ]);
-        } catch (\Exception $e) {
-            http_response_code(400);
-            echo json_encode(["status"=>"error","message"=>$e->getMessage()]);
+        } catch (Throwable $e) {
+            $this->json([
+                "status" => "error",
+                "message" => $e->getMessage()
+            ], 400);
         }
     }
 
-    public function delete($id) {
+    public function delete($id): void {
         try {
-            $this->service->delete($id);
+            $this->service->delete($this->resolveId($id));
 
-            echo json_encode([
+            $this->json([
                 "status" => "success",
                 "message" => "Xóa thành công"
             ]);
-        } catch (\Exception $e) {
-            http_response_code(400);
-            echo json_encode(["status"=>"error","message"=>$e->getMessage()]);
+        } catch (Throwable $e) {
+            $this->json([
+                "status" => "error",
+                "message" => $e->getMessage()
+            ], 400);
         }
     }
 }

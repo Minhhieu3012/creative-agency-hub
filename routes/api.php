@@ -36,11 +36,11 @@ return [
     ['DELETE', '/api/employee-documents/:id',         'HRM\\EmployeeController@deleteDocument',   ['admin', 'manager', 'employee']],
 
     // PROJECT
-    ['GET',    '/api/projects',        'ProjectController@index',  ['admin','manager']],
-    ['GET',    '/api/projects/:id',    'ProjectController@show',   ['admin','manager']],
-    ['POST',   '/api/projects',        'ProjectController@store',  ['admin','manager']],
-    ['PUT',    '/api/projects/:id',    'ProjectController@update', ['admin','manager']],
-    ['DELETE', '/api/projects/:id',    'ProjectController@delete', ['admin', 'manager']],
+    ['GET',    '/api/projects',        'Task\\ProjectController@index',  ['admin','manager']],
+    ['GET',    '/api/projects/:id',    'Task\\ProjectController@show',   ['admin','manager']],
+    ['POST',   '/api/projects',        'Task\\ProjectController@store',  ['admin','manager']],
+    ['PUT',    '/api/projects/:id',    'Task\\ProjectController@update', ['admin','manager']],
+    ['DELETE', '/api/projects/:id',    'Task\\ProjectController@delete', ['admin', 'manager']],
 
     // TASK
     ['GET',    '/api/tasks',            'Task\\TaskController@index',        ['admin', 'manager', 'employee', 'client']],
