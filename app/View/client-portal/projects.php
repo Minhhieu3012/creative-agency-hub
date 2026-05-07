@@ -10,49 +10,21 @@ $currentUser = $currentUser ?? [
     'avatar' => null,
 ];
 
-$projects = $projects ?? [
-    [
-        'name' => 'NexusHR Web Platform',
-        'description' => 'Nền tảng quản lý nhân sự, công việc và cổng thông tin khách hàng cho doanh nghiệp.',
-        'status' => 'in_progress',
-        'status_label' => 'Đang triển khai',
-        'progress' => 76,
-        'tasks' => 18,
-        'done' => 12,
-        'deadline' => '25/12/2026',
-        'manager' => 'PM',
-        'manager_name' => 'Project Manager',
-    ],
-    [
-        'name' => 'Brand Campaign Q4',
-        'description' => 'Chiến dịch sáng tạo cuối năm gồm key visual, social content và approval workflow.',
-        'status' => 'review',
-        'status_label' => 'Đang duyệt',
-        'progress' => 64,
-        'tasks' => 24,
-        'done' => 15,
-        'deadline' => '15/01/2027',
-        'manager' => 'CM',
-        'manager_name' => 'Campaign Manager',
-    ],
-    [
-        'name' => 'Client Portal Upgrade',
-        'description' => 'Nâng cấp trải nghiệm phản hồi, timeline và báo cáo tiến độ dành riêng cho khách hàng.',
-        'status' => 'planned',
-        'status_label' => 'Lên kế hoạch',
-        'progress' => 36,
-        'tasks' => 11,
-        'done' => 4,
-        'deadline' => '08/02/2027',
-        'manager' => 'UX',
-        'manager_name' => 'UX Lead',
-    ],
-];
+/*
+ * Client Portal lấy dữ liệu thật từ API:
+ * GET /creative-agency-hub/public/api/client/projects
+ *
+ * Không dùng dữ liệu giả mặc định nữa.
+ * Nếu controller có truyền sẵn $projects/$updates thì vẫn render được.
+ * Nếu không có, public/assets/js/client-portal.js sẽ fetch API và đổ dữ liệu vào các data-* bên dưới.
+ */
+$projects = $projects ?? [];
+$updates = $updates ?? [];
 
 ob_start();
 ?>
 
-<section class="client-hero">
+<section class="client-hero" data-client-projects-page>
     <div class="client-hero-copy">
         <span class="client-kicker">Client Portal • Creative Agency Hub</span>
         <h1>Theo dõi dự án của bạn trong một không gian riêng.</h1>
@@ -65,22 +37,36 @@ ob_start();
     <aside class="client-hero-panel">
         <div class="client-hero-panel-row">
             <span>Dự án đang mở</span>
-            <strong><?php echo count($projects); ?></strong>
+            <strong data-client-summary="open_projects">
+                <?php echo count($projects); ?>
+            </strong>
         </div>
 
         <div class="client-hero-panel-row">
             <span>Tiến độ trung bình</span>
-            <strong>68%</strong>
+            <strong data-client-summary="avg_progress">
+                <?php
+                if (!empty($projects)) {
+                    $totalProgress = array_sum(array_map(static function ($project) {
+                        return (int)($project['progress'] ?? 0);
+                    }, $projects));
+
+                    echo round($totalProgress / count($projects)) . '%';
+                } else {
+                    echo '--';
+                }
+                ?>
+            </strong>
         </div>
 
         <div class="client-hero-panel-row">
             <span>Phản hồi chờ xử lý</span>
-            <strong>02</strong>
+            <strong data-client-summary="pending_feedback">--</strong>
         </div>
 
         <div class="client-hero-panel-row">
             <span>Lần cập nhật gần nhất</span>
-            <strong>Hôm nay</strong>
+            <strong data-client-summary="last_update">--</strong>
         </div>
     </aside>
 </section>
@@ -108,73 +94,95 @@ ob_start();
                 <option value="in_progress">Đang triển khai</option>
                 <option value="review">Đang duyệt</option>
                 <option value="planned">Lên kế hoạch</option>
+                <option value="completed">Hoàn thành</option>
+                <option value="archived">Đã lưu trữ</option>
             </select>
         </div>
     </div>
 
-    <div class="client-project-grid">
-        <?php foreach ($projects as $project): ?>
-            <?php
-            $badgeTone = $project['status'] === 'in_progress'
-                ? 'primary'
-                : ($project['status'] === 'review' ? 'warning' : 'info');
-            ?>
-            <article
-                class="client-project-card"
-                data-client-project-card
-                data-status="<?php echo htmlspecialchars($project['status']); ?>"
-            >
-                <div class="client-project-card-header">
-                    <div class="client-project-card-title">
-                        <h2><?php echo htmlspecialchars($project['name']); ?></h2>
-                        <span class="badge badge-<?php echo htmlspecialchars($badgeTone); ?>">
-                            <?php echo htmlspecialchars($project['status_label']); ?>
-                        </span>
-                    </div>
+    <div class="client-project-grid" data-client-project-grid>
+        <?php if (!empty($projects)): ?>
+            <?php foreach ($projects as $project): ?>
+                <?php
+                $projectStatus = $project['status'] ?? 'in_progress';
+                $projectStatusLabel = $project['status_label'] ?? 'Đang triển khai';
 
-                    <p><?php echo htmlspecialchars($project['description']); ?></p>
-                </div>
+                $badgeTone = $projectStatus === 'in_progress'
+                    ? 'primary'
+                    : ($projectStatus === 'review'
+                        ? 'warning'
+                        : ($projectStatus === 'completed' ? 'success' : 'info'));
 
-                <div class="client-project-meta">
-                    <div class="progress-line">
-                        <div class="progress-line-fill" style="width: <?php echo (int) $project['progress']; ?>%;"></div>
-                    </div>
+                $projectId = $project['id'] ?? null;
+                $detailUrl = '/creative-agency-hub/app/View/client-portal/tasks.php';
 
-                    <div class="project-progress-meta">
-                        <span><?php echo (int) $project['progress']; ?>% hoàn thành</span>
-                        <span>Deadline: <?php echo htmlspecialchars($project['deadline']); ?></span>
-                    </div>
-
-                    <div class="client-project-stats">
-                        <div class="client-project-stat">
-                            <strong><?php echo (int) $project['tasks']; ?></strong>
-                            <span>Tasks</span>
+                if (!empty($projectId)) {
+                    $detailUrl .= '?project_id=' . urlencode((string)$projectId);
+                }
+                ?>
+                <article
+                    class="client-project-card"
+                    data-client-project-card
+                    data-status="<?php echo htmlspecialchars($projectStatus); ?>"
+                >
+                    <div class="client-project-card-header">
+                        <div class="client-project-card-title">
+                            <h2><?php echo htmlspecialchars($project['name'] ?? 'Dự án chưa đặt tên'); ?></h2>
+                            <span class="badge badge-<?php echo htmlspecialchars($badgeTone); ?>">
+                                <?php echo htmlspecialchars($projectStatusLabel); ?>
+                            </span>
                         </div>
 
-                        <div class="client-project-stat">
-                            <strong><?php echo (int) $project['done']; ?></strong>
-                            <span>Done</span>
-                        </div>
-
-                        <div class="client-project-stat">
-                            <strong><?php echo (int) $project['progress']; ?>%</strong>
-                            <span>Progress</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="client-project-footer">
-                    <div class="client-manager">
-                        <span class="client-manager-avatar"><?php echo htmlspecialchars($project['manager']); ?></span>
-                        <span><?php echo htmlspecialchars($project['manager_name']); ?></span>
+                        <p><?php echo htmlspecialchars($project['description'] ?? 'Chưa có mô tả dự án.'); ?></p>
                     </div>
 
-                    <a class="btn btn-primary" href="/creative-agency-hub/app/View/client-portal/tasks.php">
-                        Xem chi tiết
-                    </a>
-                </div>
+                    <div class="client-project-meta">
+                        <div class="progress-line">
+                            <div class="progress-line-fill" style="width: <?php echo (int)($project['progress'] ?? 0); ?>%;"></div>
+                        </div>
+
+                        <div class="project-progress-meta">
+                            <span><?php echo (int)($project['progress'] ?? 0); ?>% hoàn thành</span>
+                            <span>Deadline: <?php echo htmlspecialchars($project['deadline'] ?? 'Chưa cập nhật'); ?></span>
+                        </div>
+
+                        <div class="client-project-stats">
+                            <div class="client-project-stat">
+                                <strong><?php echo (int)($project['tasks'] ?? 0); ?></strong>
+                                <span>Tasks</span>
+                            </div>
+
+                            <div class="client-project-stat">
+                                <strong><?php echo (int)($project['done'] ?? 0); ?></strong>
+                                <span>Done</span>
+                            </div>
+
+                            <div class="client-project-stat">
+                                <strong><?php echo (int)($project['progress'] ?? 0); ?>%</strong>
+                                <span>Progress</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="client-project-footer">
+                        <div class="client-manager">
+                            <span class="client-manager-avatar">
+                                <?php echo htmlspecialchars($project['manager'] ?? 'CA'); ?>
+                            </span>
+                            <span><?php echo htmlspecialchars($project['manager_name'] ?? 'Chưa gán quản lý'); ?></span>
+                        </div>
+
+                        <a class="btn btn-primary" href="<?php echo htmlspecialchars($detailUrl); ?>">
+                            Xem chi tiết
+                        </a>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <article class="card" style="padding: 24px; text-align: center; grid-column: 1 / -1;" data-client-empty-projects>
+                Đang tải dữ liệu dự án được chia sẻ...
             </article>
-        <?php endforeach; ?>
+        <?php endif; ?>
     </div>
 </section>
 
@@ -189,30 +197,28 @@ ob_start();
     <div class="client-detail-layout">
         <article class="card">
             <div class="card-body">
-                <div class="client-milestone-list">
-                    <div class="client-milestone is-done">
-                        <div class="client-milestone-dot">✓</div>
-                        <div class="client-milestone-body">
-                            <h3>Hoàn thiện giao diện đăng nhập</h3>
-                            <p>Đã cập nhật UI login nội bộ và client portal theo theme Creative Agency Hub.</p>
+                <div class="client-milestone-list" data-client-updates-list>
+                    <?php if (!empty($updates)): ?>
+                        <?php foreach ($updates as $update): ?>
+                            <div class="client-milestone <?php echo !empty($update['is_done']) ? 'is-done' : ''; ?>">
+                                <div class="client-milestone-dot">
+                                    <?php echo !empty($update['is_done']) ? '✓' : '•'; ?>
+                                </div>
+                                <div class="client-milestone-body">
+                                    <h3><?php echo htmlspecialchars($update['title'] ?? 'Cập nhật dự án'); ?></h3>
+                                    <p><?php echo htmlspecialchars($update['description'] ?? 'Có cập nhật mới từ đội dự án.'); ?></p>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="client-milestone">
+                            <div class="client-milestone-dot">…</div>
+                            <div class="client-milestone-body">
+                                <h3>Đang tải cập nhật</h3>
+                                <p>Hệ thống đang lấy dữ liệu mới nhất từ các task thuộc dự án được chia sẻ.</p>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="client-milestone is-done">
-                        <div class="client-milestone-dot">✓</div>
-                        <div class="client-milestone-body">
-                            <h3>Hoàn thiện Dashboard nội bộ</h3>
-                            <p>Đội ngũ đã bổ sung dashboard tổng quan, HRM, task board và payroll screen.</p>
-                        </div>
-                    </div>
-
-                    <div class="client-milestone">
-                        <div class="client-milestone-dot">3</div>
-                        <div class="client-milestone-body">
-                            <h3>Đang kiểm tra responsive</h3>
-                            <p>Các màn hình sẽ được kiểm thử trên desktop, tablet và mobile.</p>
-                        </div>
-                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </article>

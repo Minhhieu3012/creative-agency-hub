@@ -45,6 +45,17 @@
         };
     };
 
+    const getLeaveTypeLabel = (value) => {
+        const map = {
+            annual: 'Nghỉ phép năm',
+            sick: 'Nghỉ ốm',
+            personal: 'Nghỉ việc cá nhân',
+            half_day: 'Nghỉ nửa ngày'
+        };
+
+        return map[value] || 'Nghỉ phép';
+    };
+
     const callApi = async (endpoint, method = 'GET', body = null) => {
         const token = getToken();
 
@@ -69,21 +80,21 @@
             options.body = JSON.stringify(body);
         }
 
-        const res = await fetch(url, options);
-        const contentType = res.headers.get('content-type') || '';
+        const response = await fetch(url, options);
+        const contentType = response.headers.get('content-type') || '';
 
         let payload;
 
         if (contentType.includes('application/json')) {
-            payload = await res.json();
+            payload = await response.json();
         } else {
             payload = {
-                status: res.ok ? 'success' : 'error',
-                message: await res.text()
+                status: response.ok ? 'success' : 'error',
+                message: await response.text()
             };
         }
 
-        if (!res.ok || payload.status === 'error') {
+        if (!response.ok || payload.status === 'error') {
             throw new Error(payload.message || 'Không thể xử lý yêu cầu.');
         }
 
@@ -125,6 +136,42 @@
         document.querySelectorAll("[data-approval-panel]").forEach((panel) => {
             panel.classList.toggle("is-active", panel.dataset.approvalPanel === target);
         });
+    }
+
+    function calculateInclusiveDays(startDate, endDate) {
+        if (!startDate || !endDate) return '';
+
+        const start = new Date(`${startDate}T00:00:00`);
+        const end = new Date(`${endDate}T00:00:00`);
+
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return '';
+
+        const days = Math.floor((end - start) / 86400000) + 1;
+
+        return days > 0 ? days : '';
+    }
+
+    function syncLeaveDuration(form) {
+        const startInput = form.querySelector('[name="start_date"]');
+        const endInput = form.querySelector('[name="end_date"]');
+        const durationInput = form.querySelector('[name="duration"]');
+
+        if (!startInput || !endInput || !durationInput) return;
+
+        const days = calculateInclusiveDays(startInput.value, endInput.value);
+
+        if (days !== '') {
+            durationInput.value = days;
+        }
+    }
+
+    function getCleanReason(reason) {
+        return String(reason || '').replace(/^\[[^\]]+\]\s*/u, '');
+    }
+
+    function getReasonLeaveType(reason, fallback) {
+        const match = String(reason || '').match(/^\[([^\]]+)\]\s*/u);
+        return match ? match[1] : (fallback || 'Nghỉ phép');
     }
 
     async function loadAttendanceData() {
@@ -196,19 +243,34 @@
                     balanceEl.innerText = res.data.balance;
                 }
 
-                historyWrap.innerHTML = res.data.history.length === 0
+                const summaryEl = document.getElementById('js-leave-summary');
+
+                if (summaryEl) {
+                    summaryEl.innerText = 'Dữ liệu quỹ phép được đồng bộ từ hồ sơ nhân viên.';
+                }
+
+                const history = Array.isArray(res.data.history) ? res.data.history : [];
+
+                historyWrap.innerHTML = history.length === 0
                     ? '<p style="text-align:center; padding:20px;">Bạn chưa có đơn nào.</p>'
-                    : res.data.history.map((item) => `
-                        <div class="leave-history-item">
-                            <div>
-                                <h3>${item.leave_type === 'annual' ? 'Nghỉ phép năm' : 'Việc riêng'}</h3>
-                                <p>${escapeHtml(item.start_date)} (${escapeHtml(item.duration)} ngày)</p>
+                    : history.map((item) => {
+                        const leaveTitle = getReasonLeaveType(item.reason, item.leave_type);
+                        const reason = getCleanReason(item.reason);
+                        const duration = item.duration || calculateInclusiveDays(item.start_date, item.end_date) || 0;
+
+                        return `
+                            <div class="leave-history-item">
+                                <div>
+                                    <h3>${escapeHtml(leaveTitle)}</h3>
+                                    <p>${escapeHtml(item.start_date)} → ${escapeHtml(item.end_date)} (${escapeHtml(duration)} ngày)</p>
+                                    <small>${escapeHtml(reason || 'Không có lý do')}</small>
+                                </div>
+                                <span class="badge badge-${item.status === 'Approved' ? 'success' : item.status === 'Rejected' ? 'danger' : 'warning'}">
+                                    ${escapeHtml(item.status)}
+                                </span>
                             </div>
-                            <span class="badge badge-${item.status === 'Approved' ? 'success' : 'warning'}">
-                                ${escapeHtml(item.status)}
-                            </span>
-                        </div>
-                    `).join('');
+                        `;
+                    }).join('');
             }
         } catch (e) {
             console.error("Lỗi tải đơn cá nhân:", e);
@@ -228,7 +290,7 @@
                 const resLeaves = await callApi('/admin/leaves');
 
                 if (resLeaves.status === 'success') {
-                    const leaves = resLeaves.data || [];
+                    const leaves = Array.isArray(resLeaves.data) ? resLeaves.data : [];
                     const countEl = document.getElementById('js-count-leaves');
 
                     if (countEl) {
@@ -240,6 +302,9 @@
                         : leaves.map((item) => {
                             const leaveId = item.id || item.leave_id;
                             const employeeName = item.employee_name || 'Nhân viên';
+                            const leaveTitle = getReasonLeaveType(item.reason, item.leave_type);
+                            const reason = getCleanReason(item.reason);
+                            const duration = item.duration || calculateInclusiveDays(item.start_date, item.end_date) || 0;
 
                             return `
                                 <article class="approval-card" data-approval-card="leave" data-approval-id="${escapeHtml(leaveId)}">
@@ -247,11 +312,11 @@
 
                                     <div class="approval-content">
                                         <h3>Đơn nghỉ phép: ${escapeHtml(employeeName)}</h3>
-                                        <p>${escapeHtml(item.reason || 'Không có lý do')}</p>
+                                        <p>${escapeHtml(reason || 'Không có lý do')}</p>
 
                                         <div class="approval-meta">
-                                            <span class="badge badge-primary">${escapeHtml(item.leave_type || 'Nghỉ phép')}</span>
-                                            <span class="badge badge-info">${escapeHtml(item.duration || 0)} ngày</span>
+                                            <span class="badge badge-primary">${escapeHtml(leaveTitle)}</span>
+                                            <span class="badge badge-info">${escapeHtml(duration)} ngày</span>
                                             <span class="badge badge-success">Từ: ${escapeHtml(item.start_date || 'N/A')}</span>
                                         </div>
                                     </div>
@@ -366,6 +431,7 @@
                 }
 
                 await window.loadManagerApprovals();
+                await loadPersonalLeaveData();
             } else {
                 if (window.CAHToast) {
                     CAHToast.error("Thất bại", res.message);
@@ -396,6 +462,14 @@
     document.addEventListener("DOMContentLoaded", () => {
         updateClock();
         setInterval(updateClock, 1000);
+
+        document.querySelectorAll('[data-leave-form]').forEach((form) => {
+            const startInput = form.querySelector('[name="start_date"]');
+            const endInput = form.querySelector('[name="end_date"]');
+
+            startInput?.addEventListener('change', () => syncLeaveDuration(form));
+            endInput?.addEventListener('change', () => syncLeaveDuration(form));
+        });
 
         loadAttendanceData();
         loadPersonalLeaveData();
@@ -463,7 +537,22 @@
         }
 
         try {
-            const res = await callApi('/leaves', 'POST', Object.fromEntries(new FormData(form).entries()));
+            syncLeaveDuration(form);
+
+            const formData = new FormData(form);
+            const payload = {
+                leave_type: formData.get('leave_type') || 'annual',
+                duration: formData.get('duration') || '',
+                start_date: formData.get('start_date') || '',
+                end_date: formData.get('end_date') || '',
+                reason: formData.get('reason') || ''
+            };
+
+            /*
+             * Hiện chưa gửi file attachment vì API /api/leaves đang nhận JSON.
+             * File upload cần endpoint riêng hoặc bảng lưu attachment riêng để production-ready.
+             */
+            const res = await callApi('/leaves', 'POST', payload);
 
             if (res.status === 'success') {
                 if (window.CAHToast) {
