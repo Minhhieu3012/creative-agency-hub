@@ -42,6 +42,10 @@ return [
     ['PUT',    '/api/projects/:id',    'ProjectController@update', ['admin','manager']],
     ['DELETE', '/api/projects/:id',    'ProjectController@delete', ['admin', 'manager']],
 
+    // CLIENT PORTAL PROJECTS
+    ['GET',    '/api/client/projects',     'ProjectController@clientIndex', ['client']],
+    ['GET',    '/api/client/projects/:id', 'ProjectController@clientShow',  ['client']],
+
     // TASK
     ['GET',    '/api/tasks',            'Task\\TaskController@index',        ['admin', 'manager', 'employee', 'client']],
     ['POST',   '/api/tasks',            'Task\\TaskController@store',        ['admin', 'manager', 'employee']],

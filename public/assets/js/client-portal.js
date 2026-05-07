@@ -526,6 +526,21 @@
     });
 
     document.addEventListener("click", function (event) {
+        const logoutButton = event.target.closest("[data-client-logout]");
+
+        if (logoutButton) {
+            event.preventDefault();
+
+            localStorage.removeItem("cah_token");
+            localStorage.removeItem("cah_auth_token");
+            localStorage.removeItem("cah_user");
+            localStorage.removeItem("cah_auth_user");
+            localStorage.removeItem("cah_user_role");
+
+            window.location.href = "/creative-agency-hub/app/View/client-portal/login-client.php";
+            return;
+        }
+
         const button = event.target.closest("[data-client-action]");
         if (!button) return;
 
