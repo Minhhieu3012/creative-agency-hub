@@ -30,6 +30,12 @@ return [
     ['POST',   '/api/employees/:id/adjust-leave', 'HRM\\EmployeeController@adjustLeave',  ['admin', 'manager']],
     ['POST',   '/api/employees/:id/avatar',       'HRM\\EmployeeController@uploadAvatar', ['admin', 'manager', 'employee']],
 
+    // EMPLOYEE DOCUMENTS (HỒ SƠ ĐIỆN TỬ)
+    ['GET',    '/api/employees/:id/documents',        'HRM\\EmployeeController@documents',        ['admin', 'manager', 'employee']],
+    ['POST',   '/api/employees/:id/documents',        'HRM\\EmployeeController@uploadDocument',   ['admin', 'manager', 'employee']],
+    ['GET',    '/api/employee-documents/:id/download','HRM\\EmployeeController@downloadDocument', ['admin', 'manager', 'employee']],
+    ['DELETE', '/api/employee-documents/:id',         'HRM\\EmployeeController@deleteDocument',   ['admin', 'manager', 'employee']],
+
     // PROJECT (QUẢN LÝ DỰ ÁN)
     ['GET',    '/api/projects',        'ProjectController@index',  ['admin','manager']],
     ['GET',    '/api/projects/:id',    'ProjectController@show',   ['admin','manager']],
