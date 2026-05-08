@@ -210,6 +210,58 @@ require __DIR__ . '/../components/page-header.php';
         </div>
     </article>
 
+    <article class="card" data-project-member-card style="display:none;">
+        <div class="card-header dashboard-card-title-row">
+            <div>
+                <h2>Nhân sự theo Project</h2>
+                <p>Manager thêm hoặc gỡ Employee khỏi từng project. Nhân sự được thêm vào đây mới xuất hiện trong dropdown giao task của project đó.</p>
+            </div>
+
+            <button class="btn btn-soft" type="button" data-refresh-project-members>
+                ⟳ Tải lại nhân sự project
+            </button>
+        </div>
+
+        <div class="card-body">
+            <div class="task-filter-bar" style="margin-bottom: 18px;">
+                <select class="form-select" data-project-member-project-select>
+                    <option value="">Đang tải project...</option>
+                </select>
+
+                <select class="form-select" data-project-member-employee-select>
+                    <option value="">Đang tải Employee...</option>
+                </select>
+
+                <button class="btn btn-primary" type="button" data-add-project-member>
+                    ＋ Thêm vào project
+                </button>
+            </div>
+
+            <div data-project-member-summary style="margin-bottom: 16px; color: var(--text-muted);">
+                Chọn project để xem danh sách nhân sự đang tham gia.
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Nhân sự</th>
+                            <th>Phòng ban</th>
+                            <th>Chức vụ</th>
+                            <th>Ngày tham gia</th>
+                            <th style="text-align:right;">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody data-project-member-table-body>
+                        <tr>
+                            <td colspan="5">Chưa chọn project.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </article>
+
     <article class="card">
         <div class="card-header dashboard-card-title-row">
             <div>
@@ -291,6 +343,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const applyFilterButton = document.querySelector('[data-apply-account-filter]');
     const listDescription = document.querySelector('[data-list-description]');
 
+    const projectMemberCard = document.querySelector('[data-project-member-card]');
+    const projectMemberProjectSelect = document.querySelector('[data-project-member-project-select]');
+    const projectMemberEmployeeSelect = document.querySelector('[data-project-member-employee-select]');
+    const projectMemberTableBody = document.querySelector('[data-project-member-table-body]');
+    const projectMemberSummary = document.querySelector('[data-project-member-summary]');
+    const refreshProjectMembersButton = document.querySelector('[data-refresh-project-members]');
+    const addProjectMemberButton = document.querySelector('[data-add-project-member]');
+
     const departmentSelect = document.querySelector('#account_department');
     const positionSelect = document.querySelector('#account_position');
 
@@ -302,6 +362,11 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentUser = null;
     let accounts = [];
     let pendingAccounts = [];
+    let projectOptions = {
+        projects: [],
+        employees: []
+    };
+    let selectedProjectMembers = [];
 
     function getToken() {
         return localStorage.getItem('cah_auth_token') || localStorage.getItem('cah_token') || '';
@@ -348,10 +413,16 @@ document.addEventListener('DOMContentLoaded', function () {
             headers
         });
 
-        const payload = await response.json().catch(() => ({
-            status: 'error',
-            message: 'Server không trả JSON hợp lệ.'
-        }));
+        const text = await response.text();
+
+        let payload;
+
+        try {
+            payload = JSON.parse(text);
+        } catch (error) {
+            console.error('API không trả JSON:', path, text);
+            throw new Error('Server không trả JSON hợp lệ.');
+        }
 
         if (!response.ok || payload.status === 'error') {
             throw new Error(payload.message || 'Yêu cầu không thành công.');
@@ -455,6 +526,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (role === 'manager') {
             createButton.style.display = 'inline-flex';
+            projectMemberCard.style.display = 'block';
             listDescription.textContent = 'Manager xem các tài khoản mình tạo/quản lý. Tài khoản mới sẽ chờ Admin duyệt.';
         }
 
@@ -481,6 +553,316 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             departmentSelect.innerHTML = '<option value="">Tự chọn mặc định</option>';
             positionSelect.innerHTML = '<option value="">Tự chọn mặc định</option>';
+        }
+    }
+
+    function isManager() {
+        return String(currentUser?.role || '').toLowerCase() === 'manager';
+    }
+
+    function getProjectId(project) {
+        return Number(project?.id || project?.project_id || 0);
+    }
+
+    function getEmployeeId(employee) {
+        return Number(employee?.id || employee?.employee_id || 0);
+    }
+
+    function projectOptionHtml(projects, selectedId = '') {
+        if (!Array.isArray(projects) || projects.length === 0) {
+            return '<option value="">Chưa có project để quản lý</option>';
+        }
+
+        return '<option value="">Chọn project</option>' + projects.map(function (project) {
+            const id = getProjectId(project);
+            const selected = Number(id) === Number(selectedId) ? 'selected' : '';
+            const label = project.name || project.project_name || ('Project #' + id);
+
+            return `<option value="${escapeHtml(id)}" ${selected}>${escapeHtml(label)}</option>`;
+        }).join('');
+    }
+
+    function employeeOptionHtml(employees, selectedId = '', members = []) {
+        const memberIds = new Set((Array.isArray(members) ? members : []).map(function (member) {
+            return getEmployeeId(member);
+        }));
+
+        const availableEmployees = (Array.isArray(employees) ? employees : []).filter(function (employee) {
+            const id = getEmployeeId(employee);
+            return id > 0 && !memberIds.has(id);
+        });
+
+        if (availableEmployees.length === 0) {
+            return '<option value="">Không còn Employee active để thêm</option>';
+        }
+
+        return '<option value="">Chọn Employee active để thêm</option>' + availableEmployees.map(function (employee) {
+            const id = getEmployeeId(employee);
+            const selected = Number(id) === Number(selectedId) ? 'selected' : '';
+            const labelParts = [
+                employee.full_name || employee.name || ('Employee #' + id),
+                employee.email || '',
+                employee.department_name || '',
+            ].filter(Boolean);
+
+            return `<option value="${escapeHtml(id)}" ${selected}>${escapeHtml(labelParts.join(' • '))}</option>`;
+        }).join('');
+    }
+
+    function extractProjectsFromPayload(payload) {
+        const data = payload?.data || {};
+
+        if (Array.isArray(data.projects)) {
+            return data.projects;
+        }
+
+        if (Array.isArray(data.data?.projects)) {
+            return data.data.projects;
+        }
+
+        if (Array.isArray(data)) {
+            return data;
+        }
+
+        return [];
+    }
+
+    function extractEmployeesFromPayload(payload) {
+        const data = payload?.data || {};
+
+        if (Array.isArray(data.employees)) {
+            return data.employees;
+        }
+
+        if (Array.isArray(data.assignees)) {
+            return data.assignees;
+        }
+
+        if (Array.isArray(data.data?.employees)) {
+            return data.data.employees;
+        }
+
+        if (Array.isArray(data.data?.assignees)) {
+            return data.data.assignees;
+        }
+
+        return [];
+    }
+
+    function renderProjectMemberOptions() {
+        if (!projectMemberProjectSelect || !projectMemberEmployeeSelect) {
+            return;
+        }
+
+        const selectedProjectId = projectMemberProjectSelect.value || '';
+
+        projectMemberProjectSelect.innerHTML = projectOptionHtml(projectOptions.projects, selectedProjectId);
+        projectMemberEmployeeSelect.innerHTML = employeeOptionHtml(projectOptions.employees, '', selectedProjectMembers);
+    }
+
+    async function loadProjectOptions() {
+        if (!isManager() || !projectMemberCard) {
+            return;
+        }
+
+        projectMemberSummary.textContent = 'Đang tải project và danh sách Employee...';
+
+        try {
+            const optionsPayload = await apiRequest('/api/tasks/options');
+
+            projectOptions.projects = extractProjectsFromPayload(optionsPayload);
+            projectOptions.employees = extractEmployeesFromPayload(optionsPayload);
+
+            renderProjectMemberOptions();
+
+            if (projectOptions.projects.length === 0) {
+                projectMemberSummary.textContent = 'Chưa có project nào trong phạm vi quản lý của Manager hiện tại.';
+                projectMemberTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5">Chưa có project để thêm nhân sự.</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            if (!projectMemberProjectSelect.value) {
+                projectMemberProjectSelect.value = String(getProjectId(projectOptions.projects[0]));
+            }
+
+            await loadProjectMembers(projectMemberProjectSelect.value);
+        } catch (error) {
+            projectMemberSummary.textContent = 'Không thể tải project/employees: ' + error.message;
+            projectMemberTableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="color: var(--danger);">
+                        Không thể tải dữ liệu project: ${escapeHtml(error.message)}
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    async function loadProjectMembers(projectId = null) {
+        if (!isManager() || !projectMemberCard) {
+            return;
+        }
+
+        const selectedProjectId = projectId || projectMemberProjectSelect.value;
+
+        if (!selectedProjectId) {
+            selectedProjectMembers = [];
+            projectMemberSummary.textContent = 'Chọn project để xem danh sách nhân sự đang tham gia.';
+            projectMemberTableBody.innerHTML = `
+                <tr>
+                    <td colspan="5">Chưa chọn project.</td>
+                </tr>
+            `;
+            renderProjectMemberOptions();
+            return;
+        }
+
+        projectMemberTableBody.innerHTML = `
+            <tr>
+                <td colspan="5">Đang tải nhân sự project...</td>
+            </tr>
+        `;
+
+        try {
+            const payload = await apiRequest('/api/projects/' + encodeURIComponent(selectedProjectId) + '/members');
+            const data = payload.data || {};
+
+            if (Array.isArray(data)) {
+                selectedProjectMembers = data;
+            } else if (Array.isArray(data.members)) {
+                selectedProjectMembers = data.members;
+            } else if (Array.isArray(data.data)) {
+                selectedProjectMembers = data.data;
+            } else {
+                selectedProjectMembers = [];
+            }
+
+            renderProjectMembers();
+            renderProjectMemberOptions();
+        } catch (error) {
+            projectMemberTableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="color: var(--danger);">
+                        Không thể tải nhân sự project: ${escapeHtml(error.message)}
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    function renderProjectMembers() {
+        const selectedProjectId = projectMemberProjectSelect.value;
+        const selectedProject = projectOptions.projects.find(function (project) {
+            return getProjectId(project) === Number(selectedProjectId);
+        });
+
+        if (!selectedProjectId) {
+            projectMemberSummary.textContent = 'Chọn project để xem danh sách nhân sự đang tham gia.';
+        } else {
+            projectMemberSummary.textContent = `${selectedProjectMembers.length} nhân sự đang tham gia project "${selectedProject?.name || selectedProject?.project_name || ('#' + selectedProjectId)}".`;
+        }
+
+        if (selectedProjectMembers.length === 0) {
+            projectMemberTableBody.innerHTML = `
+                <tr>
+                    <td colspan="5">Project này chưa có Employee nào. Hãy thêm nhân sự trước khi giao task.</td>
+                </tr>
+            `;
+            return;
+        }
+
+        projectMemberTableBody.innerHTML = selectedProjectMembers.map(function (member) {
+            const memberId = getEmployeeId(member);
+
+            return `
+                <tr data-project-member-id="${escapeHtml(memberId)}">
+                    <td>${accountIdentityHtml(member)}</td>
+                    <td>${escapeHtml(member.department_name || 'Chưa cập nhật')}</td>
+                    <td>${escapeHtml(member.position_name || 'Chưa cập nhật')}</td>
+                    <td>${escapeHtml(formatDate(member.joined_at || member.created_at))}</td>
+                    <td style="text-align:right;">
+                        <button
+                            class="btn btn-light btn-sm"
+                            type="button"
+                            data-remove-project-member="${escapeHtml(memberId)}"
+                        >
+                            Gỡ khỏi project
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function addProjectMember() {
+        const projectId = projectMemberProjectSelect.value;
+        const employeeId = projectMemberEmployeeSelect.value;
+
+        if (!projectId) {
+            toast('error', 'Chưa chọn project', 'Vui lòng chọn project cần cập nhật nhân sự.');
+            return;
+        }
+
+        if (!employeeId) {
+            toast('error', 'Chưa chọn nhân sự', 'Vui lòng chọn Employee active để thêm vào project.');
+            return;
+        }
+
+        addProjectMemberButton.disabled = true;
+        addProjectMemberButton.textContent = 'Đang thêm...';
+
+        try {
+            await apiRequest('/api/projects/' + encodeURIComponent(projectId) + '/members', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    employee_id: Number(employeeId)
+                })
+            });
+
+            toast('success', 'Đã thêm nhân sự', 'Employee đã được thêm vào project. Dropdown giao task sẽ nhận nhân sự này.');
+            await loadProjectMembers(projectId);
+        } catch (error) {
+            toast('error', 'Không thể thêm nhân sự', error.message);
+        } finally {
+            addProjectMemberButton.disabled = false;
+            addProjectMemberButton.textContent = '＋ Thêm vào project';
+        }
+    }
+
+    async function removeProjectMember(employeeId) {
+        const projectId = projectMemberProjectSelect.value;
+
+        if (!projectId || !employeeId) {
+            toast('error', 'Thiếu dữ liệu', 'Không xác định được project hoặc employee cần gỡ.');
+            return;
+        }
+
+        const member = selectedProjectMembers.find(function (item) {
+            return getEmployeeId(item) === Number(employeeId);
+        });
+
+        const ok = window.confirm(`Gỡ ${member?.full_name || 'nhân sự này'} khỏi project?`);
+
+        if (!ok) {
+            return;
+        }
+
+        try {
+            await apiRequest('/api/projects/' + encodeURIComponent(projectId) + '/members/' + encodeURIComponent(employeeId), {
+                method: 'DELETE'
+            });
+
+            toast('success', 'Đã gỡ nhân sự', 'Employee đã được gỡ khỏi project.');
+            await loadProjectMembers(projectId);
+        } catch (error) {
+            toast('error', 'Không thể gỡ nhân sự', error.message);
         }
     }
 
@@ -704,6 +1086,7 @@ document.addEventListener('DOMContentLoaded', function () {
             toggleCreatePanel(false);
 
             await loadAccounts();
+            await loadProjectOptions();
         } catch (error) {
             toast('error', 'Không thể tạo tài khoản', error.message);
         }
@@ -750,6 +1133,7 @@ document.addEventListener('DOMContentLoaded', function () {
     refreshButton.addEventListener('click', async function () {
         await loadAccounts();
         await loadPendingAccounts();
+        await loadProjectOptions();
     });
 
     refreshPendingButton.addEventListener('click', loadPendingAccounts);
@@ -773,9 +1157,33 @@ document.addEventListener('DOMContentLoaded', function () {
     roleFilter.addEventListener('change', loadAccounts);
     statusFilter.addEventListener('change', loadAccounts);
 
+    if (projectMemberProjectSelect) {
+        projectMemberProjectSelect.addEventListener('change', function () {
+            loadProjectMembers(projectMemberProjectSelect.value);
+        });
+    }
+
+    if (refreshProjectMembersButton) {
+        refreshProjectMembersButton.addEventListener('click', async function () {
+            await loadProjectOptions();
+            if (projectMemberProjectSelect.value) {
+                await loadProjectMembers(projectMemberProjectSelect.value);
+            }
+        });
+    }
+
+    if (addProjectMemberButton) {
+        addProjectMemberButton.addEventListener('click', addProjectMember);
+    }
+
     document.addEventListener('click', function (event) {
         const approveButton = event.target.closest('[data-approve-account]');
         const rejectButton = event.target.closest('[data-reject-account]');
+        const removeProjectMemberButton = event.target.closest('[data-remove-project-member]');
+
+        if (removeProjectMemberButton) {
+            removeProjectMember(removeProjectMemberButton.getAttribute('data-remove-project-member'));
+        }
 
         if (approveButton) {
             approveAccount(approveButton.getAttribute('data-approve-account'));
@@ -792,6 +1200,7 @@ document.addEventListener('DOMContentLoaded', function () {
             await loadOrganizationOptions();
             await loadAccounts();
             await loadPendingAccounts();
+            await loadProjectOptions();
         } catch (error) {
             toast('error', 'Không thể tải trang nhân sự', error.message);
         }

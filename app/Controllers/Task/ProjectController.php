@@ -1,7 +1,5 @@
- 
 <?php
 namespace App\Controllers\Task;
-
 use Core\Database;
 use Core\JwtHandler;
 use PDO;
