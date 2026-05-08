@@ -11,7 +11,7 @@ ob_start();
 
 <?php
 $pageHeading = 'Quản lý Dự án';
-$pageSubtitle = 'Theo dõi tiến độ, phân bổ nhân sự và kiểm soát trạng thái các dự án đang vận hành.';
+$pageSubtitle = 'Manager tạo project, gán client đã duyệt và kéo employee active vào nhóm triển khai.';
 $pageAction = '
     <button class="btn btn-primary" type="button" data-project-create style="display:none;">＋ Tạo Project</button>
     <a class="btn btn-light" href="/creative-agency-hub/app/View/tasks/gantt.php">▥ Gantt Chart</a>
@@ -27,7 +27,7 @@ require __DIR__ . '/../components/page-header.php';
             <div class="stat-card-body">
                 <span>Tổng dự án</span>
                 <strong id="js-stat-total-projects">0</strong>
-                <small>Đang theo dõi</small>
+                <small>Trong phạm vi quyền xem</small>
             </div>
         </article>
 
@@ -36,7 +36,7 @@ require __DIR__ . '/../components/page-header.php';
             <div class="stat-card-body">
                 <span>Task đang mở</span>
                 <strong id="js-stat-open-tasks">0</strong>
-                <small>Tổng cộng</small>
+                <small>Chưa hoàn thành</small>
             </div>
         </article>
 
@@ -45,7 +45,7 @@ require __DIR__ . '/../components/page-header.php';
             <div class="stat-card-body">
                 <span>Tiến độ TB</span>
                 <strong><span id="js-stat-avg-progress">0</span>%</strong>
-                <small>Toàn hệ thống</small>
+                <small>Theo task done</small>
             </div>
         </article>
 
@@ -54,7 +54,7 @@ require __DIR__ . '/../components/page-header.php';
             <div class="stat-card-body">
                 <span>Rủi ro deadline</span>
                 <strong id="js-stat-risk-deadlines">0</strong>
-                <small>Cần xử lý</small>
+                <small>Cần theo dõi</small>
             </div>
         </article>
     </div>
@@ -62,7 +62,7 @@ require __DIR__ . '/../components/page-header.php';
     <div class="task-filter-bar">
         <div class="input-with-icon">
             <span class="input-icon">⌕</span>
-            <input id="js-search-input" class="form-control" type="search" placeholder="Tìm kiếm dự án...">
+            <input id="js-search-input" class="form-control" type="search" placeholder="Tìm kiếm dự án, client, manager...">
         </div>
 
         <select id="js-status-filter" class="form-select">
@@ -92,6 +92,8 @@ require __DIR__ . '/../components/page-header.php';
 document.addEventListener('DOMContentLoaded', function () {
     const baseUrl = '/creative-agency-hub';
     const apiRoot = window.CAH_CONFIG?.apiRoot || `${baseUrl}/public`;
+    const viewUrl = `${baseUrl}/app/View`;
+
     const projectGrid = document.getElementById('js-project-grid');
     const createProjectButton = document.querySelector('[data-project-create]');
     const searchInput = document.getElementById('js-search-input');
@@ -164,6 +166,10 @@ document.addEventListener('DOMContentLoaded', function () {
         return String(currentUser?.role || window.CAH_CURRENT_USER?.role || '').toLowerCase();
     }
 
+    function isManager() {
+        return roleOfCurrentUser() === 'manager';
+    }
+
     async function loadCurrentUser() {
         try {
             const payload = await apiRequest('/api/auth/me');
@@ -172,10 +178,8 @@ document.addEventListener('DOMContentLoaded', function () {
             currentUser = window.CAH_CURRENT_USER || currentUser;
         }
 
-        const role = roleOfCurrentUser();
-
         if (createProjectButton) {
-            createProjectButton.style.display = role === 'manager' ? 'inline-flex' : 'none';
+            createProjectButton.style.display = isManager() ? 'inline-flex' : 'none';
         }
     }
 
@@ -244,12 +248,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function hydrateProjectDetails(projects) {
-        const role = roleOfCurrentUser();
-
-        if (!['admin', 'manager', 'employee', 'client'].includes(role)) {
-            return projects.map(normalizeProject);
-        }
-
         const detailPromises = projects.map(async function (project) {
             if (!project.id) {
                 return normalizeProject(project);
@@ -324,6 +322,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? `<span>+${extraMembers}</span>`
                 : '';
 
+            const managerAction = isManager()
+                ? `<button class="btn btn-light" type="button" data-project-edit="${project.id}">Sửa</button>`
+                : '';
+
             return `
                 <article class="project-card" data-project-id="${project.id}">
                     <div class="project-card-head">
@@ -373,9 +375,12 @@ document.addEventListener('DOMContentLoaded', function () {
                             ${extraHtml}
                         </div>
 
-                        <a href="/creative-agency-hub/app/View/tasks/kanban.php?project_id=${project.id || ''}" class="btn btn-light">
-                            Xem bảng
-                        </a>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+                            ${managerAction}
+                            <a href="/creative-agency-hub/app/View/tasks/kanban.php?project_id=${project.id || ''}" class="btn btn-primary">
+                                Xem bảng
+                            </a>
+                        </div>
                     </div>
                 </article>
             `;
@@ -503,26 +508,33 @@ document.addEventListener('DOMContentLoaded', function () {
         return projectOptions;
     }
 
-    function buildClientOptions(clients) {
+    function buildClientOptions(clients, selectedId = null) {
         if (!Array.isArray(clients) || clients.length === 0) {
-            return '<option value="">Chưa có client khả dụng</option>';
+            return '<option value="">Chưa có client active đã duyệt</option>';
         }
 
         return [
-            '<option value="">Chọn client</option>',
+            '<option value="">Chọn client active</option>',
             ...clients.map(function (client) {
-                return `<option value="${client.id}">${escapeHtml(client.full_name || client.email || ('Client #' + client.id))}</option>`;
+                const selected = Number(selectedId || 0) === Number(client.id) ? 'selected' : '';
+                const label = client.full_name || client.email || ('Client #' + client.id);
+
+                return `<option value="${client.id}" ${selected}>${escapeHtml(label)} • active</option>`;
             })
         ].join('');
     }
 
-    function buildEmployeeCheckboxes(employees) {
+    function buildEmployeeCheckboxes(employees, selectedIds = []) {
+        const selectedSet = new Set((selectedIds || []).map(function (id) {
+            return Number(id);
+        }));
+
         if (!Array.isArray(employees) || employees.length === 0) {
             return `
                 <div class="ui-empty-state" style="min-height: 120px;">
                     <div class="ui-empty-content">
-                        <h3>Chưa có employee khả dụng</h3>
-                        <p>Hãy tạo nhân sự employee trước khi kéo vào project.</p>
+                        <h3>Chưa có employee active</h3>
+                        <p>Manager cần tạo employee, sau đó Admin duyệt active trước khi kéo vào project.</p>
                     </div>
                 </div>
             `;
@@ -531,103 +543,189 @@ document.addEventListener('DOMContentLoaded', function () {
         return employees.map(function (employee) {
             const label = employee.full_name || employee.email || ('Employee #' + employee.id);
             const sub = [employee.department_name, employee.position_name].filter(Boolean).join(' • ');
+            const checked = selectedSet.has(Number(employee.id)) ? 'checked' : '';
 
             return `
                 <label class="checkbox-line" style="align-items:flex-start; margin-bottom: 10px;">
-                    <input type="checkbox" name="member_ids" value="${employee.id}">
+                    <input type="checkbox" name="member_ids" value="${employee.id}" ${checked}>
                     <span>
                         <strong>${escapeHtml(label)}</strong>
-                        ${sub ? `<small style="display:block; color: var(--text-muted); margin-top: 4px;">${escapeHtml(sub)}</small>` : ''}
+                        <small style="display:block; color: var(--text-muted); margin-top: 4px;">
+                            ${escapeHtml(sub || 'Employee active đã Admin duyệt')}
+                        </small>
                     </span>
                 </label>
             `;
         }).join('');
     }
 
-    async function openCreateProjectModal() {
-        const role = roleOfCurrentUser();
+    function modalOpen(title, body) {
+        if (window.CAHModal && typeof CAHModal.open === 'function') {
+            CAHModal.open({ title, body });
+            return true;
+        }
 
-        if (role !== 'manager') {
+        const fallback = document.createElement('div');
+        fallback.className = 'modal-backdrop is-visible';
+        fallback.setAttribute('data-fallback-project-modal', '');
+        fallback.innerHTML = `
+            <div class="modal-panel" style="max-width: 780px;">
+                <div class="modal-header">
+                    <h2>${escapeHtml(title)}</h2>
+                    <button class="modal-close" type="button" data-modal-close>×</button>
+                </div>
+                <div class="modal-body">${body}</div>
+            </div>
+        `;
+
+        document.body.appendChild(fallback);
+        return true;
+    }
+
+    function modalClose() {
+        if (window.CAHModal && typeof CAHModal.close === 'function') {
+            CAHModal.close();
+        }
+
+        document.querySelectorAll('[data-fallback-project-modal]').forEach(function (modal) {
+            modal.remove();
+        });
+    }
+
+    function buildProjectForm(options, project = null) {
+        const clients = Array.isArray(options.clients) ? options.clients : [];
+        const employees = Array.isArray(options.employees) ? options.employees : [];
+        const members = Array.isArray(project?.members) ? project.members : [];
+        const selectedMemberIds = members.map(function (member) {
+            return Number(member.id);
+        });
+
+        const hasClient = clients.length > 0;
+        const hasEmployee = employees.length > 0;
+
+        const warning = (!hasClient || !hasEmployee)
+            ? `
+                <div class="form-alert form-alert-danger" style="margin-bottom:16px;">
+                    ${!hasClient ? '<div>Chưa có Client active. Manager cần tạo Client và Admin duyệt trước.</div>' : ''}
+                    ${!hasEmployee ? '<div>Chưa có Employee active. Manager cần tạo Employee và Admin duyệt trước.</div>' : ''}
+                </div>
+            `
+            : `
+                <div class="form-alert form-alert-success" style="margin-bottom:16px;">
+                    Chỉ các tài khoản đã được Admin duyệt active mới xuất hiện trong form này.
+                </div>
+            `;
+
+        return `
+            <form data-project-form data-project-id="${project?.id || ''}">
+                ${warning}
+
+                <div class="form-group">
+                    <label class="form-label" for="project-name">Tên project</label>
+                    <input
+                        id="project-name"
+                        class="form-control"
+                        type="text"
+                        name="name"
+                        placeholder="VD: Thiết kế Web Vinamilk"
+                        value="${escapeHtml(project?.name || '')}"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="project-description">Mô tả</label>
+                    <textarea
+                        id="project-description"
+                        class="form-textarea"
+                        name="description"
+                        rows="4"
+                        placeholder="Mô tả ngắn về mục tiêu dự án"
+                    >${escapeHtml(project?.description || '')}</textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="project-client">Client active</label>
+                        <select id="project-client" class="form-select" name="client_id" ${!hasClient ? 'disabled' : ''}>
+                            ${buildClientOptions(clients, project?.client_id || null)}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="project-status">Trạng thái</label>
+                        <select id="project-status" class="form-select" name="status">
+                            <option value="Active" ${project?.status === 'Active' ? 'selected' : ''}>Đang triển khai</option>
+                            <option value="Completed" ${project?.status === 'Completed' ? 'selected' : ''}>Hoàn thành</option>
+                            <option value="Archived" ${project?.status === 'Archived' ? 'selected' : ''}>Đã lưu trữ</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Employee active tham gia project</label>
+                    <div style="max-height: 240px; overflow:auto; border:1px solid var(--line); border-radius:14px; padding:14px;">
+                        ${buildEmployeeCheckboxes(employees, selectedMemberIds)}
+                    </div>
+                </div>
+
+                <div class="task-modal-footer" style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px;">
+                    <button class="btn btn-light" type="button" data-modal-close>Hủy</button>
+                    <button class="btn btn-primary" type="submit" ${(!hasClient || !hasEmployee) ? 'disabled' : ''}>
+                        ${project?.id ? 'Lưu Project' : 'Tạo Project'}
+                    </button>
+                </div>
+            </form>
+        `;
+    }
+
+    async function openCreateProjectModal() {
+        if (!isManager()) {
             toast('error', 'Không có quyền', 'Chỉ Manager được tạo project.');
             return;
         }
 
         try {
             const options = await loadProjectOptions();
-            const clients = Array.isArray(options.clients) ? options.clients : [];
-            const employees = Array.isArray(options.employees) ? options.employees : [];
-
-            const body = `
-                <form data-project-form>
-                    <div class="form-group">
-                        <label class="form-label" for="project-name">Tên project</label>
-                        <input id="project-name" class="form-control" type="text" name="name" placeholder="VD: Thiết kế Web Vinamilk" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="project-description">Mô tả</label>
-                        <textarea id="project-description" class="form-textarea" name="description" rows="4" placeholder="Mô tả ngắn về mục tiêu dự án"></textarea>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label" for="project-client">Client</label>
-                            <select id="project-client" class="form-select" name="client_id">
-                                ${buildClientOptions(clients)}
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label" for="project-status">Trạng thái</label>
-                            <select id="project-status" class="form-select" name="status">
-                                <option value="Active">Đang triển khai</option>
-                                <option value="Completed">Hoàn thành</option>
-                                <option value="Archived">Đã lưu trữ</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Employee tham gia project</label>
-                        <div style="max-height: 220px; overflow:auto; border:1px solid var(--line); border-radius:14px; padding:14px;">
-                            ${buildEmployeeCheckboxes(employees)}
-                        </div>
-                    </div>
-
-                    <div class="task-modal-footer" style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px;">
-                        <button class="btn btn-light" type="button" data-modal-close>Hủy</button>
-                        <button class="btn btn-primary" type="submit">Tạo Project</button>
-                    </div>
-                </form>
-            `;
-
-            if (window.CAHModal && typeof CAHModal.open === 'function') {
-                CAHModal.open({
-                    title: 'Tạo project mới',
-                    body
-                });
-                return;
-            }
-
-            toast('error', 'Modal chưa sẵn sàng', 'Không tìm thấy CAHModal trong layout.');
+            modalOpen('Tạo project mới', buildProjectForm(options));
         } catch (error) {
             toast('error', 'Không thể mở form tạo project', error.message);
         }
     }
 
-    async function createProjectFromForm(form) {
+    async function openEditProjectModal(projectId) {
+        if (!isManager()) {
+            toast('error', 'Không có quyền', 'Chỉ Manager được sửa project.');
+            return;
+        }
+
+        try {
+            const options = await loadProjectOptions();
+            const payload = await apiRequest('/api/projects/' + encodeURIComponent(projectId));
+            const project = payload.data || null;
+
+            modalOpen('Cập nhật project', buildProjectForm(options, project));
+        } catch (error) {
+            toast('error', 'Không thể mở form sửa project', error.message);
+        }
+    }
+
+    async function submitProjectForm(form) {
+        const projectId = Number(form.getAttribute('data-project-id') || 0);
         const formData = new FormData(form);
+
+        const memberIds = formData.getAll('member_ids').map(function (id) {
+            return Number(id);
+        }).filter(function (id) {
+            return Number.isFinite(id) && id > 0;
+        });
 
         const payload = {
             name: String(formData.get('name') || '').trim(),
             description: String(formData.get('description') || '').trim(),
             client_id: formData.get('client_id') ? Number(formData.get('client_id')) : null,
             status: String(formData.get('status') || 'Active'),
-            member_ids: formData.getAll('member_ids').map(function (id) {
-                return Number(id);
-            }).filter(function (id) {
-                return Number.isFinite(id) && id > 0;
-            })
+            member_ids: memberIds
         };
 
         if (!payload.name) {
@@ -635,27 +733,52 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        try {
-            await apiRequest('/api/projects', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
+        if (!payload.client_id) {
+            toast('error', 'Thiếu Client active', 'Project cần chọn một Client active đã được Admin duyệt.');
+            return;
+        }
 
-            if (window.CAHModal && typeof CAHModal.close === 'function') {
-                CAHModal.close();
+        if (payload.member_ids.length === 0) {
+            toast('error', 'Thiếu Employee active', 'Project cần ít nhất một Employee active tham gia.');
+            return;
+        }
+
+        try {
+            if (projectId > 0) {
+                await apiRequest('/api/projects/' + encodeURIComponent(projectId), {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                toast('success', 'Đã cập nhật project', 'Thông tin project đã được lưu.');
+            } else {
+                await apiRequest('/api/projects', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                toast('success', 'Tạo project thành công', 'Project mới đã được thêm vào danh sách.');
             }
 
-            toast('success', 'Tạo project thành công', 'Project mới đã được thêm vào danh sách.');
+            modalClose();
+            projectOptions = null;
             await loadProjects();
         } catch (error) {
-            toast('error', 'Không thể tạo project', error.message);
+            toast('error', projectId > 0 ? 'Không thể cập nhật project' : 'Không thể tạo project', error.message);
         }
     }
 
-    searchInput?.addEventListener('input', filterData);
+    searchInput?.addEventListener('input', function () {
+        window.clearTimeout(searchInput._timer);
+        searchInput._timer = window.setTimeout(filterData, 180);
+    });
+
     statusFilter?.addEventListener('change', filterData);
     sortFilter?.addEventListener('change', filterData);
     filterButton?.addEventListener('click', filterData);
@@ -663,6 +786,21 @@ document.addEventListener('DOMContentLoaded', function () {
     createProjectButton?.addEventListener('click', function (event) {
         event.preventDefault();
         openCreateProjectModal();
+    });
+
+    document.addEventListener('click', function (event) {
+        const closeButton = event.target.closest('[data-modal-close]');
+        const editButton = event.target.closest('[data-project-edit]');
+
+        if (closeButton) {
+            event.preventDefault();
+            modalClose();
+        }
+
+        if (editButton) {
+            event.preventDefault();
+            openEditProjectModal(editButton.getAttribute('data-project-edit'));
+        }
     });
 
     document.addEventListener('submit', function (event) {
@@ -673,7 +811,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         event.preventDefault();
-        createProjectFromForm(form);
+        submitProjectForm(form);
     });
 
     loadCurrentUser().then(loadProjects);
