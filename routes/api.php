@@ -4,12 +4,6 @@
  *
  * Format:
  * [Method, Path, Handler, Roles]
- *
- * Role baseline:
- * - Admin: quản trị hệ thống, duyệt tài khoản, quản lý nền tảng.
- * - Manager: vận hành project/task, tạo employee/client chờ Admin duyệt.
- * - Employee: làm task, chấm công, nghỉ phép.
- * - Client: xem project/task public và gửi feedback.
  */
 
 return [
@@ -30,12 +24,20 @@ return [
     ['GET', '/api/dashboard/stats', 'DashboardController@getStats', ['admin', 'manager', 'employee', 'client']],
 
     /**
-     * ACCOUNT GOVERNANCE
+     * ADMIN ACCOUNT GOVERNANCE
      */
-    ['POST',  '/api/accounts',                      'HRM\\EmployeeController@storeAccount',    ['manager']],
-    ['GET',   '/api/admin/accounts/pending',        'HRM\\EmployeeController@pendingAccounts', ['admin']],
-    ['PATCH', '/api/admin/accounts/:id/approve',    'HRM\\EmployeeController@approveAccount',  ['admin']],
-    ['PATCH', '/api/admin/accounts/:id/reject',     'HRM\\EmployeeController@rejectAccount',   ['admin']],
+    ['GET',   '/api/admin/accounts',              'Admin\\AccountController@index',        ['admin']],
+    ['GET',   '/api/admin/accounts/pending',      'Admin\\AccountController@pending',      ['admin']],
+    ['PATCH', '/api/admin/accounts/:id/approve',  'Admin\\AccountController@approve',      ['admin']],
+    ['PATCH', '/api/admin/accounts/:id/reject',   'Admin\\AccountController@reject',       ['admin']],
+    ['PATCH', '/api/admin/accounts/:id/suspend',  'Admin\\AccountController@suspend',      ['admin']],
+    ['PATCH', '/api/admin/accounts/:id/activate', 'Admin\\AccountController@activate',     ['admin']],
+    ['PATCH', '/api/admin/accounts/:id/status',   'Admin\\AccountController@updateStatus', ['admin']],
+
+    /**
+     * ACCOUNT CREATED BY MANAGER
+     */
+    ['POST', '/api/accounts', 'HRM\\EmployeeController@storeAccount', ['manager']],
 
     /**
      * HRM - ORGANIZATION
@@ -66,6 +68,7 @@ return [
 
     /**
      * PROJECT
+     * Admin chỉ đọc thống kê/danh sách, không tạo/sửa/xóa.
      */
     ['GET',    '/api/projects',                         'Task\\ProjectController@index',        ['admin', 'manager', 'employee', 'client']],
     ['GET',    '/api/projects/options',                 'Task\\ProjectController@options',      ['admin', 'manager']],
@@ -90,6 +93,7 @@ return [
 
     /**
      * TASK
+     * Admin chỉ đọc thống kê/danh sách, không vận hành task.
      */
     ['GET',    '/api/tasks',             'Task\\TaskController@index',          ['admin', 'manager', 'employee', 'client']],
     ['GET',    '/api/tasks/options',     'Task\\TaskController@options',        ['manager']],

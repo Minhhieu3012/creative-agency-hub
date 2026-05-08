@@ -1,4 +1,18 @@
 <?php
+<<<<<<< HEAD
+=======
+/**
+ * SIDEBAR COMPONENT
+ *
+ * Nguyên tắc hiện tại:
+ * - Giữ UI cũ.
+ * - Render menu theo role bằng JS để tránh nhảy role.
+ * - Admin: quản trị hệ thống, duyệt tài khoản, khóa/mở khóa.
+ * - Manager: vận hành project/task/employee.
+ * - Employee: làm task, chấm công, nghỉ phép.
+ */
+
+>>>>>>> 437072dc090e07a878a690b52ef685901f0d99cb
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -8,11 +22,25 @@ $brandName  = $brandName  ?? 'Creative Agency Hub';
 $baseUrl    = $baseUrl    ?? '/creative-agency-hub';
 $viewUrl    = $viewUrl    ?? ($baseUrl . '/app/View');
 $publicUrl  = $baseUrl . '/public';
+
+$defaultHomeHref = $viewUrl . '/dashboard/index.php';
+
+if ($userRoleSession === 'admin') {
+    $defaultHomeHref = $viewUrl . '/admin/dashboard/index.php';
+}
+
+if ($userRoleSession === 'client') {
+    $defaultHomeHref = $viewUrl . '/client-portal/projects.php';
+}
 ?>
 
 <aside class="app-sidebar" id="appSidebar" style="display: none; flex-direction: column;">
     <div class="sidebar-header">
-        <a href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/dashboard/index.php" class="sidebar-brand">
+        <a
+            href="<?php echo htmlspecialchars($defaultHomeHref, ENT_QUOTES, 'UTF-8'); ?>"
+            class="sidebar-brand"
+            id="sidebarBrandLink"
+        >
             <span class="brand-mark">CA</span>
             <span class="brand-text">
                 <strong><?php echo htmlspecialchars($brandName, ENT_QUOTES, 'UTF-8'); ?></strong>
@@ -26,6 +54,25 @@ $publicUrl  = $baseUrl . '/public';
                 Đang đồng bộ quyền hạn...
             </div>
         </nav>
+<<<<<<< HEAD
+=======
+
+        <div class="sidebar-section" id="otherSpaceSection" style="display: none;">
+            <div class="sidebar-section-title">KHÔNG GIAN KHÁC</div>
+
+            <nav class="sidebar-nav sidebar-nav-compact">
+                <a
+                    href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/client-portal/projects.php"
+                    class="sidebar-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <span class="sidebar-icon">◇</span>
+                    <span>Client Portal</span>
+                </a>
+            </nav>
+        </div>
+>>>>>>> 437072dc090e07a878a690b52ef685901f0d99cb
     </div>
 
     <div class="sidebar-footer">
@@ -49,38 +96,68 @@ const SidebarController = {
 
     allMenus: [
         {
+            key: 'admin-dashboard',
+            label: 'Home',
+            href: '/admin/dashboard/index.php',
+            icon: '⌂',
+            roles: ['admin']
+        },
+        {
+            key: 'admin-approve-managers',
+            label: 'Duyệt Manager',
+            href: '/admin/approvals/managers.php',
+            icon: 'M',
+            roles: ['admin']
+        },
+        {
+            key: 'admin-approve-accounts',
+            label: 'Duyệt nhân sự',
+            href: '/admin/approvals/accounts.php',
+            icon: '✓',
+            roles: ['admin']
+        },
+        {
+            key: 'admin-accounts',
+            label: 'Danh sách tài khoản',
+            href: '/admin/accounts/index.php',
+            icon: '◉',
+            roles: ['admin']
+        },
+        {
+            key: 'admin-account-security',
+            label: 'Khóa / mở khóa',
+            href: '/admin/accounts/security.php',
+            icon: '!',
+            roles: ['admin']
+        },
+
+        {
             key: 'dashboard',
             label: 'Home',
             href: '/dashboard/index.php',
             icon: '⌂',
-            roles: ['admin', 'manager', 'employee']
-        },
-        {
-            key: 'departments',
-            label: 'Tổ chức',
-            href: '/hrm/departments.php',
-            icon: '▤',
-            roles: ['admin']
+            roles: ['manager', 'employee']
         },
         {
             key: 'employees',
             label: 'Nhân sự',
             href: '/hrm/employees.php',
             icon: '◉',
-            roles: ['admin', 'manager']
+            roles: ['manager']
         },
         {
             key: 'projects',
             label: 'Dự án',
             href: '/tasks/projects.php',
             icon: '▣',
-            roles: ['admin', 'manager']
+            roles: ['manager']
         },
         {
             key: 'kanban',
             label: 'Bảng Kanban',
             href: '/tasks/kanban.php',
             icon: '☑',
+<<<<<<< HEAD
             roles: ['admin', 'manager', 'employee']
         },
         {
@@ -96,6 +173,9 @@ const SidebarController = {
             href: '/tasks/activity.php',
             icon: '☷',
             roles: ['admin', 'manager', 'employee'] 
+=======
+            roles: ['manager', 'employee']
+>>>>>>> 437072dc090e07a878a690b52ef685901f0d99cb
         },
         {
             key: 'attendance',
@@ -152,12 +232,30 @@ const SidebarController = {
         }
     },
 
+    getHomeHref(role) {
+        if (role === 'admin') {
+            return `${this.config.viewUrl}/admin/dashboard/index.php`;
+        }
+
+        if (role === 'client') {
+            return `${this.config.viewUrl}/client-portal/projects.php`;
+        }
+
+        return `${this.config.viewUrl}/dashboard/index.php`;
+    },
+
     renderUI(role) {
         const navContainer = document.getElementById('mainNavigation');
         const actionBtnContainer = document.getElementById('sidebarActionBtn');
         const sidebar = document.getElementById('appSidebar');
+        const brandLink = document.getElementById('sidebarBrandLink');
+        const otherSpaceSection = document.getElementById('otherSpaceSection');
 
         if (!navContainer || !actionBtnContainer || !sidebar) return;
+
+        if (brandLink) {
+            brandLink.href = this.getHomeHref(role);
+        }
 
         let menuHtml = '';
 
@@ -180,6 +278,12 @@ const SidebarController = {
             actionBtnContainer.innerHTML = `<a href="${this.config.viewUrl}/tasks/projects.php" class="btn btn-primary btn-block"><span>＋</span><span>Tạo mới</span></a>`;
         } else {
             actionBtnContainer.innerHTML = '';
+        }
+
+        if (otherSpaceSection) {
+            otherSpaceSection.style.display = role === 'manager' || role === 'employee'
+                ? 'block'
+                : 'none';
         }
 
         sidebar.style.display = 'flex';

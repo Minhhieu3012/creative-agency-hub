@@ -14,8 +14,7 @@ $pageHeading = 'Quản lý Dự án';
 $pageSubtitle = 'Manager tạo project, gán client đã duyệt và kéo employee active vào nhóm triển khai.';
 $pageAction = '
     <button class="btn btn-primary" type="button" data-project-create style="display:none;">＋ Tạo Project</button>
-    <a class="btn btn-light" href="/creative-agency-hub/app/View/tasks/gantt.php">▥ Gantt Chart</a>
-    <a class="btn btn-primary" href="/creative-agency-hub/app/View/tasks/kanban.php">☑ Mở Kanban</a>
+    <button class="btn btn-primary" type="button" data-add-task>＋ Tạo task</button>
 ';
 require __DIR__ . '/../components/page-header.php';
 ?>
@@ -62,7 +61,8 @@ require __DIR__ . '/../components/page-header.php';
     <div class="task-filter-bar">
         <div class="input-with-icon">
             <span class="input-icon">⌕</span>
-            <input id="js-search-input" class="form-control" type="search" placeholder="Tìm kiếm dự án, client, manager...">
+            <input id="js-search-input" class="form-control" type="search"
+                placeholder="Tìm kiếm dự án, client, manager...">
         </div>
 
         <select id="js-status-filter" class="form-select">
@@ -89,7 +89,7 @@ require __DIR__ . '/../components/page-header.php';
 </section>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', function() {
     const baseUrl = '/creative-agency-hub';
     const apiRoot = window.CAH_CONFIG?.apiRoot || `${baseUrl}/public`;
     const viewUrl = `${baseUrl}/app/View`;
@@ -225,9 +225,11 @@ document.addEventListener('DOMContentLoaded', function () {
     function normalizeProject(project) {
         const totalTasks = Number(project.total_tasks ?? project.tasks ?? 0) || 0;
         const doneTasks = Number(project.done_tasks ?? 0) || 0;
-        const progress = Number(project.progress ?? (totalTasks > 0 ? Math.round(doneTasks / totalTasks * 100) : 0)) || 0;
+        const progress = Number(project.progress ?? (totalTasks > 0 ? Math.round(doneTasks / totalTasks * 100) :
+            0)) || 0;
         const membersArray = Array.isArray(project.members) ? project.members : [];
-        const memberCount = Number(project.member_count ?? project.members_count ?? membersArray.length ?? 0) || 0;
+        const memberCount = Number(project.member_count ?? project.members_count ?? membersArray.length ?? 0) ||
+            0;
 
         return {
             ...project,
@@ -248,7 +250,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function hydrateProjectDetails(projects) {
-        const detailPromises = projects.map(async function (project) {
+        const detailPromises = projects.map(async function(project) {
             if (!project.id) {
                 return normalizeProject(project);
             }
@@ -271,7 +273,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (Array.isArray(project.members) && project.members.length > 0) {
             return project.members
                 .slice(0, 3)
-                .map(function (member) {
+                .map(function(member) {
                     return initialsFromName(member.full_name || member.name || member.email || 'CA');
                 });
         }
@@ -303,28 +305,28 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        projectGrid.innerHTML = projects.map(function (project) {
+        projectGrid.innerHTML = projects.map(function(project) {
             const progress = Math.max(0, Math.min(100, Number(project.progress || 0)));
             const memberCount = Number(project.member_count || 0);
             const initials = memberInitials(project);
             const extraMembers = Math.max(0, memberCount - initials.length);
             const statusText = normalizeStatusLabel(project.status);
             const deadlineText = formatDate(project.nearest_deadline);
-            const riskBadge = Number(project.overdue_tasks || 0) > 0
-                ? `<span class="badge badge-danger">${project.overdue_tasks} quá hạn</span>`
-                : '';
+            const riskBadge = Number(project.overdue_tasks || 0) > 0 ?
+                `<span class="badge badge-danger">${project.overdue_tasks} quá hạn</span>` :
+                '';
 
-            const avatarsHtml = initials.map(function (initial) {
+            const avatarsHtml = initials.map(function(initial) {
                 return `<span>${escapeHtml(initial)}</span>`;
             }).join('');
 
-            const extraHtml = extraMembers > 0
-                ? `<span>+${extraMembers}</span>`
-                : '';
+            const extraHtml = extraMembers > 0 ?
+                `<span>+${extraMembers}</span>` :
+                '';
 
-            const managerAction = isManager()
-                ? `<button class="btn btn-light" type="button" data-project-edit="${project.id}">Sửa</button>`
-                : '';
+            const managerAction = isManager() ?
+                `<button class="btn btn-light" type="button" data-project-edit="${project.id}">Sửa</button>` :
+                '';
 
             return `
                 <article class="project-card" data-project-id="${project.id}">
@@ -389,20 +391,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function updateStats(projects) {
         const total = projects.length;
-        const openTasks = projects.reduce(function (sum, project) {
+        const openTasks = projects.reduce(function(sum, project) {
             const totalTasks = Number(project.total_tasks || 0);
             const doneTasks = Number(project.done_tasks || 0);
 
             return sum + Math.max(0, totalTasks - doneTasks);
         }, 0);
 
-        const avgProgress = total > 0
-            ? Math.round(projects.reduce(function (sum, project) {
+        const avgProgress = total > 0 ?
+            Math.round(projects.reduce(function(sum, project) {
                 return sum + (Number(project.progress || 0) || 0);
-            }, 0) / total)
-            : 0;
+            }, 0) / total) :
+            0;
 
-        const riskDeadlines = projects.filter(function (project) {
+        const riskDeadlines = projects.filter(function(project) {
             return Number(project.overdue_tasks || 0) > 0 || Number(project.progress || 0) < 50;
         }).length;
 
@@ -420,21 +422,21 @@ document.addEventListener('DOMContentLoaded', function () {
         let filtered = [...allProjects];
 
         if (searchVal) {
-            filtered = filtered.filter(function (project) {
-                return String(project.name || '').toLowerCase().includes(searchVal)
-                    || String(project.description || '').toLowerCase().includes(searchVal)
-                    || String(project.client_name || '').toLowerCase().includes(searchVal)
-                    || String(project.manager_name || '').toLowerCase().includes(searchVal);
+            filtered = filtered.filter(function(project) {
+                return String(project.name || '').toLowerCase().includes(searchVal) ||
+                    String(project.description || '').toLowerCase().includes(searchVal) ||
+                    String(project.client_name || '').toLowerCase().includes(searchVal) ||
+                    String(project.manager_name || '').toLowerCase().includes(searchVal);
             });
         }
 
         if (statusVal) {
-            filtered = filtered.filter(function (project) {
+            filtered = filtered.filter(function(project) {
                 return String(project.status || '') === statusVal;
             });
         }
 
-        filtered.sort(function (a, b) {
+        filtered.sort(function(a, b) {
             if (sortVal === 'progress-desc') {
                 return Number(b.progress || 0) - Number(a.progress || 0);
             }
@@ -446,8 +448,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 return riskB - riskA;
             }
 
-            const dateA = a.nearest_deadline ? new Date(a.nearest_deadline + 'T00:00:00').getTime() : Number.MAX_SAFE_INTEGER;
-            const dateB = b.nearest_deadline ? new Date(b.nearest_deadline + 'T00:00:00').getTime() : Number.MAX_SAFE_INTEGER;
+            const dateA = a.nearest_deadline ? new Date(a.nearest_deadline + 'T00:00:00').getTime() :
+                Number.MAX_SAFE_INTEGER;
+            const dateB = b.nearest_deadline ? new Date(b.nearest_deadline + 'T00:00:00').getTime() :
+                Number.MAX_SAFE_INTEGER;
 
             return dateA - dateB;
         });
@@ -515,7 +519,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         return [
             '<option value="">Chọn client active</option>',
-            ...clients.map(function (client) {
+            ...clients.map(function(client) {
                 const selected = Number(selectedId || 0) === Number(client.id) ? 'selected' : '';
                 const label = client.full_name || client.email || ('Client #' + client.id);
 
@@ -525,7 +529,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function buildEmployeeCheckboxes(employees, selectedIds = []) {
-        const selectedSet = new Set((selectedIds || []).map(function (id) {
+        const selectedSet = new Set((selectedIds || []).map(function(id) {
             return Number(id);
         }));
 
@@ -540,7 +544,7 @@ document.addEventListener('DOMContentLoaded', function () {
             `;
         }
 
-        return employees.map(function (employee) {
+        return employees.map(function(employee) {
             const label = employee.full_name || employee.email || ('Employee #' + employee.id);
             const sub = [employee.department_name, employee.position_name].filter(Boolean).join(' • ');
             const checked = selectedSet.has(Number(employee.id)) ? 'checked' : '';
@@ -561,7 +565,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function modalOpen(title, body) {
         if (window.CAHModal && typeof CAHModal.open === 'function') {
-            CAHModal.open({ title, body });
+            CAHModal.open({
+                title,
+                body
+            });
             return true;
         }
 
@@ -587,7 +594,7 @@ document.addEventListener('DOMContentLoaded', function () {
             CAHModal.close();
         }
 
-        document.querySelectorAll('[data-fallback-project-modal]').forEach(function (modal) {
+        document.querySelectorAll('[data-fallback-project-modal]').forEach(function(modal) {
             modal.remove();
         });
     }
@@ -596,21 +603,21 @@ document.addEventListener('DOMContentLoaded', function () {
         const clients = Array.isArray(options.clients) ? options.clients : [];
         const employees = Array.isArray(options.employees) ? options.employees : [];
         const members = Array.isArray(project?.members) ? project.members : [];
-        const selectedMemberIds = members.map(function (member) {
+        const selectedMemberIds = members.map(function(member) {
             return Number(member.id);
         });
 
         const hasClient = clients.length > 0;
         const hasEmployee = employees.length > 0;
 
-        const warning = (!hasClient || !hasEmployee)
-            ? `
+        const warning = (!hasClient || !hasEmployee) ?
+            `
                 <div class="form-alert form-alert-danger" style="margin-bottom:16px;">
                     ${!hasClient ? '<div>Chưa có Client active. Manager cần tạo Client và Admin duyệt trước.</div>' : ''}
                     ${!hasEmployee ? '<div>Chưa có Employee active. Manager cần tạo Employee và Admin duyệt trước.</div>' : ''}
                 </div>
+            ` :
             `
-            : `
                 <div class="form-alert form-alert-success" style="margin-bottom:16px;">
                     Chỉ các tài khoản đã được Admin duyệt active mới xuất hiện trong form này.
                 </div>
@@ -714,9 +721,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const projectId = Number(form.getAttribute('data-project-id') || 0);
         const formData = new FormData(form);
 
-        const memberIds = formData.getAll('member_ids').map(function (id) {
+        const memberIds = formData.getAll('member_ids').map(function(id) {
             return Number(id);
-        }).filter(function (id) {
+        }).filter(function(id) {
             return Number.isFinite(id) && id > 0;
         });
 
@@ -734,7 +741,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (!payload.client_id) {
-            toast('error', 'Thiếu Client active', 'Project cần chọn một Client active đã được Admin duyệt.');
+            toast('error', 'Thiếu Client active',
+                'Project cần chọn một Client active đã được Admin duyệt.');
             return;
         }
 
@@ -770,11 +778,12 @@ document.addEventListener('DOMContentLoaded', function () {
             projectOptions = null;
             await loadProjects();
         } catch (error) {
-            toast('error', projectId > 0 ? 'Không thể cập nhật project' : 'Không thể tạo project', error.message);
+            toast('error', projectId > 0 ? 'Không thể cập nhật project' : 'Không thể tạo project', error
+                .message);
         }
     }
 
-    searchInput?.addEventListener('input', function () {
+    searchInput?.addEventListener('input', function() {
         window.clearTimeout(searchInput._timer);
         searchInput._timer = window.setTimeout(filterData, 180);
     });
@@ -783,12 +792,12 @@ document.addEventListener('DOMContentLoaded', function () {
     sortFilter?.addEventListener('change', filterData);
     filterButton?.addEventListener('click', filterData);
 
-    createProjectButton?.addEventListener('click', function (event) {
+    createProjectButton?.addEventListener('click', function(event) {
         event.preventDefault();
         openCreateProjectModal();
     });
 
-    document.addEventListener('click', function (event) {
+    document.addEventListener('click', function(event) {
         const closeButton = event.target.closest('[data-modal-close]');
         const editButton = event.target.closest('[data-project-edit]');
 
@@ -803,7 +812,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    document.addEventListener('submit', function (event) {
+    document.addEventListener('submit', function(event) {
         const form = event.target.closest('[data-project-form]');
 
         if (!form) {
@@ -812,6 +821,115 @@ document.addEventListener('DOMContentLoaded', function () {
 
         event.preventDefault();
         submitProjectForm(form);
+    });
+
+    // ===== TẠO TASK =====
+    const addTaskButton = document.querySelector('[data-add-task]');
+
+    function buildTaskForm(projects) {
+        const projectOptions = projects.length > 0 ?
+            projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('') :
+            '<option value="">Chưa có dự án nào</option>';
+
+        return `
+        <form data-task-form>
+            <div class="form-group">
+                <label class="form-label" for="task-title">Tên công việc</label>
+                <input id="task-title" class="form-control" type="text" name="title"
+                    placeholder="VD: Thiết kế banner homepage" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="task-project">Dự án</label>
+                <select id="task-project" class="form-select" name="project_id" required>
+                    <option value="">Chọn dự án</option>
+                    ${projectOptions}
+                </select>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="task-priority">Độ ưu tiên</label>
+                    <select id="task-priority" class="form-select" name="priority">
+                        <option value="Low">Thấp</option>
+                        <option value="Medium" selected>Trung bình</option>
+                        <option value="High">Cao</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="task-deadline">Deadline</label>
+                    <input id="task-deadline" class="form-control" type="date" name="due_date">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="task-desc">Mô tả</label>
+                <textarea id="task-desc" class="form-textarea" name="description"
+                    rows="3" placeholder="Mô tả chi tiết công việc..."></textarea>
+            </div>
+
+            <div class="task-modal-footer" style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px;">
+                <button class="btn btn-light" type="button" data-modal-close>Hủy</button>
+                <button class="btn btn-primary" type="submit">Tạo Task</button>
+            </div>
+        </form>
+    `;
+    }
+
+    async function openCreateTaskModal() {
+        try {
+            modalOpen('Tạo công việc mới', buildTaskForm(allProjects));
+        } catch (error) {
+            toast('error', 'Không thể mở form tạo task', error.message);
+        }
+    }
+
+    async function submitTaskForm(form) {
+        const formData = new FormData(form);
+        const payload = {
+            title: String(formData.get('title') || '').trim(),
+            project_id: Number(formData.get('project_id') || 0),
+            priority: String(formData.get('priority') || 'Medium'),
+            due_date: formData.get('due_date') || null,
+            description: String(formData.get('description') || '').trim(),
+        };
+
+        if (!payload.title) {
+            toast('error', 'Thiếu tên task', 'Vui lòng nhập tên công việc.');
+            return;
+        }
+        if (!payload.project_id) {
+            toast('error', 'Thiếu dự án', 'Vui lòng chọn dự án cho task này.');
+            return;
+        }
+
+        try {
+            await apiRequest('/api/tasks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+            toast('success', 'Tạo task thành công', 'Task mới đã được thêm vào dự án.');
+            modalClose();
+            await loadProjects();
+        } catch (error) {
+            toast('error', 'Không thể tạo task', error.message);
+        }
+    }
+
+    addTaskButton?.addEventListener('click', function(event) {
+        event.preventDefault();
+        openCreateTaskModal();
+    });
+
+    // Lắng nghe submit form task (thêm vào listener submit hiện có)
+    document.addEventListener('submit', function(event) {
+        const taskForm = event.target.closest('[data-task-form]');
+        if (!taskForm) return;
+        event.preventDefault();
+        submitTaskForm(taskForm);
     });
 
     loadCurrentUser().then(loadProjects);

@@ -478,3 +478,17 @@
         height: 38px;
     }
 }
+
+.sidebar-hint {
+    margin: 8px 12px 0;
+    padding: 12px 14px;
+    border-radius: 14px;
+    color: var(--text-muted);
+    background: rgba(15, 23, 42, 0.04);
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.sidebar-link-text {
+    min-width: 0;
+}
