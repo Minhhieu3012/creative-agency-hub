@@ -2,19 +2,24 @@
 namespace App\Controllers\Auth;
 
 use App\Models\Auth\User;
+use Core\Database;
 use Core\JwtHandler;
 use Core\Security;
 use Exception;
+use PDO;
 use Throwable;
 
 class AuthController {
     private User $userModel;
     private JwtHandler $jwt;
+    private PDO $db;
     private $authUser;
 
     public function __construct($authUser = null) {
         $this->userModel = new User();
         $this->jwt = new JwtHandler();
+        $this->db = Database::getConnection();
+        $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->authUser = $authUser;
     }
 
@@ -93,6 +98,52 @@ class AuthController {
         ];
     }
 
+    private function findUserByEmail(string $email): ?array {
+        $stmt = $this->db->prepare("
+            SELECT *
+            FROM employees
+            WHERE email = :email
+              AND deleted_at IS NULL
+            LIMIT 1
+        ");
+
+        $stmt->execute([
+            ':email' => $email,
+        ]);
+
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $user ?: null;
+    }
+
+    private function findUserById(int $id): ?array {
+        $stmt = $this->db->prepare("
+            SELECT
+                id,
+                employee_code,
+                full_name,
+                email,
+                role,
+                avatar,
+                status,
+                manager_id,
+                department_id,
+                position_id
+            FROM employees
+            WHERE id = :id
+              AND deleted_at IS NULL
+            LIMIT 1
+        ");
+
+        $stmt->execute([
+            ':id' => $id,
+        ]);
+
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $user ?: null;
+    }
+
     private function publicUser(array $user): array {
         return [
             'id' => (int)$user['id'],
@@ -103,7 +154,27 @@ class AuthController {
             'role' => strtolower((string)($user['role'] ?? 'employee')),
             'avatar' => $user['avatar'] ?? null,
             'status' => $user['status'] ?? null,
+            'manager_id' => isset($user['manager_id']) ? (int)$user['manager_id'] : null,
         ];
+    }
+
+    private function statusMessage(string $status): string {
+        $status = strtolower(trim($status));
+
+        return match ($status) {
+            'inactive' => 'Tài khoản đang chờ Admin duyệt. Vui lòng liên hệ Manager hoặc Admin.',
+            'suspended' => 'Tài khoản đã bị khóa hoặc bị từ chối duyệt.',
+            'resigned' => 'Tài khoản đã ngưng hoạt động.',
+            default => 'Tài khoản chưa được phép đăng nhập.',
+        };
+    }
+
+    private function ensureAccountCanLogin(array $user): void {
+        $status = strtolower((string)($user['status'] ?? ''));
+
+        if ($status !== 'active') {
+            throw new Exception($this->statusMessage($status));
+        }
     }
 
     private function issueToken(array $user): string {
@@ -149,10 +220,10 @@ class AuthController {
             throw new Exception('Email không hợp lệ.');
         }
 
-        $user = $this->userModel->findByEmail($email);
+        $user = $this->findUserByEmail($email);
 
         if (!$user) {
-            throw new Exception('Tài khoản không tồn tại, đã bị khóa hoặc đã bị xoá.');
+            throw new Exception('Email hoặc mật khẩu không chính xác.');
         }
 
         if (!password_verify($password, $user['password'])) {
@@ -160,6 +231,7 @@ class AuthController {
         }
 
         $user['role'] = strtolower((string)$user['role']);
+        $this->ensureAccountCanLogin($user);
 
         return $user;
     }
@@ -203,133 +275,44 @@ class AuthController {
         }
     }
 
-    /**
-     * Legacy login.
-     * Giữ lại để không phá code cũ, nhưng luồng mới nên dùng:
-     * - loginAdmin()
-     * - loginStaff()
-     * - loginClient()
-     */
     public function login(): void {
-        try {
-            $input = $this->getInputData();
-
-            $email = trim((string)($input['email'] ?? ''));
-            $password = trim((string)($input['password'] ?? ''));
-
-            $user = $this->authenticate($email, $password);
-            $token = $this->issueToken($user);
-            $this->persistAuth($user, $token);
-
-            $this->json([
-                'status' => 'success',
-                'message' => 'Đăng nhập thành công.',
-                'data' => [
-                    'token' => $token,
-                    'user' => $this->publicUser($user),
-                ],
-            ]);
-        } catch (Exception $e) {
-            $this->json([
-                'status' => 'error',
-                'message' => $e->getMessage(),
-            ], 401);
-        }
+        $this->loginWithRoles(
+            ['admin', 'manager', 'employee', 'client'],
+            'Tài khoản không thuộc cổng đăng nhập này.'
+        );
     }
 
-    /**
-     * Luồng staff mới.
-     * Chỉ cho Manager và Employee.
-     * Admin phải đi cổng admin riêng.
-     * Client phải đi cổng client riêng.
-     */
     public function loginInternal(): void {
-        $this->loginStaff();
+        $this->loginWithRoles(
+            ['admin', 'manager', 'employee'],
+            'Vui lòng đăng nhập bằng cổng Client Portal.'
+        );
     }
 
     public function loginStaff(): void {
         $this->loginWithRoles(
             ['manager', 'employee'],
-            'Tài khoản này không thuộc cổng nhân sự. Admin dùng cổng Admin, Client dùng cổng Client.'
+            'Cổng Staff chỉ dành cho Manager và Employee.'
         );
     }
 
     public function loginAdmin(): void {
         $this->loginWithRoles(
             ['admin'],
-            'Tài khoản này không thuộc cổng Admin.'
+            'Cổng Admin chỉ dành cho tài khoản Admin.'
         );
     }
 
     public function loginClient(): void {
         $this->loginWithRoles(
             ['client'],
-            'Tài khoản này không thuộc cổng Client.'
+            'Cổng Client chỉ dành cho tài khoản Client.'
         );
-    }
-
-    public function register(): void {
-        $this->registerClient();
-    }
-
-    public function registerClient(): void {
-        try {
-            $input = $this->getInputData();
-
-            $fullName = trim((string)($input['full_name'] ?? ''));
-            $email = trim((string)($input['email'] ?? ''));
-            $password = (string)($input['password'] ?? '');
-
-            $fullName = Security::escape($fullName);
-            $email = Security::escape($email);
-
-            if ($fullName === '' || $email === '' || $password === '') {
-                $this->json([
-                    'status' => 'error',
-                    'message' => 'Vui lòng điền đầy đủ họ tên, email và mật khẩu.',
-                ], 400);
-            }
-
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $this->json([
-                    'status' => 'error',
-                    'message' => 'Email không hợp lệ.',
-                ], 422);
-            }
-
-            if ($this->userModel->findByEmail($email)) {
-                $this->json([
-                    'status' => 'error',
-                    'message' => 'Email đã tồn tại.',
-                ], 409);
-            }
-
-            $newUserId = $this->userModel->create([
-                'full_name' => $fullName,
-                'email' => $email,
-                'password' => $password,
-                'role' => 'client',
-            ]);
-
-            $this->json([
-                'status' => 'success',
-                'message' => 'Đăng ký thành công.',
-                'data' => [
-                    'id' => (int)$newUserId,
-                ],
-            ], 201);
-        } catch (Throwable $e) {
-            $this->json([
-                'status' => 'error',
-                'message' => 'Không thể đăng ký: ' . $e->getMessage(),
-            ], 400);
-        }
     }
 
     public function me(): void {
         try {
             $token = '';
-
             $authHeader = $this->getAuthorizationHeader();
 
             if ($authHeader !== '') {
@@ -340,62 +323,96 @@ class AuthController {
                 $token = (string)$_COOKIE['cah_token'];
             }
 
-            $authPayload = null;
+            if ($token === '' && session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
 
             if ($token !== '') {
-                try {
-                    $decoded = $this->jwt->decode($token);
-                    $authPayload = $this->normalizeAuthPayload($decoded);
-                } catch (Throwable $e) {
-                    $authPayload = null;
-                }
-            }
+                $decoded = $this->jwt->decode($token);
+                $payload = $this->normalizeAuthPayload($decoded);
 
-            if (!$authPayload) {
-                if (session_status() === PHP_SESSION_NONE) {
-                    session_start();
+                if (!$payload || empty($payload['id'])) {
+                    $this->json([
+                        'status' => 'error',
+                        'message' => 'Token không hợp lệ.'
+                    ], 401);
                 }
 
-                if (!empty($_SESSION['user_id'])) {
-                    $authPayload = [
-                        'id' => (int)$_SESSION['user_id'],
-                        'email' => $_SESSION['user_email'] ?? null,
-                        'role' => strtolower((string)($_SESSION['user_role'] ?? '')),
-                        'full_name' => $_SESSION['full_name'] ?? null,
-                    ];
-                }
-            }
+                $user = $this->findUserById((int)$payload['id']);
 
-            if (!$authPayload || empty($authPayload['id'])) {
+                if (!$user) {
+                    $this->json([
+                        'status' => 'error',
+                        'message' => 'Không tìm thấy tài khoản.'
+                    ], 404);
+                }
+
+                $this->ensureAccountCanLogin($user);
+
                 $this->json([
-                    'status' => 'error',
-                    'message' => 'Phiên đăng nhập không hợp lệ.',
-                ], 401);
+                    'status' => 'success',
+                    'data' => [
+                        'user' => $this->publicUser($user),
+                    ],
+                ]);
             }
 
-            $user = $this->userModel->findById((int)$authPayload['id']);
+            if (!empty($_SESSION['user_id'])) {
+                $user = $this->findUserById((int)$_SESSION['user_id']);
 
-            if (!$user) {
+                if (!$user) {
+                    $this->json([
+                        'status' => 'error',
+                        'message' => 'Không tìm thấy tài khoản.'
+                    ], 404);
+                }
+
+                $this->ensureAccountCanLogin($user);
+
                 $this->json([
-                    'status' => 'error',
-                    'message' => 'Không tìm thấy tài khoản hoặc tài khoản đã bị khóa.',
-                ], 404);
+                    'status' => 'success',
+                    'data' => [
+                        'user' => $this->publicUser($user),
+                    ],
+                ]);
             }
-
-            $token = $token !== '' ? $token : $this->issueToken($user);
-            $this->persistAuth($user, $token);
 
             $this->json([
-                'status' => 'success',
-                'data' => [
-                    'user' => $this->publicUser($user),
-                ],
-            ]);
+                'status' => 'error',
+                'message' => 'Thiếu token đăng nhập.'
+            ], 401);
+        } catch (Exception $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 401);
         } catch (Throwable $e) {
             $this->json([
                 'status' => 'error',
-                'message' => 'Không thể tải phiên đăng nhập: ' . $e->getMessage(),
+                'message' => 'Không thể xác thực phiên đăng nhập.',
             ], 401);
         }
+    }
+
+    /**
+     * Luồng mới không cho client tự đăng ký trực tiếp.
+     * Manager sẽ tạo Client/Employee, sau đó Admin duyệt.
+     */
+    public function registerClient(): void {
+        $this->json([
+            'status' => 'error',
+            'message' => 'Đăng ký client trực tiếp đã tắt. Vui lòng liên hệ Manager để tạo tài khoản chờ duyệt.'
+        ], 403);
+    }
+
+    /**
+     * Legacy register.
+     * Giữ để route cũ không fatal, nhưng không dùng trong luồng mới.
+     */
+    public function register(): void {
+        $this->json([
+            'status' => 'error',
+            'message' => 'Đăng ký trực tiếp đã tắt trong luồng quản lý tài khoản mới.'
+        ], 403);
     }
 }

@@ -12,6 +12,7 @@ class DashboardController {
 
     public function __construct() {
         $this->db = Database::getConnection();
+        $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->jwt = new JwtHandler();
     }
 
@@ -81,7 +82,6 @@ class DashboardController {
 
     private function getAuthUser(): array {
         $token = '';
-
         $authHeader = $this->getAuthorizationHeader();
 
         if ($authHeader !== '') {
@@ -199,6 +199,14 @@ class DashboardController {
         return function_exists('mb_strtoupper') ? mb_strtoupper($initials, 'UTF-8') : strtoupper($initials);
     }
 
+    private function progressFromTasks(int $totalTasks, int $doneTasks): int {
+        if ($totalTasks <= 0) {
+            return 0;
+        }
+
+        return (int)round(($doneTasks / $totalTasks) * 100);
+    }
+
     private function getMembersByProject(int $projectId): array {
         $rows = $this->fetchAll("
             SELECT DISTINCT e.full_name
@@ -225,25 +233,46 @@ class DashboardController {
         return $members;
     }
 
-    private function progressFromTasks(int $totalTasks, int $doneTasks): int {
-        if ($totalTasks <= 0) {
-            return 0;
-        }
-
-        return (int)round(($doneTasks / $totalTasks) * 100);
-    }
-
     private function buildResourceData(array $authUser): array {
-        $role = $authUser['role'];
+        $role = strtolower((string)$authUser['role']);
         $userId = (int)$authUser['id'];
 
         if ($role === 'employee') {
-            $params = [':user_id' => $userId];
+            $todo = (int)$this->fetchValue("
+                SELECT COUNT(*)
+                FROM tasks
+                WHERE assignee_id = :todo_user_id
+                  AND status = 'To do'
+            ", [
+                ':todo_user_id' => $userId,
+            ]);
 
-            $todo = (int)$this->fetchValue("SELECT COUNT(*) FROM tasks WHERE assignee_id = :user_id AND status = 'To do'", $params);
-            $doing = (int)$this->fetchValue("SELECT COUNT(*) FROM tasks WHERE assignee_id = :user_id AND status = 'Doing'", $params);
-            $review = (int)$this->fetchValue("SELECT COUNT(*) FROM tasks WHERE assignee_id = :user_id AND status = 'Review'", $params);
-            $done = (int)$this->fetchValue("SELECT COUNT(*) FROM tasks WHERE assignee_id = :user_id AND status = 'Done'", $params);
+            $doing = (int)$this->fetchValue("
+                SELECT COUNT(*)
+                FROM tasks
+                WHERE assignee_id = :doing_user_id
+                  AND status = 'Doing'
+            ", [
+                ':doing_user_id' => $userId,
+            ]);
+
+            $review = (int)$this->fetchValue("
+                SELECT COUNT(*)
+                FROM tasks
+                WHERE assignee_id = :review_user_id
+                  AND status = 'Review'
+            ", [
+                ':review_user_id' => $userId,
+            ]);
+
+            $done = (int)$this->fetchValue("
+                SELECT COUNT(*)
+                FROM tasks
+                WHERE assignee_id = :done_user_id
+                  AND status = 'Done'
+            ", [
+                ':done_user_id' => $userId,
+            ]);
 
             $max = max(1, $todo, $doing, $review, $done);
 
@@ -270,10 +299,10 @@ class DashboardController {
 
         if (empty($rows)) {
             return [
-                ['label' => 'HRM', 'value' => 0],
-                ['label' => 'Task', 'value' => 0],
-                ['label' => 'Client', 'value' => 0],
-                ['label' => 'System', 'value' => 0],
+                ['label' => 'Design', 'value' => 0],
+                ['label' => 'Development', 'value' => 0],
+                ['label' => 'Marketing', 'value' => 0],
+                ['label' => 'Other', 'value' => 0],
             ];
         }
 
@@ -288,7 +317,7 @@ class DashboardController {
     }
 
     private function buildProjectList(array $authUser): array {
-        $role = $authUser['role'];
+        $role = strtolower((string)$authUser['role']);
         $userId = (int)$authUser['id'];
 
         if ($role === 'employee') {
@@ -301,13 +330,15 @@ class DashboardController {
                     SUM(CASE WHEN t.status = 'Done' THEN 1 ELSE 0 END) AS done_tasks
                 FROM tasks t
                 INNER JOIN projects p ON p.id = t.project_id
-                WHERE t.assignee_id = :user_id
+                WHERE t.assignee_id = :employee_project_user_id
                   AND p.status = 'Active'
                 GROUP BY p.id, p.name
-                ORDER BY nearest_deadline IS NULL ASC, nearest_deadline ASC
+                ORDER BY
+                    CASE WHEN MIN(t.deadline) IS NULL THEN 1 ELSE 0 END,
+                    MIN(t.deadline) ASC
                 LIMIT 4
             ", [
-                ':user_id' => $userId,
+                ':employee_project_user_id' => $userId,
             ]);
         } elseif ($role === 'manager') {
             $rows = $this->fetchAll("
@@ -320,12 +351,15 @@ class DashboardController {
                 FROM projects p
                 LEFT JOIN tasks t ON t.project_id = p.id
                 WHERE p.status = 'Active'
-                  AND p.manager_id = :user_id
-                GROUP BY p.id, p.name
-                ORDER BY nearest_deadline IS NULL ASC, nearest_deadline ASC, p.created_at DESC
+                  AND p.manager_id = :manager_project_user_id
+                GROUP BY p.id, p.name, p.created_at
+                ORDER BY
+                    CASE WHEN MIN(t.deadline) IS NULL THEN 1 ELSE 0 END,
+                    MIN(t.deadline) ASC,
+                    p.created_at DESC
                 LIMIT 4
             ", [
-                ':user_id' => $userId,
+                ':manager_project_user_id' => $userId,
             ]);
         } elseif ($role === 'client') {
             $rows = $this->fetchAll("
@@ -336,14 +370,19 @@ class DashboardController {
                     COUNT(t.id) AS total_tasks,
                     SUM(CASE WHEN t.status = 'Done' THEN 1 ELSE 0 END) AS done_tasks
                 FROM projects p
-                LEFT JOIN tasks t ON t.project_id = p.id
+                LEFT JOIN tasks t
+                    ON t.project_id = p.id
+                   AND t.is_client_visible = 1
                 WHERE p.status = 'Active'
-                  AND p.client_id = :user_id
-                GROUP BY p.id, p.name
-                ORDER BY nearest_deadline IS NULL ASC, nearest_deadline ASC, p.created_at DESC
+                  AND p.client_id = :client_project_user_id
+                GROUP BY p.id, p.name, p.created_at
+                ORDER BY
+                    CASE WHEN MIN(t.deadline) IS NULL THEN 1 ELSE 0 END,
+                    MIN(t.deadline) ASC,
+                    p.created_at DESC
                 LIMIT 4
             ", [
-                ':user_id' => $userId,
+                ':client_project_user_id' => $userId,
             ]);
         } else {
             $rows = $this->fetchAll("
@@ -356,8 +395,11 @@ class DashboardController {
                 FROM projects p
                 LEFT JOIN tasks t ON t.project_id = p.id
                 WHERE p.status = 'Active'
-                GROUP BY p.id, p.name
-                ORDER BY nearest_deadline IS NULL ASC, nearest_deadline ASC, p.created_at DESC
+                GROUP BY p.id, p.name, p.created_at
+                ORDER BY
+                    CASE WHEN MIN(t.deadline) IS NULL THEN 1 ELSE 0 END,
+                    MIN(t.deadline) ASC,
+                    p.created_at DESC
                 LIMIT 4
             ");
         }
@@ -393,20 +435,23 @@ class DashboardController {
     }
 
     private function buildActivities(array $authUser): array {
-        $role = $authUser['role'];
+        $role = strtolower((string)$authUser['role']);
         $userId = (int)$authUser['id'];
+
         $params = [];
         $where = '';
 
         if ($role === 'employee') {
-            $where = "WHERE t.assignee_id = :user_id OR al.user_id = :user_id";
-            $params[':user_id'] = $userId;
+            $where = "WHERE t.assignee_id = :employee_task_user_id OR al.user_id = :employee_log_user_id";
+            $params[':employee_task_user_id'] = $userId;
+            $params[':employee_log_user_id'] = $userId;
         } elseif ($role === 'manager') {
-            $where = "WHERE p.manager_id = :user_id OR al.user_id = :user_id";
-            $params[':user_id'] = $userId;
+            $where = "WHERE p.manager_id = :manager_project_user_id OR al.user_id = :manager_log_user_id";
+            $params[':manager_project_user_id'] = $userId;
+            $params[':manager_log_user_id'] = $userId;
         } elseif ($role === 'client') {
-            $where = "WHERE p.client_id = :user_id";
-            $params[':user_id'] = $userId;
+            $where = "WHERE p.client_id = :client_activity_user_id";
+            $params[':client_activity_user_id'] = $userId;
         }
 
         $rows = $this->fetchAll("
@@ -489,7 +534,7 @@ class DashboardController {
     }
 
     private function buildStats(array $authUser): array {
-        $role = $authUser['role'];
+        $role = strtolower((string)$authUser['role']);
         $userId = (int)$authUser['id'];
 
         if ($role === 'employee') {
@@ -497,37 +542,37 @@ class DashboardController {
                 SELECT COUNT(DISTINCT t.project_id)
                 FROM tasks t
                 INNER JOIN projects p ON p.id = t.project_id
-                WHERE t.assignee_id = :user_id
+                WHERE t.assignee_id = :employee_active_project_user_id
                   AND p.status = 'Active'
             ", [
-                ':user_id' => $userId,
+                ':employee_active_project_user_id' => $userId,
             ]);
 
             $totalTasks = (int)$this->fetchValue("
                 SELECT COUNT(*)
                 FROM tasks
-                WHERE assignee_id = :user_id
+                WHERE assignee_id = :employee_total_task_user_id
             ", [
-                ':user_id' => $userId,
+                ':employee_total_task_user_id' => $userId,
             ]);
 
             $doneTasks = (int)$this->fetchValue("
                 SELECT COUNT(*)
                 FROM tasks
-                WHERE assignee_id = :user_id
+                WHERE assignee_id = :employee_done_task_user_id
                   AND status = 'Done'
             ", [
-                ':user_id' => $userId,
+                ':employee_done_task_user_id' => $userId,
             ]);
 
             $overdueTasks = (int)$this->fetchValue("
                 SELECT COUNT(*)
                 FROM tasks
-                WHERE assignee_id = :user_id
+                WHERE assignee_id = :employee_overdue_task_user_id
                   AND deadline < CURDATE()
                   AND status <> 'Done'
             ", [
-                ':user_id' => $userId,
+                ':employee_overdue_task_user_id' => $userId,
             ]);
 
             return [
@@ -543,49 +588,49 @@ class DashboardController {
                 SELECT COUNT(*)
                 FROM projects
                 WHERE status = 'Active'
-                  AND manager_id = :user_id
+                  AND manager_id = :manager_active_project_user_id
             ", [
-                ':user_id' => $userId,
+                ':manager_active_project_user_id' => $userId,
             ]);
 
             $totalEmployees = (int)$this->fetchValue("
                 SELECT COUNT(DISTINCT t.assignee_id)
                 FROM tasks t
                 INNER JOIN projects p ON p.id = t.project_id
-                WHERE p.manager_id = :user_id
+                WHERE p.manager_id = :manager_employee_user_id
                   AND t.assignee_id IS NOT NULL
             ", [
-                ':user_id' => $userId,
+                ':manager_employee_user_id' => $userId,
             ]);
 
             $totalTasks = (int)$this->fetchValue("
                 SELECT COUNT(t.id)
                 FROM tasks t
                 INNER JOIN projects p ON p.id = t.project_id
-                WHERE p.manager_id = :user_id
+                WHERE p.manager_id = :manager_total_task_user_id
             ", [
-                ':user_id' => $userId,
+                ':manager_total_task_user_id' => $userId,
             ]);
 
             $doneTasks = (int)$this->fetchValue("
                 SELECT COUNT(t.id)
                 FROM tasks t
                 INNER JOIN projects p ON p.id = t.project_id
-                WHERE p.manager_id = :user_id
+                WHERE p.manager_id = :manager_done_task_user_id
                   AND t.status = 'Done'
             ", [
-                ':user_id' => $userId,
+                ':manager_done_task_user_id' => $userId,
             ]);
 
             $overdueTasks = (int)$this->fetchValue("
                 SELECT COUNT(t.id)
                 FROM tasks t
                 INNER JOIN projects p ON p.id = t.project_id
-                WHERE p.manager_id = :user_id
+                WHERE p.manager_id = :manager_overdue_task_user_id
                   AND t.deadline < CURDATE()
                   AND t.status <> 'Done'
             ", [
-                ':user_id' => $userId,
+                ':manager_overdue_task_user_id' => $userId,
             ]);
 
             return [
@@ -601,39 +646,42 @@ class DashboardController {
                 SELECT COUNT(*)
                 FROM projects
                 WHERE status = 'Active'
-                  AND client_id = :user_id
+                  AND client_id = :client_active_project_user_id
             ", [
-                ':user_id' => $userId,
+                ':client_active_project_user_id' => $userId,
             ]);
 
             $totalTasks = (int)$this->fetchValue("
                 SELECT COUNT(t.id)
                 FROM tasks t
                 INNER JOIN projects p ON p.id = t.project_id
-                WHERE p.client_id = :user_id
+                WHERE p.client_id = :client_total_task_user_id
+                  AND t.is_client_visible = 1
             ", [
-                ':user_id' => $userId,
+                ':client_total_task_user_id' => $userId,
             ]);
 
             $doneTasks = (int)$this->fetchValue("
                 SELECT COUNT(t.id)
                 FROM tasks t
                 INNER JOIN projects p ON p.id = t.project_id
-                WHERE p.client_id = :user_id
+                WHERE p.client_id = :client_done_task_user_id
                   AND t.status = 'Done'
+                  AND t.is_client_visible = 1
             ", [
-                ':user_id' => $userId,
+                ':client_done_task_user_id' => $userId,
             ]);
 
             $overdueTasks = (int)$this->fetchValue("
                 SELECT COUNT(t.id)
                 FROM tasks t
                 INNER JOIN projects p ON p.id = t.project_id
-                WHERE p.client_id = :user_id
+                WHERE p.client_id = :client_overdue_task_user_id
                   AND t.deadline < CURDATE()
                   AND t.status <> 'Done'
+                  AND t.is_client_visible = 1
             ", [
-                ':user_id' => $userId,
+                ':client_overdue_task_user_id' => $userId,
             ]);
 
             return [

@@ -1,7 +1,7 @@
 <?php
 $pageTitle = 'Đăng nhập Admin | Creative Agency Hub';
 $pageCss = ['auth.css'];
-$pageJs = ['forms.js'];
+$pageJs = ['forms.js', 'auth-portal.js'];
 $brandName = 'Creative Agency Hub';
 $bodyClass = 'auth-body';
 
@@ -55,10 +55,10 @@ ob_start();
                 <form
                     method="POST"
                     action="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/public/api/auth/login-admin"
-                    data-ui-form
-                    data-auth-login="true"
+                    data-auth-portal-form
+                    data-auth-endpoint="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/public/api/auth/login-admin"
+                    data-auth-redirect="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/public/admin/dashboard"
                     data-success-message="Đăng nhập thành công. Đang chuyển về Admin Dashboard..."
-                    data-redirect="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/public/admin/dashboard"
                 >
                     <div class="form-group">
                         <label class="form-label" for="email">Email Admin</label>
@@ -107,6 +107,8 @@ ob_start();
                         <input type="checkbox" name="remember">
                         <span>Ghi nhớ đăng nhập</span>
                     </label>
+
+                    <div class="form-alert" data-auth-message style="display: none;"></div>
 
                     <button type="submit" class="btn btn-primary auth-submit">
                         <span>Đăng nhập Admin</span>

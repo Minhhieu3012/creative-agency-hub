@@ -2,13 +2,14 @@
 /**
  * CREATIVE AGENCY HUB - API ROUTES
  *
- * Role baseline:
- * - Admin: quản trị hệ thống web, tài khoản, customer, manager, employee, cấu trúc tổ chức.
- * - Manager: quản lý project, task, employee trong phạm vi vận hành, chấm công/nghỉ phép.
- * - Employee: làm task, cập nhật tiến độ, chấm công, gửi nghỉ phép.
- * - Client: xem portal khách hàng.
+ * Format:
+ * [Method, Path, Handler, Roles]
  *
- * Format: [Method, Path, Handler, Roles]
+ * Role baseline:
+ * - Admin: quản trị hệ thống, duyệt tài khoản, quản lý nền tảng.
+ * - Manager: vận hành project/task, tạo employee/client chờ Admin duyệt.
+ * - Employee: làm task, chấm công, nghỉ phép.
+ * - Client: xem project/task public và gửi feedback.
  */
 
 return [
@@ -29,6 +30,20 @@ return [
     ['GET', '/api/dashboard/stats', 'DashboardController@getStats', ['admin', 'manager', 'employee', 'client']],
 
     /**
+     * ACCOUNT GOVERNANCE
+     *
+     * Luồng mới:
+     * - Manager tạo Employee/Client ở trạng thái inactive.
+     * - Admin xem danh sách pending.
+     * - Admin approve thì status active.
+     * - Admin reject thì status suspended.
+     */
+    ['POST',  '/api/accounts',                      'HRM\\EmployeeController@storeAccount',    ['manager']],
+    ['GET',   '/api/admin/accounts/pending',        'HRM\\EmployeeController@pendingAccounts', ['admin']],
+    ['PATCH', '/api/admin/accounts/:id/approve',    'HRM\\EmployeeController@approveAccount',  ['admin']],
+    ['PATCH', '/api/admin/accounts/:id/reject',     'HRM\\EmployeeController@rejectAccount',   ['admin']],
+
+    /**
      * HRM - ORGANIZATION
      */
     ['GET',  '/api/organization/data',            'OrganizationController@getOrgData',       ['admin', 'manager', 'employee']],
@@ -39,7 +54,7 @@ return [
      * HRM - EMPLOYEES
      */
     ['GET',    '/api/employees',     'HRM\\EmployeeController@index',   ['admin', 'manager']],
-    ['POST',   '/api/employees',     'HRM\\EmployeeController@store',   ['admin']],
+    ['POST',   '/api/employees',     'HRM\\EmployeeController@store',   ['admin', 'manager']],
     ['GET',    '/api/employees/:id', 'HRM\\EmployeeController@show',    ['admin', 'manager', 'employee']],
     ['PUT',    '/api/employees/:id', 'HRM\\EmployeeController@update',  ['admin', 'manager', 'employee']],
     ['DELETE', '/api/employees/:id', 'HRM\\EmployeeController@destroy', ['admin']],
@@ -49,8 +64,7 @@ return [
 
     /**
      * EMPLOYEE DOCUMENTS
-     * Giữ API vì DB hiện tại có bảng employee_documents.
-     * UI có thể ẩn nút upload, nhưng backend không xoá để tránh phá chức năng cũ.
+     * UI có thể ẩn nút hồ sơ điện tử, nhưng giữ API để tránh phá code cũ.
      */
     ['GET',    '/api/employees/:id/documents',         'HRM\\EmployeeController@documents',        ['admin', 'manager', 'employee']],
     ['POST',   '/api/employees/:id/documents',         'HRM\\EmployeeController@uploadDocument',   ['admin', 'manager', 'employee']],
@@ -59,48 +73,47 @@ return [
 
     /**
      * PROJECT
-     *
-     * Luồng chính:
-     * - Admin: xem tổng quan project, không tạo/sửa/xoá project vận hành.
-     * - Manager: tạo project, gán client, kéo employee vào project_members.
-     * - Employee: xem project mình là member hoặc có task được assign.
-     * - Client: xem project của mình.
      */
-    ['GET',    '/api/projects',                       'Task\\ProjectController@index',        ['admin', 'manager', 'employee', 'client']],
-    ['GET',    '/api/projects/options',               'Task\\ProjectController@options',      ['admin', 'manager']],
-    ['GET',    '/api/projects/:id',                   'Task\\ProjectController@show',         ['admin', 'manager', 'employee', 'client']],
-    ['POST',   '/api/projects',                       'Task\\ProjectController@store',        ['manager']],
-    ['PUT',    '/api/projects/:id',                   'Task\\ProjectController@update',       ['manager']],
-    ['DELETE', '/api/projects/:id',                   'Task\\ProjectController@delete',       ['manager']],
+    ['GET',    '/api/projects',                         'Task\\ProjectController@index',        ['admin', 'manager', 'employee', 'client']],
+    ['GET',    '/api/projects/options',                 'Task\\ProjectController@options',      ['admin', 'manager']],
+    ['GET',    '/api/projects/:id',                     'Task\\ProjectController@show',         ['admin', 'manager', 'employee', 'client']],
+    ['POST',   '/api/projects',                         'Task\\ProjectController@store',        ['manager']],
+    ['PUT',    '/api/projects/:id',                     'Task\\ProjectController@update',       ['manager']],
+    ['DELETE', '/api/projects/:id',                     'Task\\ProjectController@delete',       ['manager']],
 
-    ['GET',    '/api/projects/:id/members',           'Task\\ProjectController@members',      ['admin', 'manager', 'employee']],
-    ['POST',   '/api/projects/:id/members',           'Task\\ProjectController@addMember',    ['manager']],
-    ['DELETE', '/api/projects/:id/members/:employeeId','Task\\ProjectController@removeMember', ['manager']],
+    ['GET',    '/api/projects/:id/members',             'Task\\ProjectController@members',      ['admin', 'manager', 'employee']],
+    ['POST',   '/api/projects/:id/members',             'Task\\ProjectController@addMember',    ['manager']],
+    ['DELETE', '/api/projects/:id/members/:employeeId', 'Task\\ProjectController@removeMember', ['manager']],
+
+    /**
+     * TASK COMMENTS
+     * Đặt trước /api/tasks/:id để tránh router hiểu comments là id.
+     */
+    ['GET',    '/api/tasks/comments',     'Task\\TaskCommentController@getAll',    ['admin', 'manager']],
+    ['GET',    '/api/tasks/comments/:id', 'Task\\TaskCommentController@getById',   ['admin', 'manager', 'employee', 'client']],
+    ['GET',    '/api/tasks/:id/comments', 'Task\\TaskCommentController@getByTask', ['admin', 'manager', 'employee', 'client']],
+    ['POST',   '/api/tasks/:id/comments', 'Task\\TaskCommentController@store',     ['manager', 'employee', 'client']],
+    ['PUT',    '/api/tasks/comments/:id', 'Task\\TaskCommentController@update',    ['admin', 'manager', 'employee', 'client']],
+    ['DELETE', '/api/tasks/comments/:id', 'Task\\TaskCommentController@delete',    ['admin', 'manager', 'employee', 'client']],
 
     /**
      * TASK
-     *
-     * Manager tạo/sửa/xoá/giao task.
-     * Employee chỉ xem/cập nhật trạng thái task được giao.
-     * Admin không tạo task trong workflow vận hành.
      */
-    ['GET',    '/api/tasks',            'Task\\TaskController@index',        ['admin', 'manager', 'employee', 'client']],
-    ['POST',   '/api/tasks',            'Task\\TaskController@store',        ['manager']],
-    ['PUT',    '/api/tasks/:id',        'Task\\TaskController@update',       ['manager']],
-    ['DELETE', '/api/tasks/:id',        'Task\\TaskController@destroy',      ['manager']],
-    ['PATCH',  '/api/tasks/:id/status', 'Task\\TaskController@updateStatus', ['manager', 'employee']],
+    ['GET',    '/api/tasks',             'Task\\TaskController@index',          ['admin', 'manager', 'employee', 'client']],
+    ['GET',    '/api/tasks/options',     'Task\\TaskController@options',        ['manager']],
+    ['GET',    '/api/tasks/kanban',      'Task\\TaskController@kanban',         ['admin', 'manager', 'employee', 'client']],
+    ['GET',    '/api/tasks/review',      'Task\\TaskController@getReviewTasks', ['manager']],
+    ['GET',    '/api/tasks/submit',      'Task\\TaskController@getReviewTasks', ['manager']],
 
-    /**
-     * TASK APPROVAL
-     *
-     * Employee submit task sang Review.
-     * Manager approve -> Done.
-     * Manager reject -> Doing + reject_reason/comment.
-     */
-    ['POST', '/api/tasks/:id/submit',  'Task\\TaskApprovalController@submit',         ['employee']],
-    ['POST', '/api/tasks/:id/approve', 'Task\\TaskApprovalController@approve',        ['manager']],
-    ['POST', '/api/tasks/:id/reject',  'Task\\TaskApprovalController@reject',         ['manager']],
-    ['GET',  '/api/tasks/submit',      'Task\\TaskApprovalController@getReviewTasks', ['manager']],
+    ['GET',    '/api/tasks/:id',         'Task\\TaskController@show',         ['admin', 'manager', 'employee', 'client']],
+    ['POST',   '/api/tasks',             'Task\\TaskController@store',        ['manager']],
+    ['PUT',    '/api/tasks/:id',         'Task\\TaskController@update',       ['manager']],
+    ['DELETE', '/api/tasks/:id',         'Task\\TaskController@destroy',      ['manager']],
+    ['PATCH',  '/api/tasks/:id/status',  'Task\\TaskController@updateStatus', ['manager', 'employee']],
+
+    ['POST', '/api/tasks/:id/submit',  'Task\\TaskController@submit',  ['employee']],
+    ['POST', '/api/tasks/:id/approve', 'Task\\TaskController@approve', ['manager']],
+    ['POST', '/api/tasks/:id/reject',  'Task\\TaskController@reject',  ['manager']],
 
     /**
      * TASK ASSIGNMENT
@@ -111,8 +124,8 @@ return [
      * TASK ATTACHMENTS
      */
     ['POST', '/api/tasks/:id/attachments',    'Task\\TaskAttachmentController@upload',   ['manager', 'employee']],
-    ['GET',  '/api/tasks/:id/attachments',    'Task\\TaskAttachmentController@list',     ['manager', 'employee']],
-    ['GET',  '/api/attachments/:id/download', 'Task\\TaskAttachmentController@download', ['manager', 'employee']],
+    ['GET',  '/api/tasks/:id/attachments',    'Task\\TaskAttachmentController@list',     ['manager', 'employee', 'client']],
+    ['GET',  '/api/attachments/:id/download', 'Task\\TaskAttachmentController@download', ['manager', 'employee', 'client']],
 
     /**
      * TASK ACTIVITY
@@ -128,20 +141,9 @@ return [
     ['PATCH', '/api/notifications/:id/read',     'Core\\NotificationController@markAsRead',  ['manager', 'employee']],
 
     /**
-     * COMMENTS
-     */
-    ['GET',    '/api/tasks/comments',     'Task\\TaskCommentController@getAll',    ['manager']],
-    ['GET',    '/api/tasks/comments/:id', 'Task\\TaskCommentController@getById',   ['manager', 'employee']],
-    ['GET',    '/api/tasks/:id/comments', 'Task\\TaskCommentController@getByTask', ['manager', 'employee']],
-    ['POST',   '/api/tasks/:id/comments', 'Task\\TaskCommentController@store',     ['manager', 'employee', 'client']],
-    ['PUT',    '/api/tasks/comments/:id', 'Task\\TaskCommentController@update',    ['manager', 'employee', 'client']],
-    ['DELETE', '/api/tasks/comments/:id', 'Task\\TaskCommentController@delete',    ['manager', 'employee', 'client']],
-
-    /**
      * ATTENDANCE & LEAVE
-     *
      * Giữ chấm công và nghỉ phép.
-     * Không bật lại module tính lương/payroll summary.
+     * Không bật module tính lương/payroll summary.
      */
     ['GET',   '/api/leaves',             'Payroll\\LeaveController@index',      ['admin', 'manager', 'employee']],
     ['GET',   '/api/admin/leaves',       'Payroll\\LeaveController@adminIndex', ['admin', 'manager']],

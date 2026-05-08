@@ -1,233 +1,514 @@
 <?php
-$pageTitle = 'Dự án của Khách hàng | Creative Agency Hub';
-$pageCss = ['client-portal.css'];
-$pageJs = ['client-portal.js'];
-$brandName = 'Creative Agency Hub';
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-$currentUser = $currentUser ?? [
-    'name' => 'Khách hàng',
-    'role' => 'Client Portal',
-    'avatar' => null,
-];
+$pageTitle = 'Dự án của tôi | Creative Agency Hub';
 
-$projects = $projects ?? [
-    [
-        'name' => 'NexusHR Web Platform',
-        'description' => 'Nền tảng quản lý nhân sự, công việc và cổng thông tin khách hàng cho doanh nghiệp.',
-        'status' => 'in_progress',
-        'status_label' => 'Đang triển khai',
-        'progress' => 76,
-        'tasks' => 18,
-        'done' => 12,
-        'deadline' => '25/12/2026',
-        'manager' => 'PM',
-        'manager_name' => 'Project Manager',
-    ],
-    [
-        'name' => 'Brand Campaign Q4',
-        'description' => 'Chiến dịch sáng tạo cuối năm gồm key visual, social content và approval workflow.',
-        'status' => 'review',
-        'status_label' => 'Đang duyệt',
-        'progress' => 64,
-        'tasks' => 24,
-        'done' => 15,
-        'deadline' => '15/01/2027',
-        'manager' => 'CM',
-        'manager_name' => 'Campaign Manager',
-    ],
-    [
-        'name' => 'Client Portal Upgrade',
-        'description' => 'Nâng cấp trải nghiệm phản hồi, timeline và báo cáo tiến độ dành riêng cho khách hàng.',
-        'status' => 'planned',
-        'status_label' => 'Lên kế hoạch',
-        'progress' => 36,
-        'tasks' => 11,
-        'done' => 4,
-        'deadline' => '08/02/2027',
-        'manager' => 'UX',
-        'manager_name' => 'UX Lead',
-    ],
-];
-
-ob_start();
+$baseUrl = '/creative-agency-hub';
+$publicUrl = $baseUrl . '/public';
+$viewUrl = $baseUrl . '/app/View';
+$assetUrl = $publicUrl . '/assets';
+$cacheBust = time();
 ?>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8'); ?></title>
 
-<section class="client-hero">
-    <div class="client-hero-copy">
-        <span class="client-kicker">Client Portal • Creative Agency Hub</span>
-        <h1>Theo dõi dự án của bạn trong một không gian riêng.</h1>
-        <p>
-            Xem tiến độ, deadline, đầu việc được chia sẻ và gửi phản hồi trực tiếp
-            đến đội ngũ phụ trách mà không can thiệp vào luồng trao đổi nội bộ.
-        </p>
-    </div>
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/css/reset.css?v=<?php echo $cacheBust; ?>">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/css/app.css?v=<?php echo $cacheBust; ?>">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/css/components.css?v=<?php echo $cacheBust; ?>">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/css/client-portal.css?v=<?php echo $cacheBust; ?>">
+</head>
+<body class="client-body">
+    <div class="client-shell">
+        <header class="client-topbar">
+            <a class="client-brand" href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/client-portal/projects.php">
+                <span class="brand-mark">CA</span>
+                <span>Creative Agency Hub</span>
+            </a>
 
-    <aside class="client-hero-panel">
-        <div class="client-hero-panel-row">
-            <span>Dự án đang mở</span>
-            <strong><?php echo count($projects); ?></strong>
-        </div>
+            <nav class="client-nav" aria-label="Client navigation">
+                <a class="client-nav-link is-active" href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/client-portal/projects.php">
+                    Dự án
+                </a>
+                <a class="client-nav-link" href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/client-portal/tasks.php">
+                    Công việc
+                </a>
+                <a class="client-nav-link" href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/client-portal/support.php">
+                    Feedback
+                </a>
+            </nav>
 
-        <div class="client-hero-panel-row">
-            <span>Tiến độ trung bình</span>
-            <strong>68%</strong>
-        </div>
+            <div class="client-user">
+                <div>
+                    <strong data-client-name>Client</strong>
+                    <small style="display:block; color: var(--text-muted); font-weight: 800;">CLIENT PORTAL</small>
+                </div>
 
-        <div class="client-hero-panel-row">
-            <span>Phản hồi chờ xử lý</span>
-            <strong>02</strong>
-        </div>
+                <span class="client-avatar" data-client-avatar>CL</span>
 
-        <div class="client-hero-panel-row">
-            <span>Lần cập nhật gần nhất</span>
-            <strong>Hôm nay</strong>
-        </div>
-    </aside>
-</section>
-
-<section class="client-section">
-    <div class="client-section-header">
-        <div>
-            <h2>Dự án được chia sẻ</h2>
-            <p>Danh sách các dự án mà tài khoản khách hàng của bạn có quyền theo dõi.</p>
-        </div>
-
-        <div class="client-filter-row">
-            <div class="input-with-icon">
-                <span class="input-icon">⌕</span>
-                <input
-                    class="form-control"
-                    type="search"
-                    placeholder="Tìm dự án..."
-                    data-client-search="[data-client-project-card]"
-                >
+                <button class="btn btn-light" type="button" data-client-logout>
+                    Đăng xuất
+                </button>
             </div>
+        </header>
 
-            <select class="form-select" data-client-filter="[data-client-project-card]" data-filter-key="status">
-                <option value="">Tất cả trạng thái</option>
-                <option value="in_progress">Đang triển khai</option>
-                <option value="review">Đang duyệt</option>
-                <option value="planned">Lên kế hoạch</option>
-            </select>
-        </div>
-    </div>
-
-    <div class="client-project-grid">
-        <?php foreach ($projects as $project): ?>
-            <?php
-            $badgeTone = $project['status'] === 'in_progress'
-                ? 'primary'
-                : ($project['status'] === 'review' ? 'warning' : 'info');
-            ?>
-            <article
-                class="client-project-card"
-                data-client-project-card
-                data-status="<?php echo htmlspecialchars($project['status']); ?>"
-            >
-                <div class="client-project-card-header">
-                    <div class="client-project-card-title">
-                        <h2><?php echo htmlspecialchars($project['name']); ?></h2>
-                        <span class="badge badge-<?php echo htmlspecialchars($badgeTone); ?>">
-                            <?php echo htmlspecialchars($project['status_label']); ?>
-                        </span>
-                    </div>
-
-                    <p><?php echo htmlspecialchars($project['description']); ?></p>
+        <main class="client-content">
+            <section class="client-hero">
+                <div class="client-hero-copy">
+                    <span class="client-kicker">Client Portal</span>
+                    <h1>Dự án của bạn,<br>minh bạch từng bước.</h1>
+                    <p>
+                        Theo dõi tiến độ các project được gán cho bạn, xem task đã public,
+                        tải file thiết kế và gửi feedback trực tiếp tới đội ngũ phụ trách.
+                    </p>
                 </div>
 
-                <div class="client-project-meta">
-                    <div class="progress-line">
-                        <div class="progress-line-fill" style="width: <?php echo (int) $project['progress']; ?>%;"></div>
+                <aside class="client-hero-panel">
+                    <div class="client-hero-panel-row">
+                        <span>Dự án đang theo dõi</span>
+                        <strong data-stat-projects>0</strong>
+                    </div>
+                    <div class="client-hero-panel-row">
+                        <span>Task public</span>
+                        <strong data-stat-tasks>0</strong>
+                    </div>
+                    <div class="client-hero-panel-row">
+                        <span>Tiến độ trung bình</span>
+                        <strong><span data-stat-progress>0</span>%</strong>
+                    </div>
+                </aside>
+            </section>
+
+            <section class="client-section">
+                <div class="client-section-header">
+                    <div>
+                        <h2>Danh sách dự án</h2>
+                        <p>Chỉ hiển thị những project được gán cho tài khoản client hiện tại.</p>
                     </div>
 
-                    <div class="project-progress-meta">
-                        <span><?php echo (int) $project['progress']; ?>% hoàn thành</span>
-                        <span>Deadline: <?php echo htmlspecialchars($project['deadline']); ?></span>
-                    </div>
+                    <div class="client-filter-row">
+                        <input
+                            class="form-control"
+                            type="search"
+                            placeholder="Tìm dự án..."
+                            data-project-search
+                        >
 
-                    <div class="client-project-stats">
-                        <div class="client-project-stat">
-                            <strong><?php echo (int) $project['tasks']; ?></strong>
-                            <span>Tasks</span>
-                        </div>
+                        <select class="form-select" data-project-status>
+                            <option value="">Tất cả trạng thái</option>
+                            <option value="Active">Đang triển khai</option>
+                            <option value="Completed">Hoàn thành</option>
+                            <option value="Archived">Đã lưu trữ</option>
+                        </select>
 
-                        <div class="client-project-stat">
-                            <strong><?php echo (int) $project['done']; ?></strong>
-                            <span>Done</span>
-                        </div>
-
-                        <div class="client-project-stat">
-                            <strong><?php echo (int) $project['progress']; ?>%</strong>
-                            <span>Progress</span>
-                        </div>
+                        <button class="btn btn-primary" type="button" data-project-refresh>
+                            Làm mới
+                        </button>
                     </div>
                 </div>
 
-                <div class="client-project-footer">
-                    <div class="client-manager">
-                        <span class="client-manager-avatar"><?php echo htmlspecialchars($project['manager']); ?></span>
-                        <span><?php echo htmlspecialchars($project['manager_name']); ?></span>
-                    </div>
-
-                    <a class="btn btn-primary" href="/creative-agency-hub/app/View/client-portal/tasks.php">
-                        Xem chi tiết
-                    </a>
+                <div class="client-project-grid" data-project-list>
+                    <article class="client-project-card" style="grid-column: 1 / -1;">
+                        <div class="client-project-card-header">
+                            <div class="client-project-card-title">
+                                <h2>Đang tải dự án...</h2>
+                            </div>
+                            <p>Hệ thống đang lấy dữ liệu Client Portal.</p>
+                        </div>
+                    </article>
                 </div>
-            </article>
-        <?php endforeach; ?>
-    </div>
-</section>
-
-<section class="client-section">
-    <div class="client-section-header">
-        <div>
-            <h2>Cập nhật gần đây</h2>
-            <p>Các thay đổi mới nhất được chia sẻ từ đội dự án.</p>
-        </div>
+            </section>
+        </main>
     </div>
 
-    <div class="client-detail-layout">
-        <article class="card">
-            <div class="card-body">
-                <div class="client-milestone-list">
-                    <div class="client-milestone is-done">
-                        <div class="client-milestone-dot">✓</div>
-                        <div class="client-milestone-body">
-                            <h3>Hoàn thiện giao diện đăng nhập</h3>
-                            <p>Đã cập nhật UI login nội bộ và client portal theo theme Creative Agency Hub.</p>
+    <script>
+        window.CAH_CONFIG = {
+            baseUrl: '<?php echo $baseUrl; ?>',
+            publicUrl: '<?php echo $publicUrl; ?>',
+            viewUrl: '<?php echo $viewUrl; ?>',
+            apiRoot: '<?php echo $publicUrl; ?>'
+        };
+    </script>
+
+    <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/app.js?v=<?php echo $cacheBust; ?>"></script>
+    <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/toast.js?v=<?php echo $cacheBust; ?>"></script>
+    <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/client-portal.js?v=<?php echo $cacheBust; ?>"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const apiRoot = window.CAH_CONFIG.apiRoot;
+            const viewUrl = window.CAH_CONFIG.viewUrl;
+
+            const projectList = document.querySelector('[data-project-list]');
+            const searchInput = document.querySelector('[data-project-search]');
+            const statusSelect = document.querySelector('[data-project-status]');
+            const refreshButton = document.querySelector('[data-project-refresh]');
+            const logoutButton = document.querySelector('[data-client-logout]');
+
+            const clientNameEl = document.querySelector('[data-client-name]');
+            const clientAvatarEl = document.querySelector('[data-client-avatar]');
+
+            const statProjects = document.querySelector('[data-stat-projects]');
+            const statTasks = document.querySelector('[data-stat-tasks]');
+            const statProgress = document.querySelector('[data-stat-progress]');
+
+            let currentUser = null;
+            let projects = [];
+
+            function getToken() {
+                return localStorage.getItem('cah_auth_token') || localStorage.getItem('cah_token') || '';
+            }
+
+            function escapeHtml(value) {
+                return String(value ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function toast(type, title, message) {
+                if (window.CAHToast && typeof window.CAHToast[type] === 'function') {
+                    window.CAHToast[type](title, message);
+                    return;
+                }
+
+                if (type === 'error') {
+                    console.error(title, message);
+                    return;
+                }
+
+                console.log(title, message);
+            }
+
+            function initialsFromName(name) {
+                const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+
+                if (parts.length === 0) {
+                    return 'CL';
+                }
+
+                const first = parts[0].charAt(0);
+                const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
+
+                return (first + last).toUpperCase();
+            }
+
+            function statusLabel(status) {
+                const map = {
+                    Active: 'Đang triển khai',
+                    Completed: 'Hoàn thành',
+                    Archived: 'Đã lưu trữ'
+                };
+
+                return map[status] || status || 'Đang triển khai';
+            }
+
+            function formatDate(dateValue) {
+                if (!dateValue) {
+                    return 'Chưa đặt';
+                }
+
+                const date = new Date(String(dateValue) + 'T00:00:00');
+
+                if (Number.isNaN(date.getTime())) {
+                    return dateValue;
+                }
+
+                return date.toLocaleDateString('vi-VN');
+            }
+
+            async function apiRequest(path, options = {}) {
+                const token = getToken();
+
+                const headers = {
+                    Accept: 'application/json',
+                    ...(options.headers || {})
+                };
+
+                if (token) {
+                    headers.Authorization = 'Bearer ' + token;
+                }
+
+                const response = await fetch(apiRoot + path, {
+                    credentials: 'same-origin',
+                    ...options,
+                    headers
+                });
+
+                const payload = await response.json().catch(() => ({
+                    status: 'error',
+                    message: 'Server không trả JSON hợp lệ.'
+                }));
+
+                if (!response.ok || payload.status === 'error') {
+                    throw new Error(payload.message || 'Yêu cầu không thành công.');
+                }
+
+                return payload;
+            }
+
+            function clearAuth() {
+                localStorage.removeItem('cah_auth_token');
+                localStorage.removeItem('cah_token');
+                localStorage.removeItem('cah_auth_user');
+                localStorage.removeItem('cah_user');
+
+                document.cookie = 'cah_token=; path=/; max-age=0; SameSite=Lax';
+            }
+
+            function requireClientSession() {
+                const token = getToken();
+
+                if (!token) {
+                    window.location.href = viewUrl + '/client-portal/login-client.php';
+                    return false;
+                }
+
+                return true;
+            }
+
+            async function loadCurrentUser() {
+                const payload = await apiRequest('/api/auth/me');
+                const user = payload.data && payload.data.user ? payload.data.user : payload.data;
+
+                currentUser = user || null;
+
+                if (!currentUser || String(currentUser.role || '').toLowerCase() !== 'client') {
+                    clearAuth();
+                    window.location.href = viewUrl + '/client-portal/login-client.php';
+                    return;
+                }
+
+                const name = currentUser.full_name || currentUser.name || currentUser.email || 'Client';
+
+                clientNameEl.textContent = name;
+                clientAvatarEl.textContent = initialsFromName(name);
+            }
+
+            async function loadPublicTaskStats(projectId) {
+                try {
+                    const payload = await apiRequest('/api/tasks?project_id=' + encodeURIComponent(projectId));
+                    const tasks = Array.isArray(payload.data) ? payload.data : [];
+
+                    const total = tasks.length;
+                    const done = tasks.filter(function (task) {
+                        return String(task.status || '') === 'Done';
+                    }).length;
+
+                    return {
+                        total_public_tasks: total,
+                        done_public_tasks: done,
+                        progress_public: total > 0 ? Math.round(done / total * 100) : 0
+                    };
+                } catch (error) {
+                    return {
+                        total_public_tasks: 0,
+                        done_public_tasks: 0,
+                        progress_public: 0
+                    };
+                }
+            }
+
+            async function hydrateProjects(rawProjects) {
+                const hydrated = [];
+
+                for (const project of rawProjects) {
+                    const stats = await loadPublicTaskStats(project.id);
+
+                    hydrated.push({
+                        id: Number(project.id || 0),
+                        name: project.name || 'Dự án chưa đặt tên',
+                        description: project.description || 'Chưa có mô tả dự án.',
+                        status: project.status || 'Active',
+                        manager_name: project.manager_name || 'Chưa rõ manager',
+                        client_name: project.client_name || 'Client',
+                        nearest_deadline: project.nearest_deadline || null,
+                        total_public_tasks: stats.total_public_tasks,
+                        done_public_tasks: stats.done_public_tasks,
+                        progress: stats.progress_public
+                    });
+                }
+
+                return hydrated;
+            }
+
+            function updateStats() {
+                const totalProjects = projects.length;
+                const totalTasks = projects.reduce(function (sum, project) {
+                    return sum + Number(project.total_public_tasks || 0);
+                }, 0);
+
+                const avgProgress = totalProjects > 0
+                    ? Math.round(projects.reduce(function (sum, project) {
+                        return sum + Number(project.progress || 0);
+                    }, 0) / totalProjects)
+                    : 0;
+
+                statProjects.textContent = String(totalProjects);
+                statTasks.textContent = String(totalTasks);
+                statProgress.textContent = String(avgProgress);
+            }
+
+            function filteredProjects() {
+                const search = String(searchInput.value || '').toLowerCase().trim();
+                const status = String(statusSelect.value || '').trim();
+
+                return projects.filter(function (project) {
+                    const matchSearch = !search
+                        || String(project.name || '').toLowerCase().includes(search)
+                        || String(project.description || '').toLowerCase().includes(search)
+                        || String(project.manager_name || '').toLowerCase().includes(search);
+
+                    const matchStatus = !status || project.status === status;
+
+                    return matchSearch && matchStatus;
+                });
+            }
+
+            function renderEmpty(message) {
+                projectList.innerHTML = `
+                    <article class="client-project-card" style="grid-column: 1 / -1;">
+                        <div class="client-project-card-header">
+                            <div class="client-project-card-title">
+                                <h2>${escapeHtml(message)}</h2>
+                            </div>
+                            <p>Dữ liệu sẽ hiển thị khi project được manager gán cho client này.</p>
                         </div>
-                    </div>
+                    </article>
+                `;
+            }
 
-                    <div class="client-milestone is-done">
-                        <div class="client-milestone-dot">✓</div>
-                        <div class="client-milestone-body">
-                            <h3>Hoàn thiện Dashboard nội bộ</h3>
-                            <p>Đội ngũ đã bổ sung dashboard tổng quan, HRM, task board và payroll screen.</p>
+            function renderProjects() {
+                const visibleProjects = filteredProjects();
+
+                if (visibleProjects.length === 0) {
+                    renderEmpty('Chưa có dự án phù hợp');
+                    return;
+                }
+
+                projectList.innerHTML = visibleProjects.map(function (project) {
+                    const progress = Math.max(0, Math.min(100, Number(project.progress || 0)));
+                    const remainingTasks = Math.max(0, Number(project.total_public_tasks || 0) - Number(project.done_public_tasks || 0));
+
+                    return `
+                        <article class="client-project-card">
+                            <div class="client-project-card-header">
+                                <div class="client-project-card-title">
+                                    <h2>${escapeHtml(project.name)}</h2>
+                                    <span class="badge badge-success">${escapeHtml(statusLabel(project.status))}</span>
+                                </div>
+
+                                <p>${escapeHtml(project.description)}</p>
+                            </div>
+
+                            <div class="client-project-meta">
+                                <div class="progress-line">
+                                    <div class="progress-line-fill" style="width: ${progress}%;"></div>
+                                </div>
+
+                                <div class="client-project-stats">
+                                    <div class="client-project-stat">
+                                        <strong>${progress}%</strong>
+                                        <span>Tiến độ</span>
+                                    </div>
+
+                                    <div class="client-project-stat">
+                                        <strong>${Number(project.total_public_tasks || 0)}</strong>
+                                        <span>Task public</span>
+                                    </div>
+
+                                    <div class="client-project-stat">
+                                        <strong>${remainingTasks}</strong>
+                                        <span>Đang mở</span>
+                                    </div>
+                                </div>
+
+                                <div class="client-side-summary">
+                                    <div class="client-summary-row">
+                                        <span>Manager phụ trách</span>
+                                        <strong>${escapeHtml(project.manager_name)}</strong>
+                                    </div>
+
+                                    <div class="client-summary-row">
+                                        <span>Deadline gần nhất</span>
+                                        <strong>${escapeHtml(formatDate(project.nearest_deadline))}</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="client-project-footer">
+                                <div class="client-manager">
+                                    <span class="client-manager-avatar">${escapeHtml(initialsFromName(project.manager_name))}</span>
+                                    <span>${escapeHtml(project.manager_name)}</span>
+                                </div>
+
+                                <a class="btn btn-primary" href="${viewUrl}/client-portal/tasks.php?project_id=${project.id}">
+                                    Xem chi tiết
+                                </a>
+                            </div>
+                        </article>
+                    `;
+                }).join('');
+            }
+
+            async function loadProjects() {
+                projectList.innerHTML = `
+                    <article class="client-project-card" style="grid-column: 1 / -1;">
+                        <div class="client-project-card-header">
+                            <div class="client-project-card-title">
+                                <h2>Đang tải dữ liệu...</h2>
+                            </div>
+                            <p>Client Portal đang lấy danh sách project của bạn.</p>
                         </div>
-                    </div>
+                    </article>
+                `;
 
-                    <div class="client-milestone">
-                        <div class="client-milestone-dot">3</div>
-                        <div class="client-milestone-body">
-                            <h3>Đang kiểm tra responsive</h3>
-                            <p>Các màn hình sẽ được kiểm thử trên desktop, tablet và mobile.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </article>
+                try {
+                    const payload = await apiRequest('/api/projects');
+                    const rawProjects = Array.isArray(payload.data) ? payload.data : [];
 
-        <aside class="client-contact-card">
-            <h2>Cần hỗ trợ nhanh?</h2>
-            <p>Gửi yêu cầu cho đội dự án nếu bạn cần thay đổi scope, thêm phản hồi hoặc cập nhật deadline.</p>
-            <button class="btn btn-light" type="button" data-client-action="mock-support">
-                Gửi yêu cầu hỗ trợ
-            </button>
-        </aside>
-    </div>
-</section>
+                    projects = await hydrateProjects(rawProjects);
 
-<?php
-$content = ob_get_clean();
-require __DIR__ . '/../layouts/client.php';
-?>
+                    updateStats();
+                    renderProjects();
+                } catch (error) {
+                    renderEmpty('Không thể tải dự án');
+                    toast('error', 'Không thể tải dự án', error.message);
+                }
+            }
+
+            logoutButton.addEventListener('click', function () {
+                clearAuth();
+                window.location.href = viewUrl + '/client-portal/login-client.php';
+            });
+
+            searchInput.addEventListener('input', renderProjects);
+            statusSelect.addEventListener('change', renderProjects);
+            refreshButton.addEventListener('click', loadProjects);
+
+            async function init() {
+                if (!requireClientSession()) {
+                    return;
+                }
+
+                try {
+                    await loadCurrentUser();
+                    await loadProjects();
+                } catch (error) {
+                    clearAuth();
+                    window.location.href = viewUrl + '/client-portal/login-client.php';
+                }
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>

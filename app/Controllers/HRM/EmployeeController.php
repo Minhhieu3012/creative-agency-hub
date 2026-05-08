@@ -5,7 +5,6 @@ use App\Models\HRM\Employee;
 use Core\Database;
 use Core\JwtHandler;
 use PDO;
-use ReflectionMethod;
 use Throwable;
 
 class EmployeeController {
@@ -40,6 +39,15 @@ class EmployeeController {
             return $json;
         }
 
+        if (!empty($raw)) {
+            $parsed = [];
+            parse_str($raw, $parsed);
+
+            if (is_array($parsed) && !empty($parsed)) {
+                return $parsed;
+            }
+        }
+
         return $_POST ?? [];
     }
 
@@ -60,25 +68,28 @@ class EmployeeController {
             $payload = (array)$payload['data'];
         }
 
+        if (empty($payload['id'])) {
+            return null;
+        }
+
         return [
-            'id' => isset($payload['id']) ? (int)$payload['id'] : null,
+            'id' => (int)$payload['id'],
             'email' => $payload['email'] ?? null,
             'role' => strtolower((string)($payload['role'] ?? '')),
-            'full_name' => $payload['full_name'] ?? null,
+            'full_name' => $payload['full_name'] ?? ($payload['name'] ?? null),
         ];
     }
 
     private function getAuthorizationHeader(): string {
         $headers = function_exists('getallheaders') ? getallheaders() : [];
 
-        $authHeader =
+        return trim((string)(
             $headers['Authorization']
             ?? $headers['authorization']
             ?? $_SERVER['HTTP_AUTHORIZATION']
             ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
-            ?? '';
-
-        return trim((string)$authHeader);
+            ?? ''
+        ));
     }
 
     private function extractBearerToken(string $authHeader): string {
@@ -94,26 +105,20 @@ class EmployeeController {
     }
 
     private function getAuthUser(): ?array {
+        $token = '';
         $authHeader = $this->getAuthorizationHeader();
 
-        if ($authHeader) {
+        if ($authHeader !== '') {
             $token = $this->extractBearerToken($authHeader);
-
-            try {
-                $decoded = $this->jwt->decode($token);
-                $authUser = $this->normalizeAuthPayload($decoded);
-
-                if ($authUser && !empty($authUser['id'])) {
-                    return $authUser;
-                }
-            } catch (Throwable $e) {
-                // Fallback xuống cookie/session.
-            }
         }
 
-        if (!empty($_COOKIE['cah_token'])) {
+        if ($token === '' && !empty($_COOKIE['cah_token'])) {
+            $token = (string)$_COOKIE['cah_token'];
+        }
+
+        if ($token !== '') {
             try {
-                $decoded = $this->jwt->decode($_COOKIE['cah_token']);
+                $decoded = $this->jwt->decode($token);
                 $authUser = $this->normalizeAuthPayload($decoded);
 
                 if ($authUser && !empty($authUser['id'])) {
@@ -153,6 +158,20 @@ class EmployeeController {
         return $authUser;
     }
 
+    private function requireRole(array $roles): array {
+        $authUser = $this->requireAuth();
+        $role = strtolower((string)($authUser['role'] ?? ''));
+
+        if (!in_array($role, $roles, true)) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Bạn không có quyền thực hiện thao tác này.'
+            ], 403);
+        }
+
+        return $authUser;
+    }
+
     private function resolveId($idOrParams): ?int {
         if (is_array($idOrParams)) {
             if (isset($idOrParams['id'])) {
@@ -174,11 +193,31 @@ class EmployeeController {
     }
 
     private function canAccessEmployee(array $authUser, int $employeeId): bool {
-        if (in_array($authUser['role'], ['admin', 'manager'], true)) {
+        $role = strtolower((string)($authUser['role'] ?? ''));
+
+        if ($role === 'admin') {
             return true;
         }
 
-        return (int)$authUser['id'] === $employeeId;
+        if ((int)$authUser['id'] === $employeeId) {
+            return true;
+        }
+
+        if ($role === 'manager') {
+            $employee = $this->employeeModel->findById($employeeId);
+
+            if (!$employee) {
+                return false;
+            }
+
+            if ((int)($employee['manager_id'] ?? 0) === (int)$authUser['id']) {
+                return true;
+            }
+
+            return in_array(strtolower((string)($employee['role'] ?? '')), ['employee', 'client'], true);
+        }
+
+        return false;
     }
 
     private function getProjectRoot(): string {
@@ -192,68 +231,88 @@ class EmployeeController {
         return $name !== '' ? $name : 'document';
     }
 
-    private function getMimeType(string $tmpPath): ?string {
-        $mimeType = null;
-
-        if (function_exists('finfo_open')) {
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mimeType = finfo_file($finfo, $tmpPath);
-            finfo_close($finfo);
+    private function validateBasicAccountInput(array $input): void {
+        if (empty($input['full_name']) || empty($input['email']) || empty($input['password']) || empty($input['role'])) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Vui lòng nhập đầy đủ họ tên, email, mật khẩu và vai trò.'
+            ], 422);
         }
 
-        if (!$mimeType && function_exists('mime_content_type')) {
-            $mimeType = mime_content_type($tmpPath);
+        if (!filter_var((string)$input['email'], FILTER_VALIDATE_EMAIL)) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Email không hợp lệ.'
+            ], 422);
         }
 
-        return $mimeType ?: null;
+        if (mb_strlen((string)$input['password']) < 6) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Mật khẩu tối thiểu 6 ký tự.'
+            ], 422);
+        }
+    }
+
+    private function normalizeAccountRole($role): string {
+        $role = strtolower(trim((string)$role));
+
+        if (!in_array($role, ['admin', 'manager', 'employee', 'client'], true)) {
+            $role = 'employee';
+        }
+
+        return $role;
+    }
+
+    private function withoutPassword(?array $employee): ?array {
+        if (!$employee) {
+            return null;
+        }
+
+        unset($employee['password']);
+
+        return $employee;
     }
 
     public function index(): void {
         try {
-            $authUser = $this->requireAuth();
+            $authUser = $this->requireRole(['admin', 'manager']);
 
-            if (!in_array($authUser['role'], ['admin', 'manager'], true)) {
-                $this->json([
-                    'status' => 'error',
-                    'message' => 'Bạn không có quyền xem danh sách nhân sự.'
-                ], 403);
+            $search = trim((string)($_GET['search'] ?? ''));
+            $status = trim((string)($_GET['status'] ?? ''));
+            $role = trim((string)($_GET['role'] ?? ''));
+            $departmentId = trim((string)($_GET['department_id'] ?? ''));
+            $positionId = trim((string)($_GET['position_id'] ?? ''));
+
+            $params = [
+                'search' => $search,
+                'status' => $status,
+                'role' => $role,
+                'department_id' => $departmentId,
+                'position_id' => $positionId,
+                'limit' => $_GET['limit'] ?? 100,
+                'page' => $_GET['page'] ?? 1,
+            ];
+
+            if ($authUser['role'] === 'manager') {
+                $params['manager_id'] = (int)$authUser['id'];
+
+                if ($params['role'] === '') {
+                    $params['role'] = $_GET['role'] ?? '';
+                }
             }
 
-            $search = trim($_GET['search'] ?? '');
-            $status = trim($_GET['status'] ?? '');
-
-            $query = "SELECT e.*, d.name AS department_name, p.name AS position_name
-                      FROM employees e
-                      LEFT JOIN departments d ON e.department_id = d.id
-                      LEFT JOIN positions p ON e.position_id = p.id
-                      WHERE e.deleted_at IS NULL
-                        AND (e.full_name LIKE :s1 OR e.email LIKE :s2 OR e.employee_code LIKE :s3)";
-
-            if ($status !== '') {
-                $query .= " AND e.status = :status";
-            }
-
-            $query .= " ORDER BY e.id DESC";
-
-            $stmt = $this->db->prepare($query);
-            $stmt->bindValue(':s1', "%{$search}%");
-            $stmt->bindValue(':s2', "%{$search}%");
-            $stmt->bindValue(':s3', "%{$search}%");
-
-            if ($status !== '') {
-                $stmt->bindValue(':status', $status);
-            }
-
-            $stmt->execute();
+            $result = $this->employeeModel->getList($params);
 
             $this->json([
                 'status' => 'success',
-                'data' => $stmt->fetchAll(PDO::FETCH_ASSOC)
+                'data' => $result['items'],
+                'pagination' => $result['pagination'] ?? null,
             ]);
         } catch (Throwable $e) {
             $this->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Không thể tải danh sách nhân sự: ' . $e->getMessage()
             ], 400);
         }
     }
@@ -273,7 +332,7 @@ class EmployeeController {
             if (!$this->canAccessEmployee($authUser, $employeeId)) {
                 $this->json([
                     'status' => 'error',
-                    'message' => 'Bạn chỉ được xem hồ sơ của chính mình.'
+                    'message' => 'Bạn không có quyền xem hồ sơ nhân sự này.'
                 ], 403);
             }
 
@@ -286,45 +345,86 @@ class EmployeeController {
                 ], 404);
             }
 
-            unset($employee['password']);
-
             $this->json([
                 'status' => 'success',
-                'data' => $employee
+                'data' => $this->withoutPassword($employee)
             ]);
         } catch (Throwable $e) {
             $this->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Không thể tải hồ sơ nhân sự: ' . $e->getMessage()
             ], 400);
         }
     }
 
     public function store(): void {
         try {
-            $authUser = $this->requireAuth();
+            $authUser = $this->requireRole(['admin', 'manager']);
             $input = $this->getInput();
 
-            if (!in_array($authUser['role'], ['admin', 'manager'], true)) {
-                $this->json([
-                    'status' => 'error',
-                    'message' => 'Bạn không có quyền tạo nhân sự.'
-                ], 403);
+            if ($authUser['role'] === 'manager') {
+                $this->storeAccount();
+                return;
             }
 
-            if (empty($input['full_name']) || empty($input['email']) || empty($input['password']) || empty($input['role'])) {
+            $this->validateBasicAccountInput($input);
+
+            $role = $this->normalizeAccountRole($input['role']);
+
+            if ($this->employeeModel->findByEmail($input['email'])) {
                 $this->json([
                     'status' => 'error',
-                    'message' => 'Vui lòng điền đầy đủ tên, email, mật khẩu và vai trò.'
-                ], 400);
+                    'message' => 'Email này đã tồn tại trong hệ thống.'
+                ], 409);
             }
 
-            $role = strtolower((string)$input['role']);
+            $employeeId = $this->employeeModel->create([
+                'department_id' => $input['department_id'] ?? null,
+                'position_id' => $input['position_id'] ?? null,
+                'manager_id' => $input['manager_id'] ?? null,
+                'employee_code' => $input['employee_code'] ?? null,
+                'full_name' => trim((string)$input['full_name']),
+                'email' => trim((string)$input['email']),
+                'password' => (string)$input['password'],
+                'role' => $role,
+                'phone' => $input['phone'] ?? null,
+                'gender' => $input['gender'] ?? null,
+                'date_of_birth' => $input['date_of_birth'] ?? null,
+                'address' => $input['address'] ?? null,
+                'total_leave_days' => $input['total_leave_days'] ?? 12,
+                'remaining_leave_days' => $input['remaining_leave_days'] ?? 12,
+                'status' => $input['status'] ?? 'active',
+                'hire_date' => $input['hire_date'] ?? date('Y-m-d'),
+            ]);
 
-            if ($authUser['role'] === 'manager' && $role !== 'employee') {
+            $employee = $this->employeeModel->findProfileById($employeeId);
+
+            $this->json([
+                'status' => 'success',
+                'message' => 'Admin đã tạo tài khoản thành công.',
+                'data' => $this->withoutPassword($employee)
+            ], 201);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể tạo tài khoản: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    public function storeAccount(): void {
+        try {
+            $authUser = $this->requireRole(['manager']);
+            $input = $this->getInput();
+
+            $this->validateBasicAccountInput($input);
+
+            $role = $this->normalizeAccountRole($input['role']);
+
+            if (!in_array($role, ['employee', 'client'], true)) {
                 $this->json([
                     'status' => 'error',
-                    'message' => 'Quản lý chỉ được phép tạo tài khoản nhân viên.'
+                    'message' => 'Manager chỉ được tạo tài khoản Employee hoặc Client.'
                 ], 403);
             }
 
@@ -335,11 +435,10 @@ class EmployeeController {
                 ], 409);
             }
 
-            $id = $this->employeeModel->create([
+            $employeeId = $this->employeeModel->createPendingAccount([
                 'department_id' => $input['department_id'] ?? null,
                 'position_id' => $input['position_id'] ?? null,
-                'manager_id' => $input['manager_id'] ?? null,
-                'employee_code' => $input['employee_code'] ?? ('EMP' . time()),
+                'employee_code' => $input['employee_code'] ?? null,
                 'full_name' => trim((string)$input['full_name']),
                 'email' => trim((string)$input['email']),
                 'password' => (string)$input['password'],
@@ -348,19 +447,163 @@ class EmployeeController {
                 'gender' => $input['gender'] ?? null,
                 'date_of_birth' => $input['date_of_birth'] ?? null,
                 'address' => $input['address'] ?? null,
-                'status' => 'active',
                 'hire_date' => $input['hire_date'] ?? date('Y-m-d'),
-            ]);
+            ], (int)$authUser['id']);
+
+            $employee = $this->employeeModel->findProfileById($employeeId);
 
             $this->json([
                 'status' => 'success',
-                'message' => 'Tạo nhân sự thành công.',
-                'data' => ['id' => $id]
+                'message' => 'Tạo tài khoản thành công. Tài khoản đang chờ Admin duyệt trước khi đăng nhập.',
+                'data' => $this->withoutPassword($employee)
             ], 201);
         } catch (Throwable $e) {
             $this->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Không thể tạo tài khoản chờ duyệt: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    public function pendingAccounts(): void {
+        try {
+            $this->requireRole(['admin']);
+
+            $filters = [
+                'search' => $_GET['search'] ?? '',
+                'manager_id' => $_GET['manager_id'] ?? null,
+            ];
+
+            $accounts = $this->employeeModel->listPendingAccounts($filters);
+
+            $this->json([
+                'status' => 'success',
+                'data' => array_map(function ($account) {
+                    return $this->withoutPassword($account);
+                }, $accounts)
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể tải danh sách tài khoản chờ duyệt: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    public function approveAccount($id = null): void {
+        try {
+            $authUser = $this->requireRole(['admin']);
+            $employeeId = $this->resolveId($id);
+
+            if (!$employeeId) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Thiếu ID tài khoản cần duyệt.'
+                ], 400);
+            }
+
+            $employee = $this->employeeModel->findById($employeeId);
+
+            if (!$employee) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Không tìm thấy tài khoản.'
+                ], 404);
+            }
+
+            if (($employee['status'] ?? '') !== 'inactive') {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Chỉ tài khoản đang chờ duyệt mới có thể approve.'
+                ], 422);
+            }
+
+            if (!in_array(strtolower((string)$employee['role']), ['employee', 'client'], true)) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Admin chỉ duyệt tài khoản Employee hoặc Client do Manager tạo.'
+                ], 422);
+            }
+
+            $updated = $this->employeeModel->approveAccount($employeeId, (int)$authUser['id']);
+
+            if (!$updated) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Không thể duyệt tài khoản hoặc tài khoản đã được xử lý trước đó.'
+                ], 409);
+            }
+
+            $approved = $this->employeeModel->findProfileById($employeeId);
+
+            $this->json([
+                'status' => 'success',
+                'message' => 'Admin đã duyệt tài khoản. Người dùng hiện có thể đăng nhập.',
+                'data' => $this->withoutPassword($approved)
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể duyệt tài khoản: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    public function rejectAccount($id = null): void {
+        try {
+            $authUser = $this->requireRole(['admin']);
+            $employeeId = $this->resolveId($id);
+
+            if (!$employeeId) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Thiếu ID tài khoản cần từ chối.'
+                ], 400);
+            }
+
+            $employee = $this->employeeModel->findById($employeeId);
+
+            if (!$employee) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Không tìm thấy tài khoản.'
+                ], 404);
+            }
+
+            if (($employee['status'] ?? '') !== 'inactive') {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Chỉ tài khoản đang chờ duyệt mới có thể reject.'
+                ], 422);
+            }
+
+            if (!in_array(strtolower((string)$employee['role']), ['employee', 'client'], true)) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Admin chỉ từ chối tài khoản Employee hoặc Client do Manager tạo.'
+                ], 422);
+            }
+
+            $updated = $this->employeeModel->rejectAccount($employeeId, (int)$authUser['id']);
+
+            if (!$updated) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Không thể từ chối tài khoản hoặc tài khoản đã được xử lý trước đó.'
+                ], 409);
+            }
+
+            $rejected = $this->employeeModel->findProfileById($employeeId);
+
+            $this->json([
+                'status' => 'success',
+                'message' => 'Admin đã từ chối tài khoản. Tài khoản đã chuyển sang trạng thái bị khóa.',
+                'data' => $this->withoutPassword($rejected)
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể từ chối tài khoản: ' . $e->getMessage()
             ], 400);
         }
     }
@@ -380,7 +623,7 @@ class EmployeeController {
             if (!$this->canAccessEmployee($authUser, $employeeId)) {
                 $this->json([
                     'status' => 'error',
-                    'message' => 'Bạn chỉ được chỉnh sửa hồ sơ của chính mình.'
+                    'message' => 'Bạn không có quyền chỉnh sửa hồ sơ này.'
                 ], 403);
             }
 
@@ -394,14 +637,49 @@ class EmployeeController {
             }
 
             $input = $this->getInput();
+            $role = strtolower((string)($authUser['role'] ?? ''));
 
-            $allowedFields = [
-                'full_name',
-                'phone',
-                'gender',
-                'date_of_birth',
-                'address',
-            ];
+            if ($role === 'admin') {
+                $allowedFields = [
+                    'department_id',
+                    'position_id',
+                    'manager_id',
+                    'employee_code',
+                    'full_name',
+                    'email',
+                    'password',
+                    'role',
+                    'phone',
+                    'gender',
+                    'date_of_birth',
+                    'address',
+                    'total_leave_days',
+                    'remaining_leave_days',
+                    'status',
+                    'hire_date',
+                    'resigned_date',
+                ];
+            } elseif ($role === 'manager' && (int)$authUser['id'] !== $employeeId) {
+                $allowedFields = [
+                    'department_id',
+                    'position_id',
+                    'manager_id',
+                    'full_name',
+                    'phone',
+                    'gender',
+                    'date_of_birth',
+                    'address',
+                    'hire_date',
+                ];
+            } else {
+                $allowedFields = [
+                    'full_name',
+                    'phone',
+                    'gender',
+                    'date_of_birth',
+                    'address',
+                ];
+            }
 
             $data = [];
 
@@ -417,6 +695,24 @@ class EmployeeController {
                     'status' => 'error',
                     'message' => 'Họ và tên không được để trống.'
                 ], 422);
+            }
+
+            if (isset($data['email']) && $data['email'] !== null) {
+                if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+                    $this->json([
+                        'status' => 'error',
+                        'message' => 'Email không hợp lệ.'
+                    ], 422);
+                }
+
+                $existing = $this->employeeModel->findByEmail($data['email']);
+
+                if ($existing && (int)$existing['id'] !== $employeeId) {
+                    $this->json([
+                        'status' => 'error',
+                        'message' => 'Email này đã tồn tại trong hệ thống.'
+                    ], 409);
+                }
             }
 
             if (isset($data['gender']) && $data['gender'] !== null && !in_array($data['gender'], ['male', 'female', 'other'], true)) {
@@ -454,19 +750,15 @@ class EmployeeController {
             $this->employeeModel->update($employeeId, $data);
             $updated = $this->employeeModel->findProfileById($employeeId);
 
-            if ($updated) {
-                unset($updated['password']);
-            }
-
             $this->json([
                 'status' => 'success',
                 'message' => 'Cập nhật hồ sơ thành công.',
-                'data' => $updated
+                'data' => $this->withoutPassword($updated)
             ]);
         } catch (Throwable $e) {
             $this->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Không thể cập nhật hồ sơ: ' . $e->getMessage()
             ], 400);
         }
     }
@@ -486,7 +778,7 @@ class EmployeeController {
             if (!$this->canAccessEmployee($authUser, $employeeId)) {
                 $this->json([
                     'status' => 'error',
-                    'message' => 'Bạn chỉ được upload ảnh cho hồ sơ của chính mình.'
+                    'message' => 'Bạn không có quyền upload ảnh cho hồ sơ này.'
                 ], 403);
             }
 
@@ -524,7 +816,17 @@ class EmployeeController {
                 ], 422);
             }
 
-            $mimeType = $this->getMimeType($file['tmp_name']);
+            $mimeType = null;
+
+            if (function_exists('finfo_open')) {
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mimeType = finfo_file($finfo, $file['tmp_name']);
+                finfo_close($finfo);
+            }
+
+            if (!$mimeType && function_exists('mime_content_type')) {
+                $mimeType = mime_content_type($file['tmp_name']);
+            }
 
             $allowedMimeTypes = [
                 'image/jpeg' => 'jpg',
@@ -568,25 +870,18 @@ class EmployeeController {
                 }
             }
 
-            $updated = $this->employeeModel->findProfileById($employeeId);
-
-            if ($updated) {
-                unset($updated['password']);
-            }
-
             $this->json([
                 'status' => 'success',
                 'message' => 'Cập nhật ảnh đại diện thành công.',
                 'data' => [
                     'avatar' => $filename,
-                    'avatar_url' => '/creative-agency-hub/public/uploads/avatars/' . rawurlencode($filename),
-                    'employee' => $updated
+                    'avatar_url' => '/creative-agency-hub/public/uploads/avatars/' . rawurlencode($filename)
                 ]
             ]);
         } catch (Throwable $e) {
             $this->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Không thể upload avatar: ' . $e->getMessage()
             ], 400);
         }
     }
@@ -606,7 +901,7 @@ class EmployeeController {
             if (!$this->canAccessEmployee($authUser, $employeeId)) {
                 $this->json([
                     'status' => 'error',
-                    'message' => 'Bạn chỉ được xem hồ sơ điện tử của chính mình.'
+                    'message' => 'Bạn không có quyền xem hồ sơ điện tử của nhân sự này.'
                 ], 403);
             }
 
@@ -625,7 +920,7 @@ class EmployeeController {
         } catch (Throwable $e) {
             $this->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Không thể tải hồ sơ điện tử: ' . $e->getMessage()
             ], 400);
         }
     }
@@ -645,7 +940,7 @@ class EmployeeController {
             if (!$this->canAccessEmployee($authUser, $employeeId)) {
                 $this->json([
                     'status' => 'error',
-                    'message' => 'Bạn chỉ được upload hồ sơ điện tử cho chính mình.'
+                    'message' => 'Bạn không có quyền upload hồ sơ điện tử cho nhân sự này.'
                 ], 403);
             }
 
@@ -683,7 +978,17 @@ class EmployeeController {
                 ], 422);
             }
 
-            $mimeType = $this->getMimeType($file['tmp_name']);
+            $mimeType = null;
+
+            if (function_exists('finfo_open')) {
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mimeType = finfo_file($finfo, $file['tmp_name']);
+                finfo_close($finfo);
+            }
+
+            if (!$mimeType && function_exists('mime_content_type')) {
+                $mimeType = mime_content_type($file['tmp_name']);
+            }
 
             $allowedMimeTypes = [
                 'application/pdf' => 'pdf',
@@ -759,7 +1064,7 @@ class EmployeeController {
         } catch (Throwable $e) {
             $this->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Không thể upload hồ sơ điện tử: ' . $e->getMessage()
             ], 400);
         }
     }
@@ -815,7 +1120,7 @@ class EmployeeController {
         } catch (Throwable $e) {
             $this->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Không thể tải tài liệu: ' . $e->getMessage()
             ], 400);
         }
     }
@@ -863,22 +1168,14 @@ class EmployeeController {
         } catch (Throwable $e) {
             $this->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Không thể xóa tài liệu: ' . $e->getMessage()
             ], 400);
         }
     }
 
     public function adjustLeave($id = null): void {
         try {
-            $authUser = $this->requireAuth();
-
-            if (!in_array($authUser['role'], ['admin', 'manager'], true)) {
-                $this->json([
-                    'status' => 'error',
-                    'message' => 'Bạn không có quyền điều chỉnh quỹ phép.'
-                ], 403);
-            }
-
+            $authUser = $this->requireRole(['admin', 'manager']);
             $employeeId = $this->resolveId($id);
 
             if (!$employeeId) {
@@ -886,6 +1183,13 @@ class EmployeeController {
                     'status' => 'error',
                     'message' => 'Thiếu ID nhân viên.'
                 ], 400);
+            }
+
+            if (!$this->canAccessEmployee($authUser, $employeeId)) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Bạn không có quyền điều chỉnh quỹ phép cho nhân sự này.'
+                ], 403);
             }
 
             $input = $this->getInput();
@@ -906,13 +1210,7 @@ class EmployeeController {
                 ], 422);
             }
 
-            $method = new ReflectionMethod($this->employeeModel, 'adjustLeaveBalance');
-
-            if ($method->getNumberOfParameters() >= 4) {
-                $this->employeeModel->adjustLeaveBalance($employeeId, $adjustDays, $reason, (int)$authUser['id']);
-            } else {
-                $this->employeeModel->adjustLeaveBalance($employeeId, $adjustDays, $reason);
-            }
+            $this->employeeModel->adjustLeaveBalance($employeeId, $adjustDays, $reason, (int)$authUser['id']);
 
             $this->json([
                 'status' => 'success',
@@ -921,22 +1219,14 @@ class EmployeeController {
         } catch (Throwable $e) {
             $this->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Không thể điều chỉnh quỹ phép: ' . $e->getMessage()
             ], 400);
         }
     }
 
     public function destroy($id = null): void {
         try {
-            $authUser = $this->requireAuth();
-
-            if (!in_array($authUser['role'], ['admin', 'manager'], true)) {
-                $this->json([
-                    'status' => 'error',
-                    'message' => 'Bạn không có quyền xóa nhân sự.'
-                ], 403);
-            }
-
+            $authUser = $this->requireRole(['admin']);
             $employeeId = $this->resolveId($id);
 
             if (!$employeeId) {
@@ -953,6 +1243,15 @@ class EmployeeController {
                 ], 422);
             }
 
+            $employee = $this->employeeModel->findById($employeeId);
+
+            if (!$employee) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Không tìm thấy nhân viên.'
+                ], 404);
+            }
+
             $this->employeeModel->softDelete($employeeId);
 
             $this->json([
@@ -962,7 +1261,7 @@ class EmployeeController {
         } catch (Throwable $e) {
             $this->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Không thể xóa nhân sự: ' . $e->getMessage()
             ], 400);
         }
     }

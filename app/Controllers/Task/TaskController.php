@@ -1,147 +1,562 @@
 <?php
 namespace App\Controllers\Task;
 
-use App\Middleware\AuthMiddleware;
 use App\Models\Task\TaskModel;
-use Exception;
+use Core\JwtHandler;
+use Throwable;
 
 class TaskController {
     private TaskModel $taskModel;
+    private JwtHandler $jwt;
+    private ?array $authUser;
 
-    public function __construct() {
+    public function __construct($authUser = null) {
         $this->taskModel = new TaskModel();
+        $this->jwt = new JwtHandler();
+        $this->authUser = is_array($authUser) ? $authUser : null;
     }
 
-    public function showBoard() {
-        require_once __DIR__ . '/../../View/tasks/kanban.php';
-    }
+    private function json(array $payload, int $statusCode = 200): void {
+        if (ob_get_length()) {
+            ob_clean();
+        }
 
-    private function jsonResponse(array $payload, int $statusCode = 200): void {
         http_response_code($statusCode);
+        header('Content-Type: application/json; charset=utf-8');
         echo json_encode($payload, JSON_UNESCAPED_UNICODE);
         exit;
     }
 
-    private function getJsonInput(): array {
+    private function getInput(): array {
         $raw = file_get_contents('php://input');
-        $input = json_decode($raw, true);
-        return is_array($input) ? $input : [];
-    }
+        $json = json_decode($raw, true);
 
-    private function normalizeNullableInt($value): ?int {
-        if ($value === null || $value === '' || $value === false) return null;
-        $number = (int) $value;
-        return $number > 0 ? $number : null;
-    }
-
-    private function normalizePriority(?string $priority): string {
-        $priority = ucfirst(strtolower(trim((string) $priority)));
-        return in_array($priority, ['Low', 'Medium', 'High'], true) ? $priority : 'Medium';
-    }
-
-    private function normalizeStatus(?string $status): string {
-        $status = trim((string) $status);
-        $map = ['to do' => 'To do', 'todo' => 'To do', 'doing' => 'Doing', 'review' => 'Review', 'done' => 'Done'];
-        return $map[strtolower($status)] ?? 'To do';
-    }
-
-    // CẬP NHẬT: Manager có toàn quyền quản lý như Admin
-    private function ensureCanManageTask(array $task, array $authUser): bool {
-        $role = strtolower($authUser['role'] ?? 'employee');
-        return in_array($role, ['admin', 'manager']);
-    }
-
-    private function ensureCanSeeTask(array $task, array $authUser): bool {
-        if ($this->ensureCanManageTask($task, $authUser)) return true;
-        if (($authUser['role'] ?? '') === 'employee') {
-            return (int)($task['assignee_id'] ?? 0) === (int)$authUser['id']
-                || (int)($task['assigner_id'] ?? 0) === (int)$authUser['id']
-                || (int)($task['watcher_id'] ?? 0) === (int)$authUser['id'];
+        if (is_array($json)) {
+            return $json;
         }
-        return ($authUser['role'] ?? '') === 'client';
+
+        if (!empty($raw)) {
+            $parsed = [];
+            parse_str($raw, $parsed);
+
+            if (is_array($parsed) && !empty($parsed)) {
+                return $parsed;
+            }
+        }
+
+        return $_POST ?? [];
     }
 
-    public function index() {
-        $authUser = AuthMiddleware::check();
-        $filters = [
-            'project_id'  => $_GET['project_id'] ?? null,
-            'assignee_id' => $_GET['assignee_id'] ?? null,
-            'status'      => $_GET['status'] ?? null,
-            'deadline'    => $_GET['deadline'] ?? null,
-            'manager_id'  => null,
-            'user_id'     => null,
-            'role'        => $authUser['role'] ?? null,
+    private function getAuthorizationHeader(): string {
+        $headers = function_exists('getallheaders') ? getallheaders() : [];
+
+        return trim((string)(
+            $headers['Authorization']
+            ?? $headers['authorization']
+            ?? $_SERVER['HTTP_AUTHORIZATION']
+            ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+            ?? ''
+        ));
+    }
+
+    private function extractBearerToken(string $authHeader): string {
+        if ($authHeader === '') {
+            return '';
+        }
+
+        if (stripos($authHeader, 'Bearer ') === 0) {
+            return trim(substr($authHeader, 7));
+        }
+
+        return trim($authHeader);
+    }
+
+    private function normalizeAuthPayload($payload): ?array {
+        if (!$payload) {
+            return null;
+        }
+
+        if (is_object($payload)) {
+            $payload = (array)$payload;
+        }
+
+        if (!is_array($payload)) {
+            return null;
+        }
+
+        if (isset($payload['data']) && (is_array($payload['data']) || is_object($payload['data']))) {
+            $payload = (array)$payload['data'];
+        }
+
+        if (empty($payload['id'])) {
+            return null;
+        }
+
+        return [
+            'id' => (int)$payload['id'],
+            'email' => $payload['email'] ?? null,
+            'role' => strtolower((string)($payload['role'] ?? '')),
+            'full_name' => $payload['full_name'] ?? ($payload['name'] ?? null),
         ];
-        if (($authUser['role'] ?? '') === 'employee') $filters['user_id'] = $authUser['id'];
-        
-        $tasks = $this->taskModel->getAllTasks($filters);
-        $this->jsonResponse(['status' => 'success', 'data' => $tasks]);
     }
 
-    public function store() {
-        $authUser = AuthMiddleware::check();
-        // CẬP NHẬT: Cho phép Manager tạo Task
-        if (!in_array(strtolower($authUser['role'] ?? ''), ['admin', 'manager'])) {
-            $this->jsonResponse(['status' => 'error', 'message' => 'Permission denied'], 403);
+    private function requireAuth(): array {
+        if ($this->authUser && !empty($this->authUser['id'])) {
+            return $this->authUser;
         }
 
-        $input = $this->getJsonInput();
-        $title = trim((string)($input['title'] ?? ''));
-        $deadline = trim((string)($input['deadline'] ?? ''));
+        $token = '';
+        $authHeader = $this->getAuthorizationHeader();
 
-        if ($title === '' || $deadline === '') {
-            $this->jsonResponse(['status' => 'error', 'message' => 'Vui lòng nhập Tiêu đề và Deadline'], 400);
+        if ($authHeader !== '') {
+            $token = $this->extractBearerToken($authHeader);
         }
 
-        $taskId = $this->taskModel->createTask(
-            $title,
-            trim((string)($input['description'] ?? '')),
-            $this->normalizePriority($input['priority'] ?? 'Medium'),
-            $deadline,
-            (int)$authUser['id'],
-            $this->normalizeNullableInt($input['assignee_id'] ?? null),
-            $this->normalizeNullableInt($input['watcher_id'] ?? null),
-            $this->normalizeNullableInt($input['project_id'] ?? null)
-        );
+        if ($token === '' && !empty($_COOKIE['cah_token'])) {
+            $token = (string)$_COOKIE['cah_token'];
+        }
 
-        if (!$taskId) $this->jsonResponse(['status' => 'error', 'message' => 'Lỗi server'], 500);
-        $this->jsonResponse(['status' => 'success', 'message' => 'Tạo Task thành công', 'data' => ['id' => (int)$taskId]]);
+        if ($token !== '') {
+            try {
+                $decoded = $this->jwt->decode($token);
+                $authUser = $this->normalizeAuthPayload($decoded);
+
+                if ($authUser && !empty($authUser['id'])) {
+                    $this->authUser = $authUser;
+                    return $authUser;
+                }
+            } catch (Throwable $e) {
+                // Fallback xuống session.
+            }
+        }
+
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        if (!empty($_SESSION['user_id'])) {
+            $this->authUser = [
+                'id' => (int)$_SESSION['user_id'],
+                'email' => $_SESSION['user_email'] ?? null,
+                'role' => strtolower((string)($_SESSION['user_role'] ?? '')),
+                'full_name' => $_SESSION['full_name'] ?? null,
+            ];
+
+            return $this->authUser;
+        }
+
+        $this->json([
+            'status' => 'error',
+            'message' => 'Bạn cần đăng nhập lại.'
+        ], 401);
     }
 
-    public function updateStatus($taskId) {
-        $authUser = AuthMiddleware::check();
-        $task = $this->taskModel->getTaskById((int)$taskId);
-        if (!$task) $this->jsonResponse(['status' => 'error', 'message' => 'Task không tồn tại'], 404);
+    private function requireRole(array $roles): array {
+        $authUser = $this->requireAuth();
+        $role = strtolower((string)($authUser['role'] ?? ''));
 
-        $userRole = strtolower($authUser['role'] ?? 'employee');
-        // Manager và Admin được sửa mọi task, Employee chỉ sửa task của mình
-        if (!in_array($userRole, ['admin', 'manager']) && (int)($task['assignee_id'] ?? 0) !== (int)$authUser['id']) {
-            $this->jsonResponse(['status' => 'error', 'message' => 'Bạn không phải người thực hiện task này.'], 403);
+        if (!in_array($role, $roles, true)) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Bạn không có quyền thực hiện thao tác này.'
+            ], 403);
         }
 
-        $input = $this->getJsonInput();
-        $status = $this->normalizeStatus($input['status'] ?? '');
-        if ($this->taskModel->updateStatus((int)$taskId, $status)) {
-            $this->jsonResponse(['status' => 'success', 'data' => ['task' => $this->taskModel->getTaskById((int)$taskId)]]);
-        }
-        $this->jsonResponse(['status' => 'error', 'message' => 'Lỗi server'], 500);
+        return $authUser;
     }
 
-    public function update($taskId) {
-        $authUser = AuthMiddleware::check();
-        $task = $this->taskModel->getTaskById((int)$taskId);
-        if (!$task || !$this->ensureCanManageTask($task, $authUser)) {
-            $this->jsonResponse(['status' => 'error', 'message' => 'Permission denied'], 403);
+    private function resolveId($idOrParams): ?int {
+        if (is_array($idOrParams)) {
+            if (isset($idOrParams['id'])) {
+                return (int)$idOrParams['id'];
+            }
+
+            if (isset($idOrParams[0])) {
+                return (int)$idOrParams[0];
+            }
+
+            return null;
         }
-        // ... (Phần logic Update giữ nguyên như cũ)
+
+        if ($idOrParams !== null && $idOrParams !== '') {
+            return (int)$idOrParams;
+        }
+
+        return null;
     }
 
-    public function destroy($taskId) {
-        $authUser = AuthMiddleware::check();
-        $task = $this->taskModel->getTaskById((int)$taskId);
-        if (!$task || !$this->ensureCanManageTask($task, $authUser)) {
-            $this->jsonResponse(['status' => 'error', 'message' => 'Permission denied'], 403);
+    private function buildFiltersFromQuery(): array {
+        return [
+            'project_id' => $_GET['project_id'] ?? '',
+            'status' => $_GET['status'] ?? '',
+            'priority' => $_GET['priority'] ?? '',
+            'search' => $_GET['search'] ?? ($_GET['q'] ?? ''),
+        ];
+    }
+
+    private function wantsGroupedResponse(): bool {
+        $grouped = strtolower((string)($_GET['grouped'] ?? ''));
+        $kanban = strtolower((string)($_GET['kanban'] ?? ''));
+
+        return in_array($grouped, ['1', 'true', 'yes'], true)
+            || in_array($kanban, ['1', 'true', 'yes'], true);
+    }
+
+    public function index(): void {
+        try {
+            $authUser = $this->requireRole(['admin', 'manager', 'employee', 'client']);
+            $filters = $this->buildFiltersFromQuery();
+
+            if ($this->wantsGroupedResponse()) {
+                $this->json([
+                    'status' => 'success',
+                    'data' => $this->taskModel->getKanbanGrouped($filters, $authUser)
+                ]);
+            }
+
+            $this->json([
+                'status' => 'success',
+                'data' => $this->taskModel->all($filters, $authUser)
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể tải danh sách task: ' . $e->getMessage()
+            ], 400);
         }
-        if ($this->taskModel->deleteTask((int)$taskId)) $this->jsonResponse(['status' => 'success', 'message' => 'Xoá thành công']);
+    }
+
+    public function show($id = null): void {
+        try {
+            $authUser = $this->requireRole(['admin', 'manager', 'employee', 'client']);
+            $taskId = $this->resolveId($id);
+
+            if (!$taskId) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Thiếu ID task.'
+                ], 400);
+            }
+
+            if (!$this->taskModel->canUserAccessTask($authUser, $taskId)) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Bạn không có quyền xem task này.'
+                ], 403);
+            }
+
+            $task = $this->taskModel->findById($taskId);
+
+            if (!$task) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Không tìm thấy task.'
+                ], 404);
+            }
+
+            $this->json([
+                'status' => 'success',
+                'data' => $task
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể tải task: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    public function options(): void {
+        try {
+            $authUser = $this->requireRole(['manager']);
+            $projectId = isset($_GET['project_id']) ? (int)$_GET['project_id'] : 0;
+
+            if ($projectId <= 0) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Vui lòng chọn dự án để tải danh sách nhân viên có thể giao task.'
+                ], 400);
+            }
+
+            $this->json([
+                'status' => 'success',
+                'data' => [
+                    'assignees' => $this->taskModel->getAvailableAssignees($projectId),
+                    'statuses' => ['To do', 'Doing', 'Review', 'Done'],
+                    'priorities' => ['Low', 'Medium', 'High'],
+                ]
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể tải dữ liệu tạo task: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    public function store(): void {
+        try {
+            $authUser = $this->requireRole(['manager']);
+            $input = $this->getInput();
+
+            $taskId = $this->taskModel->create($input, $authUser);
+            $task = $this->taskModel->findById($taskId);
+
+            $this->json([
+                'status' => 'success',
+                'message' => 'Tạo task thành công.',
+                'data' => $task
+            ], 201);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể tạo task: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    public function update($id = null): void {
+        try {
+            $authUser = $this->requireRole(['manager']);
+            $taskId = $this->resolveId($id);
+
+            if (!$taskId) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Thiếu ID task.'
+                ], 400);
+            }
+
+            $input = $this->getInput();
+
+            $this->taskModel->update($taskId, $input, $authUser);
+
+            $this->json([
+                'status' => 'success',
+                'message' => 'Cập nhật task thành công.',
+                'data' => $this->taskModel->findById($taskId)
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể cập nhật task: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    public function updateStatus($id = null): void {
+        try {
+            $authUser = $this->requireRole(['manager', 'employee']);
+            $taskId = $this->resolveId($id);
+
+            if (!$taskId) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Thiếu ID task.'
+                ], 400);
+            }
+
+            $input = $this->getInput();
+            $status = (string)($input['status'] ?? '');
+
+            if ($status === '') {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Thiếu trạng thái task.'
+                ], 400);
+            }
+
+            $this->taskModel->updateStatus($taskId, $status, $authUser);
+
+            $this->json([
+                'status' => 'success',
+                'message' => 'Cập nhật trạng thái task thành công.',
+                'data' => $this->taskModel->findById($taskId)
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể cập nhật trạng thái task: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    public function destroy($id = null): void {
+        try {
+            $authUser = $this->requireRole(['manager']);
+            $taskId = $this->resolveId($id);
+
+            if (!$taskId) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Thiếu ID task.'
+                ], 400);
+            }
+
+            $this->taskModel->delete($taskId, $authUser);
+
+            $this->json([
+                'status' => 'success',
+                'message' => 'Đã xoá task.'
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể xoá task: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    public function submit($id = null): void {
+        try {
+            $authUser = $this->requireRole(['employee']);
+            $taskId = $this->resolveId($id);
+
+            if (!$taskId) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Thiếu ID task.'
+                ], 400);
+            }
+
+            $this->taskModel->submitForReview($taskId, $authUser);
+
+            $this->json([
+                'status' => 'success',
+                'message' => 'Đã gửi task sang Review.',
+                'data' => $this->taskModel->findById($taskId)
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể gửi Review: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    public function approve($id = null): void {
+        try {
+            $authUser = $this->requireRole(['manager']);
+            $taskId = $this->resolveId($id);
+
+            if (!$taskId) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Thiếu ID task.'
+                ], 400);
+            }
+
+            $this->taskModel->approve($taskId, $authUser);
+
+            $this->json([
+                'status' => 'success',
+                'message' => 'Đã duyệt task hoàn thành.',
+                'data' => $this->taskModel->findById($taskId)
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể duyệt task: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    public function reject($id = null): void {
+        try {
+            $authUser = $this->requireRole(['manager']);
+            $taskId = $this->resolveId($id);
+
+            if (!$taskId) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Thiếu ID task.'
+                ], 400);
+            }
+
+            $input = $this->getInput();
+            $reason = (string)($input['reason'] ?? $input['reject_reason'] ?? '');
+
+            $this->taskModel->reject($taskId, $reason, $authUser);
+
+            $this->json([
+                'status' => 'success',
+                'message' => 'Đã trả task về Doing.',
+                'data' => $this->taskModel->findById($taskId)
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể reject task: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    public function getReviewTasks(): void {
+        try {
+            $authUser = $this->requireRole(['manager']);
+
+            $this->json([
+                'status' => 'success',
+                'data' => $this->taskModel->getReviewTasks($authUser)
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể tải task đang chờ duyệt: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Backward-compatible aliases.
+     * Giữ lại để route/JS cũ nếu còn gọi tên cũ không gãy ngay.
+     */
+    public function getAll(): void {
+        $this->index();
+    }
+
+    public function getAllTasks(): void {
+        $this->index();
+    }
+
+    public function getById($id = null): void {
+        $this->show($id);
+    }
+
+    public function create(): void {
+        $this->store();
+    }
+
+    public function createTask(): void {
+        $this->store();
+    }
+
+    public function updateTask($id = null): void {
+        $this->update($id);
+    }
+
+    public function delete($id = null): void {
+        $this->destroy($id);
+    }
+
+    public function deleteTask($id = null): void {
+        $this->destroy($id);
+    }
+
+    public function kanban(): void {
+        try {
+            $authUser = $this->requireRole(['admin', 'manager', 'employee', 'client']);
+            $filters = $this->buildFiltersFromQuery();
+
+            $this->json([
+                'status' => 'success',
+                'data' => $this->taskModel->getKanbanGrouped($filters, $authUser)
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể tải Kanban: ' . $e->getMessage()
+            ], 400);
+        }
     }
 }
