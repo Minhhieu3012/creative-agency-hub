@@ -1,0 +1,1 @@
+<div class="toast-stack" data-toast-stack></div>

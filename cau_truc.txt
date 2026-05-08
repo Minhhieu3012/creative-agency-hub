@@ -1,0 +1,253 @@
+D:\LTW_2026\creative-agency-hub
+├── API_CONTRACTS.md
+├── app
+|  ├── Controllers
+|  |  ├── Admin
+|  |  ├── Auth
+|  |  |  ├── AuthController.php
+|  |  |  └── LogoutController.php
+|  |  ├── BaseController.php
+|  |  ├── Client
+|  |  ├── Core
+|  |  |  └── NotificationController.php
+|  |  ├── DashboardController.php
+|  |  ├── HRM
+|  |  |  ├── DepartmentController.php
+|  |  |  ├── EmployeeActionController.php
+|  |  |  ├── EmployeeContractController.php
+|  |  |  ├── EmployeeController.php
+|  |  |  └── PositionController.php
+|  |  ├── OrganizationController.php
+|  |  ├── Payroll
+|  |  |  ├── AttendanceController.php
+|  |  |  └── LeaveController.php
+|  |  ├── Project
+|  |  └── Task
+|  |     ├── ProjectController.php
+|  |     ├── TaskActivityController.php
+|  |     ├── TaskApprovalController.php
+|  |     ├── TaskAssignController.php
+|  |     ├── TaskAttachmentController.php
+|  |     ├── TaskCommentController.php
+|  |     └── TaskController.php
+|  ├── enums
+|  |  └── TaskAction.php
+|  ├── Middleware
+|  |  ├── AuthMiddleware.php
+|  |  └── RoleMiddleware.php
+|  ├── Models
+|  |  ├── Auth
+|  |  |  └── User.php
+|  |  ├── HRM
+|  |  |  ├── Department.php
+|  |  |  ├── Employee.php
+|  |  |  ├── EmployeeContract.php
+|  |  |  └── Position.php
+|  |  ├── Payroll
+|  |  |  └── EmployeeLeaveAdjustment.php
+|  |  └── Task
+|  |     ├── ProjectModel.php
+|  |     └── TaskModel.php
+|  ├── Seeders
+|  |  └── AdminSeeder.php
+|  ├── Services
+|  |  ├── Auth
+|  |  ├── Core
+|  |  |  └── NotificationService.php
+|  |  ├── HRM
+|  |  ├── Project
+|  |  └── Task
+|  |     ├── ProjectService.php
+|  |     ├── TaskActivityService.php
+|  |     ├── TaskApprovalService.php
+|  |     ├── TaskAssignService.php
+|  |     ├── TaskAttachmentService.php
+|  |     └── TaskCommentService.php
+|  └── View
+|     ├── admin
+|     |  ├── accounts
+|     |  ├── auth
+|     |  ├── dashboard
+|     |  └── system
+|     ├── auth
+|     |  └── login.php
+|     ├── client
+|     |  └── auth
+|     ├── client-portal
+|     |  ├── login-client.php
+|     |  ├── projects.php
+|     |  ├── support.php
+|     |  └── tasks.php
+|     ├── components
+|     |  ├── badge.php
+|     |  ├── empty-state.php
+|     |  ├── head.php
+|     |  ├── modal.php
+|     |  ├── page-header.php
+|     |  ├── sidebar.php
+|     |  ├── stat-card.php
+|     |  ├── table-toolbar.php
+|     |  ├── toast.php
+|     |  └── topbar.php
+|     ├── dashboard
+|     |  └── index.php
+|     ├── hrm
+|     |  ├── add-department.php
+|     |  ├── add-employee.php
+|     |  ├── add-role.php
+|     |  ├── departments.php
+|     |  ├── edit-employee.php
+|     |  ├── employees.php
+|     |  └── profile.php
+|     ├── layouts
+|     |  ├── app.php
+|     |  ├── auth.php
+|     |  ├── blank.php
+|     |  └── client.php
+|     ├── payroll
+|     |  ├── attendance.php
+|     |  ├── leave_request.php
+|     |  └── manager_approvals.php
+|     ├── staff
+|     |  ├── auth
+|     |  ├── dashboard
+|     |  ├── hrm
+|     |  └── tasks
+|     └── tasks
+|        ├── activity.php
+|        ├── gantt.php
+|        ├── kanban.php
+|        └── projects.php
+├── cau_truc.txt
+├── composer.json
+├── composer.lock
+├── config
+|  ├── db_connect.php
+|  └── roles.php
+├── core
+|  ├── Database.php
+|  ├── JwtHandler.php
+|  ├── Router.php
+|  └── Security.php
+├── database
+|  ├── migrations
+|  |  ├── 002_hrm_schema.sql
+|  |  ├── 003_employee_documents.sql
+|  |  └── 004_operation_flow_schema.sql
+|  ├── schema.sql
+|  └── seeders
+|     ├── 002_hrm_seed_data.sql
+|     ├── 003_auth_task_test_seed.sql
+|     └── 004_operation_flow_seed.sql
+├── public
+|  ├── assets
+|  |  ├── css
+|  |  |  ├── app.css
+|  |  |  ├── auth.css
+|  |  |  ├── client-portal.css
+|  |  |  ├── components.css
+|  |  |  ├── dashboard.css
+|  |  |  ├── hrm.css
+|  |  |  ├── layout.css
+|  |  |  ├── payroll.css
+|  |  |  ├── reset.css
+|  |  |  ├── responsive.css
+|  |  |  ├── tasks.css
+|  |  |  └── ui-states.css
+|  |  ├── js
+|  |  |  ├── app.js
+|  |  |  ├── auth-portal.js
+|  |  |  ├── client-portal.js
+|  |  |  ├── dashboard.js
+|  |  |  ├── dropdown.js
+|  |  |  ├── forms.js
+|  |  |  ├── hrm.js
+|  |  |  ├── modal.js
+|  |  |  ├── payroll.js
+|  |  |  ├── sidebar.js
+|  |  |  ├── tasks-gantt.js
+|  |  |  ├── tasks-kanban.js
+|  |  |  └── toast.js
+|  |  └── pictures
+|  |     ├── customerpagelogin.jpg
+|  |     └── teampagelogin.jpg
+|  ├── get_hash.php
+|  ├── index.php
+|  └── uploads
+|     ├── avatars
+|     |  └── avatar_3_efa8941d9a2487d136d41b38.png
+|     ├── employee-documents
+|     |  └── employee_3
+|     └── tasks
+|        └── task_69f301a884cd59.44073703.png
+├── routes
+|  ├── admin.php
+|  ├── api.php
+|  ├── client.php
+|  └── staff.php
+├── tools
+|  └── refactor_phase_1.ps1
+└── vendor
+   ├── autoload.php
+   ├── composer
+   |  ├── autoload_classmap.php
+   |  ├── autoload_files.php
+   |  ├── autoload_namespaces.php
+   |  ├── autoload_psr4.php
+   |  ├── autoload_real.php
+   |  ├── autoload_static.php
+   |  ├── ClassLoader.php
+   |  ├── installed.json
+   |  ├── installed.php
+   |  ├── InstalledVersions.php
+   |  ├── LICENSE
+   |  └── platform_check.php
+   ├── firebase
+   |  └── php-jwt
+   |     ├── CHANGELOG.md
+   |     ├── composer.json
+   |     ├── LICENSE
+   |     ├── README.md
+   |     └── src
+   ├── graham-campbell
+   |  └── result-type
+   |     ├── composer.json
+   |     ├── LICENSE
+   |     └── src
+   ├── phpoption
+   |  └── phpoption
+   |     ├── composer.json
+   |     ├── LICENSE
+   |     └── src
+   ├── symfony
+   |  ├── polyfill-ctype
+   |  |  ├── bootstrap.php
+   |  |  ├── bootstrap80.php
+   |  |  ├── composer.json
+   |  |  ├── Ctype.php
+   |  |  ├── LICENSE
+   |  |  └── README.md
+   |  ├── polyfill-mbstring
+   |  |  ├── bootstrap.php
+   |  |  ├── bootstrap80.php
+   |  |  ├── composer.json
+   |  |  ├── LICENSE
+   |  |  ├── Mbstring.php
+   |  |  ├── README.md
+   |  |  └── Resources
+   |  └── polyfill-php80
+   |     ├── bootstrap.php
+   |     ├── composer.json
+   |     ├── LICENSE
+   |     ├── Php80.php
+   |     ├── PhpToken.php
+   |     ├── README.md
+   |     └── Resources
+   └── vlucas
+      └── phpdotenv
+         ├── composer.json
+         ├── LICENSE
+         └── src
+
+directory: 82 file: 167
+

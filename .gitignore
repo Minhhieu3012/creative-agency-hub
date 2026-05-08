@@ -1,0 +1,7 @@
+/vendor/
+
+.env
+!.env.example
+
+/public/seed.php
+/public/uploads/
