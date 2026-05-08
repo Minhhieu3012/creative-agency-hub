@@ -1,154 +1,151 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+$pageTitle = 'Đăng nhập Admin | Creative Agency Hub';
+$pageCss = ['auth.css'];
+$pageJs = ['forms.js'];
+$brandName = 'Creative Agency Hub';
+$bodyClass = 'auth-body';
 
-$pageTitle = 'Admin Login | Creative Agency Hub';
-$baseUrl = '/creative-agency-hub';
-$assetUrl = $baseUrl . '/public/assets';
+$baseUrl = $baseUrl ?? '/creative-agency-hub';
+$viewUrl = $viewUrl ?? ($baseUrl . '/app/View');
+
+$error = $error ?? null;
+
+ob_start();
 ?>
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8'); ?></title>
 
-    <link rel="stylesheet" href="<?php echo $assetUrl; ?>/css/reset.css?v=<?php echo time(); ?>">
-    <link rel="stylesheet" href="<?php echo $assetUrl; ?>/css/auth.css?v=<?php echo time(); ?>">
-    <link rel="stylesheet" href="<?php echo $assetUrl; ?>/css/components.css?v=<?php echo time(); ?>">
-</head>
-<body class="auth-body">
-    <main class="auth-shell">
-        <section class="auth-visual">
-            <div class="auth-brand">
+<section class="auth-split-wrapper">
+    <div class="auth-split-card">
+        <aside class="auth-hero">
+            <div class="auth-hero-brand">
                 <span class="brand-mark">CA</span>
-                <div>
-                    <strong>Creative Agency Hub</strong>
-                    <small>Admin Control Center</small>
-                </div>
+                <span>Creative Agency Hub</span>
             </div>
 
             <div class="auth-hero-copy">
-                <span class="auth-eyebrow">SYSTEM ADMIN</span>
                 <h1>Quản trị hệ thống web.</h1>
                 <p>
-                    Cổng này dành riêng cho Admin quản lý tài khoản, cấu trúc tổ chức,
-                    customer, manager và employee trong toàn hệ thống.
+                    Admin quản lý tài khoản, phòng ban, chức vụ, customer, manager và employee.
+                    Đây là cổng kiểm soát hệ thống, không phải workspace tạo project/task hằng ngày.
                 </p>
             </div>
-        </section>
 
-        <section class="auth-panel">
-            <form class="auth-card" id="adminLoginForm">
-                <div class="auth-card-head">
-                    <span class="auth-eyebrow">ADMIN PORTAL</span>
+            <div class="auth-preview-card">
+                <div class="auth-preview-image-frame">
+                    <img
+                        src="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/public/assets/pictures/teampagelogin.jpg"
+                        alt="Creative Agency Hub admin workspace"
+                    >
+                </div>
+            </div>
+        </aside>
+
+        <section class="auth-form-side">
+            <div class="auth-form-box">
+                <div class="auth-form-title">
                     <h2>Đăng nhập Admin</h2>
-                    <p>Chỉ tài khoản có quyền Admin mới được truy cập cổng này.</p>
+                    <p>Chỉ tài khoản Admin mới được truy cập cổng quản trị hệ thống.</p>
                 </div>
 
-                <div class="form-group">
-                    <label for="email">Email Admin</label>
-                    <input id="email" name="email" type="email" placeholder="admin@example.com" required autocomplete="email">
+                <?php if (!empty($error)): ?>
+                    <div class="form-alert form-alert-danger">
+                        <?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
+                    </div>
+                <?php endif; ?>
+
+                <form
+                    method="POST"
+                    action="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/public/api/auth/login-admin"
+                    data-ui-form
+                    data-auth-login="true"
+                    data-success-message="Đăng nhập thành công. Đang chuyển về Admin Dashboard..."
+                    data-redirect="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/public/admin/dashboard"
+                >
+                    <div class="form-group">
+                        <label class="form-label" for="email">Email Admin</label>
+                        <div class="input-with-icon">
+                            <span class="input-icon">✉</span>
+                            <input
+                                id="email"
+                                class="form-control"
+                                type="email"
+                                name="email"
+                                placeholder="admin@agency.vn"
+                                autocomplete="email"
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="password">
+                            <span>Mật khẩu</span>
+                            <a href="#" data-disabled-demo>Quên mật khẩu?</a>
+                        </label>
+
+                        <div class="input-with-icon">
+                            <span class="input-icon">▣</span>
+                            <input
+                                id="password"
+                                class="form-control"
+                                type="password"
+                                name="password"
+                                placeholder="••••••••"
+                                autocomplete="current-password"
+                                required
+                            >
+
+                            <button
+                                type="button"
+                                class="password-eye"
+                                data-password-toggle="#password"
+                                aria-label="Hiện/ẩn mật khẩu"
+                            >👁</button>
+                        </div>
+                    </div>
+
+                    <label class="checkbox-line">
+                        <input type="checkbox" name="remember">
+                        <span>Ghi nhớ đăng nhập</span>
+                    </label>
+
+                    <button type="submit" class="btn btn-primary auth-submit">
+                        <span>Đăng nhập Admin</span>
+                        <span>→</span>
+                    </button>
+                </form>
+
+                <div class="auth-divider">Chuyển cổng đăng nhập</div>
+
+                <div class="auth-social-grid">
+                    <a class="btn btn-light" href="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/app/View/staff/auth/login.php">
+                        <span>▦</span>
+                        <span>Internal Portal</span>
+                    </a>
+
+                    <a class="btn btn-light" href="<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/app/View/client-portal/login-client.php">
+                        <span>◇</span>
+                        <span>Client Portal</span>
+                    </a>
                 </div>
 
-                <div class="form-group">
-                    <label for="password">Mật khẩu</label>
-                    <input id="password" name="password" type="password" placeholder="••••••••" required autocomplete="current-password">
+                <p class="auth-footer-line">
+                    Không có quyền Admin? <a href="#" data-disabled-demo>Liên hệ quản trị hệ thống</a>
+                </p>
+
+                <div class="auth-legal">
+                    <span>© 2026 Creative Agency Hub</span>
+                    <span>
+                        <a href="#" data-disabled-demo>Bảo mật</a>
+                        &nbsp;&nbsp;
+                        <a href="#" data-disabled-demo>Điều khoản</a>
+                    </span>
                 </div>
-
-                <div class="form-alert" id="loginMessage" style="display: none;"></div>
-
-                <button class="btn btn-primary btn-block" type="submit">
-                    Đăng nhập Admin
-                </button>
-
-                <div class="auth-switch">
-                    <span>Không phải Admin?</span>
-                    <a href="/creative-agency-hub/app/View/staff/auth/login.php">Vào cổng Staff</a>
-                </div>
-
-                <div class="auth-switch">
-                    <span>Khách hàng?</span>
-                    <a href="/creative-agency-hub/app/View/client-portal/login-client.php">Vào Client Portal</a>
-                </div>
-            </form>
+            </div>
         </section>
-    </main>
+    </div>
+</section>
 
-    <script>
-        const form = document.getElementById('adminLoginForm');
-        const message = document.getElementById('loginMessage');
-
-        function showMessage(type, text) {
-            message.style.display = 'block';
-            message.className = 'form-alert ' + (type === 'success' ? 'form-alert-success' : 'form-alert-danger');
-            message.textContent = text;
-        }
-
-        function clearAuthStorage() {
-            localStorage.removeItem('cah_auth_token');
-            localStorage.removeItem('cah_auth_user');
-            localStorage.removeItem('cah_token');
-            localStorage.removeItem('cah_user');
-        }
-
-        form.addEventListener('submit', async function (event) {
-            event.preventDefault();
-
-            const button = form.querySelector('button[type="submit"]');
-            const formData = new FormData(form);
-
-            button.disabled = true;
-            button.textContent = 'Đang đăng nhập...';
-            message.style.display = 'none';
-
-            clearAuthStorage();
-
-            try {
-                const response = await fetch('/creative-agency-hub/public/api/auth/login-admin', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({
-                        email: String(formData.get('email') || '').trim(),
-                        password: String(formData.get('password') || '')
-                    })
-                });
-
-                const result = await response.json();
-
-                if (!response.ok || result.status !== 'success') {
-                    throw new Error(result.message || 'Đăng nhập thất bại.');
-                }
-
-                const token = result.data?.token || '';
-                const user = result.data?.user || null;
-
-                if (!token || !user) {
-                    throw new Error('Server không trả đủ token hoặc thông tin tài khoản.');
-                }
-
-                localStorage.setItem('cah_auth_token', token);
-                localStorage.setItem('cah_token', token);
-                localStorage.setItem('cah_auth_user', JSON.stringify(user));
-                localStorage.setItem('cah_user', JSON.stringify(user));
-
-                showMessage('success', 'Đăng nhập thành công. Đang chuyển đến Admin Dashboard...');
-
-                window.setTimeout(() => {
-                    window.location.href = '/creative-agency-hub/public/admin/dashboard';
-                }, 450);
-            } catch (error) {
-                showMessage('error', error.message);
-            } finally {
-                button.disabled = false;
-                button.textContent = 'Đăng nhập Admin';
-            }
-        });
-    </script>
-</body>
-</html>
+<?php
+$content = ob_get_clean();
+require __DIR__ . '/../../layouts/auth.php';
+?>

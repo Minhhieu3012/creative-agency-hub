@@ -59,17 +59,27 @@ return [
 
     /**
      * PROJECT
-     * Admin chỉ xem tổng quan.
-     * Manager mới được tạo/sửa/xoá project.
+     *
+     * Luồng chính:
+     * - Admin: xem tổng quan project, không tạo/sửa/xoá project vận hành.
+     * - Manager: tạo project, gán client, kéo employee vào project_members.
+     * - Employee: xem project mình là member hoặc có task được assign.
+     * - Client: xem project của mình.
      */
-    ['GET',    '/api/projects',     'ProjectController@index',  ['admin', 'manager']],
-    ['GET',    '/api/projects/:id', 'ProjectController@show',   ['admin', 'manager']],
-    ['POST',   '/api/projects',     'ProjectController@store',  ['manager']],
-    ['PUT',    '/api/projects/:id', 'ProjectController@update', ['manager']],
-    ['DELETE', '/api/projects/:id', 'ProjectController@delete', ['manager']],
+    ['GET',    '/api/projects',                       'Task\\ProjectController@index',        ['admin', 'manager', 'employee', 'client']],
+    ['GET',    '/api/projects/options',               'Task\\ProjectController@options',      ['admin', 'manager']],
+    ['GET',    '/api/projects/:id',                   'Task\\ProjectController@show',         ['admin', 'manager', 'employee', 'client']],
+    ['POST',   '/api/projects',                       'Task\\ProjectController@store',        ['manager']],
+    ['PUT',    '/api/projects/:id',                   'Task\\ProjectController@update',       ['manager']],
+    ['DELETE', '/api/projects/:id',                   'Task\\ProjectController@delete',       ['manager']],
+
+    ['GET',    '/api/projects/:id/members',           'Task\\ProjectController@members',      ['admin', 'manager', 'employee']],
+    ['POST',   '/api/projects/:id/members',           'Task\\ProjectController@addMember',    ['manager']],
+    ['DELETE', '/api/projects/:id/members/:employeeId','Task\\ProjectController@removeMember', ['manager']],
 
     /**
      * TASK
+     *
      * Manager tạo/sửa/xoá/giao task.
      * Employee chỉ xem/cập nhật trạng thái task được giao.
      * Admin không tạo task trong workflow vận hành.
@@ -82,6 +92,10 @@ return [
 
     /**
      * TASK APPROVAL
+     *
+     * Employee submit task sang Review.
+     * Manager approve -> Done.
+     * Manager reject -> Doing + reject_reason/comment.
      */
     ['POST', '/api/tasks/:id/submit',  'Task\\TaskApprovalController@submit',         ['employee']],
     ['POST', '/api/tasks/:id/approve', 'Task\\TaskApprovalController@approve',        ['manager']],
@@ -119,14 +133,15 @@ return [
     ['GET',    '/api/tasks/comments',     'Task\\TaskCommentController@getAll',    ['manager']],
     ['GET',    '/api/tasks/comments/:id', 'Task\\TaskCommentController@getById',   ['manager', 'employee']],
     ['GET',    '/api/tasks/:id/comments', 'Task\\TaskCommentController@getByTask', ['manager', 'employee']],
-    ['POST',   '/api/tasks/:id/comments', 'Task\\TaskCommentController@store',     ['manager', 'employee']],
-    ['PUT',    '/api/tasks/comments/:id', 'Task\\TaskCommentController@update',    ['manager', 'employee']],
-    ['DELETE', '/api/tasks/comments/:id', 'Task\\TaskCommentController@delete',    ['manager', 'employee']],
+    ['POST',   '/api/tasks/:id/comments', 'Task\\TaskCommentController@store',     ['manager', 'employee', 'client']],
+    ['PUT',    '/api/tasks/comments/:id', 'Task\\TaskCommentController@update',    ['manager', 'employee', 'client']],
+    ['DELETE', '/api/tasks/comments/:id', 'Task\\TaskCommentController@delete',    ['manager', 'employee', 'client']],
 
     /**
      * ATTENDANCE & LEAVE
+     *
      * Giữ chấm công và nghỉ phép.
-     * Đã xoá API tính lương/export lương.
+     * Không bật lại module tính lương/payroll summary.
      */
     ['GET',   '/api/leaves',             'Payroll\\LeaveController@index',      ['admin', 'manager', 'employee']],
     ['GET',   '/api/admin/leaves',       'Payroll\\LeaveController@adminIndex', ['admin', 'manager']],
