@@ -1,20 +1,8 @@
 <?php
-/**
- * SIDEBAR COMPONENT
- *
- * Nguyên tắc hiện tại:
- * - Giữ UI cũ.
- * - Render menu theo role bằng JS để tránh nhảy role.
- * - Admin: quản trị hệ thống.
- * - Manager: vận hành project/task/employee.
- * - Employee: làm task, chấm công, nghỉ phép.
- */
-
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$userRoleSession = isset($_SESSION['user_role']) ? strtolower($_SESSION['user_role']) : null;
 $activeMenu = $activeMenu ?? 'dashboard';
 $brandName  = $brandName  ?? 'Creative Agency Hub';
 $baseUrl    = $baseUrl    ?? '/creative-agency-hub';
@@ -38,22 +26,6 @@ $publicUrl  = $baseUrl . '/public';
                 Đang đồng bộ quyền hạn...
             </div>
         </nav>
-
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">KHÔNG GIAN KHÁC</div>
-
-            <nav class="sidebar-nav sidebar-nav-compact">
-                <a
-                    href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/client-portal/projects.php"
-                    class="sidebar-link"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    <span class="sidebar-icon">◇</span>
-                    <span>Client Portal</span>
-                </a>
-            </nav>
-        </div>
     </div>
 
     <div class="sidebar-footer">
@@ -116,7 +88,14 @@ const SidebarController = {
             label: 'Gantt Chart',
             href: '/tasks/gantt.php',
             icon: '▥',
-            roles: ['admin', 'manager']
+            roles: ['admin', 'manager', 'employee'] 
+        },
+        {
+            key: 'activity',
+            label: 'Nhật ký task',
+            href: '/tasks/activity.php',
+            icon: '☷',
+            roles: ['admin', 'manager', 'employee'] 
         },
         {
             key: 'attendance',
@@ -136,7 +115,7 @@ const SidebarController = {
             key: 'approvals',
             label: 'Phê duyệt',
             href: '/payroll/manager_approvals.php',
-            icon: '☷',
+            icon: '✓',
             roles: ['manager']
         }
     ],
@@ -166,7 +145,6 @@ const SidebarController = {
 
     getLocalUser() {
         const rawUser = localStorage.getItem('cah_user') || localStorage.getItem('cah_auth_user') || '{}';
-
         try {
             return JSON.parse(rawUser) || {};
         } catch (error) {
@@ -179,16 +157,12 @@ const SidebarController = {
         const actionBtnContainer = document.getElementById('sidebarActionBtn');
         const sidebar = document.getElementById('appSidebar');
 
-        if (!navContainer || !actionBtnContainer || !sidebar) {
-            return;
-        }
+        if (!navContainer || !actionBtnContainer || !sidebar) return;
 
         let menuHtml = '';
 
         this.allMenus.forEach((item) => {
-            if (!item.roles.includes(role)) {
-                return;
-            }
+            if (!item.roles.includes(role)) return;
 
             const isActive = this.config.activeMenu === item.key ? 'is-active' : '';
 
@@ -200,19 +174,10 @@ const SidebarController = {
             `;
         });
 
-        navContainer.innerHTML = menuHtml || `
-            <div style="padding: 20px; color: #999; font-size: 0.8rem; text-align: center;">
-                Chưa có menu khả dụng.
-            </div>
-        `;
+        navContainer.innerHTML = menuHtml || `<div style="padding: 20px; color: #999; text-align: center;">Chưa có menu.</div>`;
 
         if (role === 'manager') {
-            actionBtnContainer.innerHTML = `
-                <a href="${this.config.viewUrl}/tasks/projects.php" class="btn btn-primary btn-block">
-                    <span>＋</span>
-                    <span>Tạo mới</span>
-                </a>
-            `;
+            actionBtnContainer.innerHTML = `<a href="${this.config.viewUrl}/tasks/projects.php" class="btn btn-primary btn-block"><span>＋</span><span>Tạo mới</span></a>`;
         } else {
             actionBtnContainer.innerHTML = '';
         }
@@ -222,35 +187,23 @@ const SidebarController = {
 
     recoverSession(token) {
         fetch(`${this.config.publicUrl}/api/auth/me`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
-            }
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
         })
         .then((res) => res.json())
         .then((res) => {
             if (res.status === 'success') {
                 const user = res.data && res.data.user ? res.data.user : res.data;
-
                 localStorage.setItem('cah_user', JSON.stringify(user));
                 localStorage.setItem('cah_auth_user', JSON.stringify(user));
-
                 window.location.reload();
-            } else {
-                this.forceLogout();
-            }
+            } else this.forceLogout();
         })
-        .catch(() => {
-            this.forceLogout();
-        });
+        .catch(() => this.forceLogout());
     },
 
     syncWithServer(token) {
         fetch(`${this.config.publicUrl}/api/auth/me`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
-            }
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
         }).catch(() => {});
     },
 
@@ -268,7 +221,6 @@ function handleLogout() {
     localStorage.removeItem('cah_auth_user');
 
     document.cookie = "cah_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-
     window.location.href = "<?php echo htmlspecialchars($publicUrl, ENT_QUOTES, 'UTF-8'); ?>/auth/logout";
 }
 </script>
