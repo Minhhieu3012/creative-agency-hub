@@ -1,3 +1,4 @@
+ 
 <?php
 namespace App\Controllers\Task;
 
@@ -236,6 +237,80 @@ class ProjectController {
         ]);
 
         return (int)$stmt->fetchColumn() > 0;
+    }
+
+    private function notifyUser(?int $userId, string $message): void {
+        $userId = (int)($userId ?? 0);
+        $message = trim($message);
+
+        if ($userId <= 0 || $message === '') {
+            return;
+        }
+
+        try {
+            $stmt = $this->db->prepare("
+                INSERT INTO notifications
+                (
+                    user_id,
+                    message,
+                    is_read
+                )
+                VALUES
+                (
+                    :user_id,
+                    :message,
+                    0
+                )
+            " );
+
+            $stmt->execute([
+                ':user_id' => $userId,
+                ':message' => $message,
+            ]);
+        } catch (Throwable $e) {
+            // Notification không được làm hỏng flow chính.
+        }
+    }
+
+    private function notifyRole(string $role, string $message): void {
+        $role = strtolower(trim($role));
+        $message = trim($message);
+
+        if ($role === '' || $message === '') {
+            return;
+        }
+
+        try {
+            $stmt = $this->db->prepare("
+                SELECT id
+                FROM employees
+                WHERE role = :role
+                  AND status = 'active'
+                  AND deleted_at IS NULL
+            " );
+
+            $stmt->execute([
+                ':role' => $role,
+            ]);
+
+            $userIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            foreach ($userIds as $userId) {
+                $this->notifyUser((int)$userId, $message);
+            }
+        } catch (Throwable $e) {
+            // Notification không được làm hỏng flow chính.
+        }
+    }
+
+    private function notifyAdmins(string $message): void {
+        $this->notifyRole('admin', $message);
+    }
+
+    private function notifyUsers(array $userIds, string $message): void {
+        foreach (array_unique(array_map('intval', $userIds)) as $userId) {
+            $this->notifyUser($userId, $message);
+        }
     }
 
     private function projectMembersEnabled(): bool {
@@ -952,6 +1027,26 @@ class ProjectController {
                 $project['members'] = $this->fetchProjectMembers($projectId);
             }
 
+            $managerName = $authUser['full_name'] ?? $authUser['email'] ?? ('Manager #' . (int)$authUser['id']);
+
+            $this->notifyAdmins(
+                'Manager ' . $managerName . ' vừa tạo project "' . $name . '".'
+            );
+
+            if (!empty($validMemberIds)) {
+                $this->notifyUsers(
+                    $validMemberIds,
+                    'Bạn vừa được thêm vào project "' . $name . '".'
+                );
+            }
+
+            if (!empty($clientId)) {
+                $this->notifyUser(
+                    $clientId,
+                    'Bạn vừa được gán theo dõi project "' . $name . '" trên Client Portal.'
+                );
+            }
+
             $this->json([
                 'status' => 'success',
                 'message' => $this->projectMembersEnabled()
@@ -1065,6 +1160,20 @@ class ProjectController {
                 $updated['members'] = $this->fetchProjectMembers($projectId);
             }
 
+            if (is_array($validMemberIds) && !empty($validMemberIds)) {
+                $this->notifyUsers(
+                    $validMemberIds,
+                    'Project "' . $name . '" vừa được Manager cập nhật thông tin hoặc danh sách thành viên.'
+                );
+            }
+
+            if (!empty($clientId) && (int)$clientId !== (int)($project['client_id'] ?? 0)) {
+                $this->notifyUser(
+                    $clientId,
+                    'Bạn vừa được gán theo dõi project "' . $name . '" trên Client Portal.'
+                );
+            }
+
             $this->json([
                 'status' => 'success',
                 'message' => 'Cập nhật project thành công.',
@@ -1176,6 +1285,14 @@ class ProjectController {
 
             $this->insertProjectMember($projectId, $employeeId);
 
+            $projectName = $project['name'] ?? ('Project #' . $projectId);
+            $managerName = $authUser['full_name'] ?? $authUser['email'] ?? ('Manager #' . (int)$authUser['id']);
+
+            $this->notifyUser(
+                $employeeId,
+                'Manager ' . $managerName . ' vừa thêm bạn vào project "' . $projectName . '".'
+            );
+
             $this->json([
                 'status' => 'success',
                 'message' => 'Đã thêm employee active vào project.',
@@ -1266,3 +1383,4 @@ class ProjectController {
         $this->delete($id);
     }
 }
+ 

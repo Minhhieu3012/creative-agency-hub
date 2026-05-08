@@ -274,6 +274,74 @@ class EmployeeController {
         return $employee;
     }
 
+    private function notifyUser(?int $userId, string $message): void {
+        $userId = (int)($userId ?? 0);
+        $message = trim($message);
+
+        if ($userId <= 0 || $message === '') {
+            return;
+        }
+
+        try {
+            $stmt = $this->db->prepare("
+                INSERT INTO notifications
+                (
+                    user_id,
+                    message,
+                    is_read
+                )
+                VALUES
+                (
+                    :user_id,
+                    :message,
+                    0
+                )
+            " );
+
+            $stmt->execute([
+                ':user_id' => $userId,
+                ':message' => $message,
+            ]);
+        } catch (Throwable $e) {
+            // Notification không được làm hỏng flow chính.
+        }
+    }
+
+    private function notifyRole(string $role, string $message): void {
+        $role = strtolower(trim($role));
+        $message = trim($message);
+
+        if ($role === '' || $message === '') {
+            return;
+        }
+
+        try {
+            $stmt = $this->db->prepare("
+                SELECT id
+                FROM employees
+                WHERE role = :role
+                  AND status = 'active'
+                  AND deleted_at IS NULL
+            " );
+
+            $stmt->execute([
+                ':role' => $role,
+            ]);
+
+            $userIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            foreach ($userIds as $userId) {
+                $this->notifyUser((int)$userId, $message);
+            }
+        } catch (Throwable $e) {
+            // Notification không được làm hỏng flow chính.
+        }
+    }
+
+    private function notifyAdmins(string $message): void {
+        $this->notifyRole('admin', $message);
+    }
+
     public function index(): void {
         try {
             $authUser = $this->requireRole(['admin', 'manager']);
@@ -452,6 +520,14 @@ class EmployeeController {
 
             $employee = $this->employeeModel->findProfileById($employeeId);
 
+            $roleLabel = strtoupper((string)$role);
+            $managerName = $authUser['full_name'] ?? $authUser['email'] ?? ('Manager #' . (int)$authUser['id']);
+            $accountName = $employee['full_name'] ?? trim((string)$input['full_name']);
+
+            $this->notifyAdmins(
+                'Manager ' . $managerName . ' vừa tạo tài khoản ' . $roleLabel . ' "' . $accountName . '" và đang chờ Admin duyệt.'
+            );
+
             $this->json([
                 'status' => 'success',
                 'message' => 'Tạo tài khoản thành công. Tài khoản đang chờ Admin duyệt trước khi đăng nhập.',
@@ -536,6 +612,22 @@ class EmployeeController {
 
             $approved = $this->employeeModel->findProfileById($employeeId);
 
+            $approvedName = $approved['full_name'] ?? $employee['full_name'] ?? ('Tài khoản #' . $employeeId);
+            $approvedRole = strtoupper((string)($approved['role'] ?? $employee['role'] ?? 'account'));
+            $adminName = $authUser['full_name'] ?? $authUser['email'] ?? ('Admin #' . (int)$authUser['id']);
+
+            $this->notifyUser(
+                $employeeId,
+                'Tài khoản của bạn đã được Admin duyệt. Bạn hiện có thể đăng nhập hệ thống.'
+            );
+
+            if (!empty($employee['manager_id'])) {
+                $this->notifyUser(
+                    (int)$employee['manager_id'],
+                    'Admin ' . $adminName . ' đã duyệt tài khoản ' . $approvedRole . ' "' . $approvedName . '" do bạn tạo.'
+                );
+            }
+
             $this->json([
                 'status' => 'success',
                 'message' => 'Admin đã duyệt tài khoản. Người dùng hiện có thể đăng nhập.',
@@ -594,6 +686,17 @@ class EmployeeController {
             }
 
             $rejected = $this->employeeModel->findProfileById($employeeId);
+
+            $rejectedName = $rejected['full_name'] ?? $employee['full_name'] ?? ('Tài khoản #' . $employeeId);
+            $rejectedRole = strtoupper((string)($rejected['role'] ?? $employee['role'] ?? 'account'));
+            $adminName = $authUser['full_name'] ?? $authUser['email'] ?? ('Admin #' . (int)$authUser['id']);
+
+            if (!empty($employee['manager_id'])) {
+                $this->notifyUser(
+                    (int)$employee['manager_id'],
+                    'Admin ' . $adminName . ' đã từ chối tài khoản ' . $rejectedRole . ' "' . $rejectedName . '" do bạn tạo.'
+                );
+            }
 
             $this->json([
                 'status' => 'success',
@@ -1266,3 +1369,5 @@ class EmployeeController {
         }
     }
 }
+ 
+

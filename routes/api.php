@@ -31,12 +31,6 @@ return [
 
     /**
      * ACCOUNT GOVERNANCE
-     *
-     * Luồng mới:
-     * - Manager tạo Employee/Client ở trạng thái inactive.
-     * - Admin xem danh sách pending.
-     * - Admin approve thì status active.
-     * - Admin reject thì status suspended.
      */
     ['POST',  '/api/accounts',                      'HRM\\EmployeeController@storeAccount',    ['manager']],
     ['GET',   '/api/admin/accounts/pending',        'HRM\\EmployeeController@pendingAccounts', ['admin']],
@@ -64,7 +58,6 @@ return [
 
     /**
      * EMPLOYEE DOCUMENTS
-     * UI có thể ẩn nút hồ sơ điện tử, nhưng giữ API để tránh phá code cũ.
      */
     ['GET',    '/api/employees/:id/documents',         'HRM\\EmployeeController@documents',        ['admin', 'manager', 'employee']],
     ['POST',   '/api/employees/:id/documents',         'HRM\\EmployeeController@uploadDocument',   ['admin', 'manager', 'employee']],
@@ -87,7 +80,6 @@ return [
 
     /**
      * TASK COMMENTS
-     * Đặt trước /api/tasks/:id để tránh router hiểu comments là id.
      */
     ['GET',    '/api/tasks/comments',     'Task\\TaskCommentController@getAll',    ['admin', 'manager']],
     ['GET',    '/api/tasks/comments/:id', 'Task\\TaskCommentController@getById',   ['admin', 'manager', 'employee', 'client']],
@@ -134,16 +126,17 @@ return [
 
     /**
      * NOTIFICATIONS
+     *
+     * Không thêm bảng mới. Dùng bảng notifications hiện có:
+     * id, user_id, message, is_read, created_at
      */
-    ['GET',   '/api/notifications',              'Core\\NotificationController@index',       ['manager', 'employee']],
-    ['GET',   '/api/notifications/unread',       'Core\\NotificationController@unread',      ['manager', 'employee']],
-    ['GET',   '/api/notifications/unread-count', 'Core\\NotificationController@unreadCount', ['manager', 'employee']],
-    ['PATCH', '/api/notifications/:id/read',     'Core\\NotificationController@markAsRead',  ['manager', 'employee']],
+    ['GET',   '/api/notifications',              'Core\\NotificationController@index',       ['admin', 'manager', 'employee']],
+    ['GET',   '/api/notifications/unread',       'Core\\NotificationController@unread',      ['admin', 'manager', 'employee']],
+    ['GET',   '/api/notifications/unread-count', 'Core\\NotificationController@unreadCount', ['admin', 'manager', 'employee']],
+    ['PATCH', '/api/notifications/:id/read',     'Core\\NotificationController@markAsRead',  ['admin', 'manager', 'employee']],
 
     /**
      * ATTENDANCE & LEAVE
-     * Giữ chấm công và nghỉ phép.
-     * Không bật module tính lương/payroll summary.
      */
     ['GET',   '/api/leaves',             'Payroll\\LeaveController@index',      ['admin', 'manager', 'employee']],
     ['GET',   '/api/admin/leaves',       'Payroll\\LeaveController@adminIndex', ['admin', 'manager']],
