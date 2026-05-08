@@ -6,21 +6,20 @@ use PDO;
 
 class User {
     protected $db;
-    protected $table = 'employees'; // Đã đảm bảo trỏ chính xác vào bảng employees
+    protected $table = 'employees';
 
     public function __construct() {
-        // SỬA LỖI TẠI ĐÂY: Dùng phương thức tĩnh trực tiếp thay vì getInstance()
         $this->db = Database::getConnection();
     }
 
     /**
-     * Tìm người dùng theo Email
-     * Chỉ lấy user có status 'active' để đảm bảo an toàn đăng nhập
+     * Tìm người dùng theo Email.
+     * Chỉ lấy tài khoản đang active để tránh đăng nhập tài khoản bị khóa.
      */
     public function findByEmail($email) {
-        $sql = "SELECT * FROM {$this->table} 
-                WHERE email = :email 
-                AND status = 'active' 
+        $sql = "SELECT * FROM {$this->table}
+                WHERE email = :email
+                AND status = 'active'
                 LIMIT 1";
 
         $stmt = $this->db->prepare($sql);
@@ -29,13 +28,22 @@ class User {
     }
 
     /**
-     * Tìm người dùng theo ID
-     * Trả về các thông tin cơ bản cần thiết cho Session/Token
+     * Tìm người dùng theo ID.
+     * Dùng cho API /api/auth/me và phần header/topbar.
      */
     public function findById($id) {
-        $sql = "SELECT id, full_name, email, role, status 
-                FROM {$this->table} 
-                WHERE id = :id 
+        $sql = "SELECT
+                    id,
+                    employee_code,
+                    full_name,
+                    email,
+                    role,
+                    avatar,
+                    phone,
+                    status
+                FROM {$this->table}
+                WHERE id = :id
+                AND deleted_at IS NULL
                 LIMIT 1";
 
         $stmt = $this->db->prepare($sql);
@@ -44,26 +52,21 @@ class User {
     }
 
     /**
-     * Tạo tài khoản mới
-     * Logic điền đầy đủ các trường phòng ban, mã nhân viên và ngày vào làm
+     * Tạo tài khoản mới.
      */
     public function create($data) {
-        $sql = "INSERT INTO {$this->table} 
+        $sql = "INSERT INTO {$this->table}
                 (department_id, position_id, employee_code, full_name, email, password, role, status, hire_date)
-                VALUES 
+                VALUES
                 (:dept, :pos, :code, :name, :email, :pass, :role, 'active', CURDATE())";
 
         $stmt = $this->db->prepare($sql);
-
-        // Mã hóa mật khẩu trước khi lưu
         $hashedPassword = password_hash($data['password'], PASSWORD_BCRYPT);
-
-        // Sinh mã nhân viên tự động nếu là Client đăng ký, hoặc dùng mã có sẵn
         $employeeCode = $data['employee_code'] ?? ('CL' . time());
 
         $stmt->execute([
-            ':dept'  => $data['department_id'] ?? 1, // Mặc định phòng ban đầu tiên
-            ':pos'   => $data['position_id']   ?? 1, // Mặc định vị trí đầu tiên
+            ':dept'  => $data['department_id'] ?? 1,
+            ':pos'   => $data['position_id'] ?? 1,
             ':code'  => $employeeCode,
             ':name'  => $data['full_name'],
             ':email' => $data['email'],

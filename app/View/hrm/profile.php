@@ -11,7 +11,7 @@ require_once __DIR__ . '/../../Models/HRM/Employee.php';
 $pageTitle = 'Hồ sơ cá nhân | Creative Agency Hub';
 $pageCss = ['hrm.css'];
 $pageJs = ['hrm.js'];
-$activeMenu = 'profile';
+$activeMenu = '';
 $topbarTitle = 'Hồ sơ của tôi';
 $brandName = 'Creative Agency Hub';
 
@@ -43,21 +43,6 @@ if (!function_exists('formatDateVi')) {
         }
 
         return date('d/m/Y', $timestamp);
-    }
-}
-
-if (!function_exists('formatDateTimeVi')) {
-    function formatDateTimeVi($date, $fallback = 'Chưa cập nhật') {
-        if (empty($date)) {
-            return $fallback;
-        }
-
-        $timestamp = strtotime($date);
-        if (!$timestamp) {
-            return $fallback;
-        }
-
-        return date('d/m/Y H:i', $timestamp);
     }
 }
 
@@ -102,61 +87,6 @@ if (!function_exists('genderLabel')) {
     }
 }
 
-if (!function_exists('documentTypeLabel')) {
-    function documentTypeLabel($type) {
-        $labels = [
-            'identity' => 'Giấy tờ định danh',
-            'contract' => 'Hợp đồng',
-            'education' => 'Bằng cấp',
-            'profile' => 'Hồ sơ cá nhân',
-            'other' => 'Tài liệu khác',
-        ];
-
-        $type = strtolower((string)$type);
-        return $labels[$type] ?? 'Tài liệu khác';
-    }
-}
-
-if (!function_exists('formatFileSize')) {
-    function formatFileSize($bytes) {
-        $bytes = (int)$bytes;
-
-        if ($bytes >= 1048576) {
-            return round($bytes / 1048576, 2) . ' MB';
-        }
-
-        if ($bytes >= 1024) {
-            return round($bytes / 1024, 2) . ' KB';
-        }
-
-        return $bytes . ' B';
-    }
-}
-
-if (!function_exists('fileIcon')) {
-    function fileIcon($mimeType, $originalName = '') {
-        $extension = strtolower(pathinfo((string)$originalName, PATHINFO_EXTENSION));
-
-        if ($extension !== '') {
-            return strtoupper(substr($extension, 0, 4));
-        }
-
-        if (str_contains((string)$mimeType, 'pdf')) {
-            return 'PDF';
-        }
-
-        if (str_contains((string)$mimeType, 'word')) {
-            return 'DOC';
-        }
-
-        if (str_contains((string)$mimeType, 'image')) {
-            return 'IMG';
-        }
-
-        return 'FILE';
-    }
-}
-
 if (!function_exists('initialsFromName')) {
     function initialsFromName($name) {
         $name = trim((string)$name);
@@ -186,6 +116,14 @@ if (!function_exists('resolveAvatarUrl')) {
 
         if (preg_match('/^https?:\/\//i', $avatar) || strpos($avatar, '/') === 0) {
             return $avatar;
+        }
+
+        if (strpos($avatar, 'public/') === 0) {
+            return '/creative-agency-hub/' . ltrim($avatar, '/');
+        }
+
+        if (strpos($avatar, 'uploads/') === 0) {
+            return '/creative-agency-hub/public/' . ltrim($avatar, '/');
         }
 
         return '/creative-agency-hub/public/uploads/avatars/' . rawurlencode($avatar);
@@ -226,7 +164,6 @@ if (!function_exists('formatLeaveNumber')) {
 
 $profileError = null;
 $employee = null;
-$documents = [];
 
 try {
     $employeeModel = new Employee();
@@ -241,8 +178,6 @@ try {
 
     if (!$employee) {
         $profileError = 'Không tìm thấy hồ sơ người dùng đang đăng nhập. Vui lòng đăng nhập lại.';
-    } else {
-        $documents = $employeeModel->listDocumentsByEmployee((int)$employee['id']);
     }
 } catch (Throwable $e) {
     $profileError = 'Không thể tải hồ sơ nhân viên: ' . $e->getMessage();
@@ -251,7 +186,8 @@ try {
 if ($profileError !== null) {
     $currentUser = [
         'name' => 'Khách',
-        'role' => 'Chưa xác thực',
+        'full_name' => 'Khách',
+        'role' => 'user',
         'avatar' => null,
     ];
 
@@ -264,6 +200,7 @@ if ($profileError !== null) {
                 <p style="margin-top: 12px; color: var(--text-muted, #64748b);">
                     <?php echo e($profileError); ?>
                 </p>
+
                 <div style="margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap;">
                     <a class="btn btn-emerald" href="/creative-agency-hub/app/View/auth/login.php">Đăng nhập lại</a>
                     <a class="btn btn-light" href="/creative-agency-hub/app/View/hrm/profile.php">Tải lại trang</a>
@@ -294,9 +231,12 @@ $profileCompleteness = calculateProfileCompleteness($employee);
 $accountHealth = (($employee['status'] ?? '') === 'active') ? 100 : 0;
 
 $currentUser = [
+    'id' => $employee['id'] ?? null,
     'name' => $fullName,
-    'role' => $roleText,
-    'avatar' => $avatarUrl,
+    'full_name' => $fullName,
+    'email' => $employee['email'] ?? '',
+    'role' => $employee['role'] ?? 'employee',
+    'avatar' => $employee['avatar'] ?? null,
 ];
 
 $kpis = [
@@ -381,7 +321,7 @@ ob_start();
                                 <strong>Vai trò hệ thống</strong>
                                 <small><?php echo e($roleText); ?></small>
                             </div>
-                            <button class="document-download" type="button">›</button>
+                            <span class="document-download">›</span>
                         </div>
 
                         <div class="document-card">
@@ -390,7 +330,7 @@ ob_start();
                                 <strong>Ngày phép còn lại</strong>
                                 <small><?php echo e(formatLeaveNumber($remainingLeaveDays)); ?> / <?php echo e(formatLeaveNumber($totalLeaveDays)); ?> ngày</small>
                             </div>
-                            <button class="document-download" type="button">›</button>
+                            <span class="document-download">›</span>
                         </div>
 
                         <div class="document-card">
@@ -399,109 +339,58 @@ ob_start();
                                 <strong>Ngày bắt đầu</strong>
                                 <small><?php echo e($hireDateText); ?></small>
                             </div>
-                            <button class="document-download" type="button">›</button>
+                            <span class="document-download">›</span>
                         </div>
                     </div>
                 </div>
             </article>
         </div>
 
-        <div class="hrm-grid">
-            <article class="card">
-                <div class="card-header dashboard-card-title-row">
-                    <h2>Thông tin cá nhân</h2>
-                    <button class="btn btn-soft" type="button" data-hrm-action="edit-profile">✎ Chỉnh sửa</button>
-                </div>
+        <article class="card">
+            <div class="card-header dashboard-card-title-row">
+                <h2>Thông tin cá nhân</h2>
+                <button class="btn btn-soft" type="button" data-hrm-action="edit-profile">✎ Chỉnh sửa</button>
+            </div>
 
-                <div class="card-body">
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <small>Họ và tên</small>
-                            <strong><?php echo e($fullName); ?></strong>
-                        </div>
+            <div class="card-body">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <small>Họ và tên</small>
+                        <strong><?php echo e($fullName); ?></strong>
+                    </div>
 
-                        <div class="info-item">
-                            <small>Ngày sinh</small>
-                            <strong><?php echo e($birthDateText); ?></strong>
-                        </div>
+                    <div class="info-item">
+                        <small>Ngày sinh</small>
+                        <strong><?php echo e($birthDateText); ?></strong>
+                    </div>
 
-                        <div class="info-item">
-                            <small>Email cá nhân</small>
-                            <strong><?php echo e(displayValue($employee['email'] ?? null)); ?></strong>
-                        </div>
+                    <div class="info-item">
+                        <small>Email cá nhân</small>
+                        <strong><?php echo e(displayValue($employee['email'] ?? null)); ?></strong>
+                    </div>
 
-                        <div class="info-item">
-                            <small>Số điện thoại</small>
-                            <strong><?php echo e(displayValue($employee['phone'] ?? null)); ?></strong>
-                        </div>
+                    <div class="info-item">
+                        <small>Số điện thoại</small>
+                        <strong><?php echo e(displayValue($employee['phone'] ?? null)); ?></strong>
+                    </div>
 
-                        <div class="info-item">
-                            <small>Giới tính</small>
-                            <strong><?php echo e(genderLabel($employee['gender'] ?? null)); ?></strong>
-                        </div>
+                    <div class="info-item">
+                        <small>Giới tính</small>
+                        <strong><?php echo e(genderLabel($employee['gender'] ?? null)); ?></strong>
+                    </div>
 
-                        <div class="info-item">
-                            <small>Quản lý trực tiếp</small>
-                            <strong><?php echo e(displayValue($employee['manager_name'] ?? null)); ?></strong>
-                        </div>
+                    <div class="info-item">
+                        <small>Quản lý trực tiếp</small>
+                        <strong><?php echo e(displayValue($employee['manager_name'] ?? null)); ?></strong>
+                    </div>
 
-                        <div class="info-item" style="grid-column: 1 / -1;">
-                            <small>Địa chỉ thường trú</small>
-                            <span><?php echo e(displayValue($employee['address'] ?? null)); ?></span>
-                        </div>
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <small>Địa chỉ thường trú</small>
+                        <span><?php echo e(displayValue($employee['address'] ?? null)); ?></span>
                     </div>
                 </div>
-            </article>
-
-            <article class="card">
-                <div class="card-header dashboard-card-title-row">
-                    <h2>Hồ sơ điện tử</h2>
-                    <button class="btn btn-soft" type="button" data-hrm-action="upload-document">＋ Tải lên</button>
-                </div>
-
-                <div class="card-body">
-                    <div class="document-grid">
-                        <button class="document-card" type="button" data-hrm-action="upload-document" style="border-style: dashed;">
-                            <div class="document-icon">＋</div>
-                            <div class="document-info">
-                                <strong>Tải tài liệu hồ sơ</strong>
-                                <small>PDF, DOC, DOCX, JPG, PNG, WEBP, tối đa 10MB</small>
-                            </div>
-                            <span></span>
-                        </button>
-
-                        <?php if (empty($documents)): ?>
-                            <div class="document-card">
-                                <div class="document-icon">ℹ</div>
-                                <div class="document-info">
-                                    <strong>Chưa có tài liệu</strong>
-                                    <small>Tài liệu upload sẽ hiển thị tại đây.</small>
-                                </div>
-                                <button class="document-download" type="button">›</button>
-                            </div>
-                        <?php else: ?>
-                            <?php foreach ($documents as $document): ?>
-                                <div class="document-card" data-document-id="<?php echo e($document['id']); ?>">
-                                    <div class="document-icon"><?php echo e(fileIcon($document['mime_type'] ?? '', $document['original_name'] ?? '')); ?></div>
-                                    <div class="document-info">
-                                        <strong><?php echo e($document['title']); ?></strong>
-                                        <small>
-                                            <?php echo e(documentTypeLabel($document['document_type'] ?? 'other')); ?>
-                                            • <?php echo e(formatFileSize($document['file_size'] ?? 0)); ?>
-                                            • <?php echo e(formatDateTimeVi($document['created_at'] ?? null)); ?>
-                                        </small>
-                                    </div>
-                                    <div style="display: flex; gap: 8px;">
-                                        <button class="document-download" type="button" title="Tải xuống" data-document-download="<?php echo e($document['id']); ?>">↓</button>
-                                        <button class="document-download" type="button" title="Xóa" data-document-delete="<?php echo e($document['id']); ?>">×</button>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </article>
-        </div>
+            </div>
+        </article>
     </section>
 
     <template id="profile-edit-template">
@@ -561,39 +450,6 @@ ob_start();
                 <div style="display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 8px;">
                     <button class="btn btn-light" type="button" data-modal-close>Hủy</button>
                     <button class="btn btn-emerald" type="submit">Tải lên</button>
-                </div>
-            </div>
-        </form>
-    </template>
-
-    <template id="profile-document-template">
-        <form data-profile-document-form data-employee-id="<?php echo e($employee['id']); ?>" enctype="multipart/form-data">
-            <div style="display: grid; gap: 16px;">
-                <div style="display: grid; gap: 8px;">
-                    <label style="font-weight: 800;">Tên tài liệu</label>
-                    <input name="title" type="text" placeholder="Ví dụ: CCCD mặt trước, Bằng đại học, Hợp đồng thử việc..." style="width: 100%; padding: 12px 14px; border: 1px solid var(--line-dark); border-radius: 12px;">
-                </div>
-
-                <div style="display: grid; gap: 8px;">
-                    <label style="font-weight: 800;">Loại tài liệu</label>
-                    <select name="document_type" style="width: 100%; padding: 12px 14px; border: 1px solid var(--line-dark); border-radius: 12px;">
-                        <option value="identity">Giấy tờ định danh</option>
-                        <option value="contract">Hợp đồng</option>
-                        <option value="education">Bằng cấp</option>
-                        <option value="profile">Hồ sơ cá nhân</option>
-                        <option value="other">Tài liệu khác</option>
-                    </select>
-                </div>
-
-                <div style="display: grid; gap: 8px;">
-                    <label style="font-weight: 800;">File hồ sơ</label>
-                    <input name="document" type="file" accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp" required style="width: 100%; padding: 12px; border: 1px dashed var(--line-dark); border-radius: 12px;">
-                    <small style="color: var(--text-muted);">Chỉ nhận PDF, DOC, DOCX, JPG, PNG, WEBP. Dung lượng tối đa 10MB.</small>
-                </div>
-
-                <div style="display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 8px;">
-                    <button class="btn btn-light" type="button" data-modal-close>Hủy</button>
-                    <button class="btn btn-emerald" type="submit">Tải tài liệu</button>
                 </div>
             </div>
         </form>

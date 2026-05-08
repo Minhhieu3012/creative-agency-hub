@@ -28,6 +28,7 @@ require __DIR__ . '/../components/page-header.php';
     <div class="task-filter-bar">
         <select class="form-select" data-gantt-project-filter>
             <option value="">Tất cả dự án</option>
+            <option value="1" selected>NexusHR Web</option>
         </select>
 
         <select class="form-select" data-gantt-month-filter>

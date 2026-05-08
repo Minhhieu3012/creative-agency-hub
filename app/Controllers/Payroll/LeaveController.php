@@ -5,7 +5,6 @@ use Core\Database;
 use App\Middleware\AuthMiddleware;
 use Exception;
 use PDO;
-use Throwable;
 
 class LeaveController {
     private $authUser;
@@ -17,8 +16,7 @@ class LeaveController {
      */
     public function __construct($authUser = null) {
         $this->pdo = Database::getConnection();
-        $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
+        
         if ($authUser) {
             $this->authUser = $authUser;
         } else {
@@ -30,541 +28,197 @@ class LeaveController {
         }
     }
 
-    private function json(array $payload, int $statusCode = 200): void {
-        if (ob_get_length()) {
-            ob_clean();
-        }
-
-        header('Content-Type: application/json; charset=utf-8');
-        http_response_code($statusCode);
-        echo json_encode($payload, JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-
-    private function ensureAuth(): void {
-        if (!$this->authUser) {
-            throw new Exception("Phiên đăng nhập đã hết hạn hoặc không hợp lệ.");
-        }
-    }
-
-    private function getEmployeeId(): int {
-        $id = $this->authUser['id'] ?? $this->authUser['employee_id'] ?? null;
-
-        if (!$id) {
-            throw new Exception("Không tìm thấy ID người dùng trong phiên làm việc.");
-        }
-
-        return (int)$id;
-    }
-
-    private function getRole(): string {
-        return strtolower((string)($this->authUser['role'] ?? 'employee'));
-    }
-
-    private function getJsonInput(): array {
-        $raw = file_get_contents("php://input");
-        $data = json_decode($raw, true);
-
-        return is_array($data) ? $data : [];
-    }
-
-    private function resolveId($id): int {
-        if (is_array($id)) {
-            $id = $id['id'] ?? $id[0] ?? 0;
-        }
-
-        return (int)$id;
-    }
-
-    private function normalizeDate(string $date, string $fieldLabel): string {
-        $date = trim($date);
-
-        if ($date === '') {
-            throw new Exception("Vui lòng nhập {$fieldLabel}.");
-        }
-
-        $dateObject = date_create_from_format('Y-m-d', $date);
-
-        if (!$dateObject || $dateObject->format('Y-m-d') !== $date) {
-            throw new Exception("{$fieldLabel} không hợp lệ.");
-        }
-
-        return $date;
-    }
-
-    private function calculateLeaveDays(string $startDate, string $endDate): float {
-        $start = strtotime($startDate);
-        $end = strtotime($endDate);
-
-        if (!$start || !$end) {
-            throw new Exception("Ngày nghỉ không hợp lệ.");
-        }
-
-        $days = (($end - $start) / 86400) + 1;
-
-        if ($days <= 0) {
-            throw new Exception("Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.");
-        }
-
-        return (float)$days;
-    }
-
-    private function getLeaveTypeLabel(?string $leaveType): string {
-        $leaveType = strtolower(trim((string)$leaveType));
-
-        $labels = [
-            'annual' => 'Nghỉ phép năm',
-            'sick' => 'Nghỉ ốm',
-            'personal' => 'Nghỉ việc cá nhân',
-            'half_day' => 'Nghỉ nửa ngày',
-        ];
-
-        return $labels[$leaveType] ?? 'Nghỉ phép';
-    }
-
-    private function buildReasonWithLeaveType(string $leaveType, string $reason): string {
-        $label = $this->getLeaveTypeLabel($leaveType);
-        return "[{$label}] {$reason}";
-    }
-
-    private function createLeaveAdjustment(
-        int $employeeId,
-        float $adjustmentDays,
-        float $oldDays,
-        float $newDays,
-        string $reason,
-        int $createdBy
-    ): void {
-        $stmtLog = $this->pdo->prepare("
-            INSERT INTO employee_leave_adjustments (
-                employee_id,
-                adjustment_days,
-                old_remaining_days,
-                new_remaining_days,
-                reason,
-                created_by
-            )
-            VALUES (?, ?, ?, ?, ?, ?)
-        ");
-
-        $stmtLog->execute([
-            $employeeId,
-            $adjustmentDays,
-            $oldDays,
-            $newDays,
-            $reason,
-            $createdBy
-        ]);
-    }
-
     /**
      * API: GET /api/leaves
-     * Lấy quỹ phép và lịch sử đơn của cá nhân.
+     * Lấy quỹ phép và lịch sử đơn của cá nhân nhân viên.
      */
     public function index() {
+        header('Content-Type: application/json; charset=utf-8');
         try {
             $this->ensureAuth();
+            $emp_id = $this->authUser['id'] ?? $this->authUser['employee_id'];
 
-            $empId = $this->getEmployeeId();
-
-            $stmtEmp = $this->pdo->prepare("
-                SELECT remaining_leave_days
-                FROM employees
-                WHERE id = ?
-                LIMIT 1
-            ");
-            $stmtEmp->execute([$empId]);
+            // 1. Lấy quỹ phép hiện tại
+            $stmtEmp = $this->pdo->prepare("SELECT remaining_leave_days FROM employees WHERE id = ?");
+            $stmtEmp->execute([$emp_id]);
             $balance = $stmtEmp->fetchColumn();
 
-            /*
-             * Schema hiện tại không có leave_type và duration.
-             * duration được tính bằng DATEDIFF.
-             * leave_type trả alias để frontend không bị vỡ.
-             */
-            $stmtHistory = $this->pdo->prepare("
-                SELECT
-                    lr.id,
-                    lr.employee_id,
-                    lr.approved_by,
-                    lr.start_date,
-                    lr.end_date,
-                    lr.reason,
-                    lr.status,
-                    lr.created_at,
-                    lr.updated_at,
-                    DATEDIFF(lr.end_date, lr.start_date) + 1 AS duration,
-                    'annual' AS leave_type,
-                    approver.full_name AS approved_by_name
-                FROM leave_requests lr
-                LEFT JOIN employees approver ON approver.id = lr.approved_by
-                WHERE lr.employee_id = ?
-                ORDER BY lr.created_at DESC
-            ");
-            $stmtHistory->execute([$empId]);
+            // 2. Lấy lịch sử nghỉ phép của cá nhân
+            $stmtHistory = $this->pdo->prepare("SELECT * FROM leave_requests WHERE employee_id = ? ORDER BY created_at DESC");
+            $stmtHistory->execute([$emp_id]);
             $history = $stmtHistory->fetchAll(PDO::FETCH_ASSOC);
 
-            $this->json([
+            echo json_encode([
                 'status' => 'success',
                 'data' => [
-                    'balance' => $balance !== false ? (float)$balance : 0,
+                    'balance' => $balance !== false ? floatval($balance) : 0,
                     'history' => $history ?: []
                 ]
             ]);
-        } catch (Throwable $e) {
-            $this->json([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ], 401);
+        } catch (Exception $e) {
+            http_response_code(401);
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         }
     }
 
     /**
      * API: GET /api/admin/leaves
-     * Chỉ Admin mới thấy danh sách đơn nghỉ phép chờ duyệt.
-     * Manager được trả mảng rỗng để không làm vỡ trang phê duyệt task.
+     * Lấy danh sách toàn bộ đơn đang chờ duyệt (Dành cho Quản lý).
      */
     public function adminIndex() {
+        header('Content-Type: application/json; charset=utf-8');
         try {
             $this->ensureAuth();
-
-            $role = $this->getRole();
-
+            
+            // Chuyển role về chữ thường để so sánh chính xác tuyệt đối[cite: 3]
+            $role = strtolower($this->authUser['role'] ?? 'employee');
             if ($role === 'employee') {
                 throw new Exception('Bạn không có quyền truy cập trung tâm phê duyệt.');
             }
 
-            if ($role !== 'admin') {
-                $this->json([
-                    'status' => 'success',
-                    'message' => 'Chỉ Admin được duyệt đơn nghỉ phép.',
-                    'data' => []
-                ]);
-            }
-
             $stmt = $this->pdo->prepare("
-                SELECT
-                    lr.id,
-                    lr.employee_id,
-                    lr.approved_by,
-                    lr.start_date,
-                    lr.end_date,
-                    lr.reason,
-                    lr.status,
-                    lr.created_at,
-                    lr.updated_at,
-                    DATEDIFF(lr.end_date, lr.start_date) + 1 AS duration,
-                    'annual' AS leave_type,
-                    e.full_name AS employee_name,
-                    e.email AS employee_email,
-                    e.role AS employee_role,
-                    approver.full_name AS approved_by_name
-                FROM leave_requests lr
-                JOIN employees e ON lr.employee_id = e.id
-                LEFT JOIN employees approver ON approver.id = lr.approved_by
-                WHERE lr.status = 'Pending'
+                SELECT lr.*, e.full_name as employee_name 
+                FROM leave_requests lr 
+                JOIN employees e ON lr.employee_id = e.id 
+                WHERE lr.status = 'Pending' 
                 ORDER BY lr.created_at ASC
             ");
             $stmt->execute();
-
             $pendingLeaves = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $this->json([
-                'status' => 'success',
-                'data' => $pendingLeaves ?: []
-            ]);
-        } catch (Throwable $e) {
-            $this->json([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ], 403);
+            // Luôn trả về mảng, ngay cả khi rỗng để tránh lỗi phía Frontend
+            echo json_encode(['status' => 'success', 'data' => $pendingLeaves ?: []]);
+        } catch (Exception $e) {
+            http_response_code(403);
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         }
     }
 
     /**
      * API: POST /api/leaves
-     * Employee/Manager gửi đơn Pending.
-     * Admin gửi đơn thì Approved ngay và tự trừ quỹ phép.
+     * Nhân viên gửi đơn nghỉ phép mới.
      */
     public function store() {
+        header('Content-Type: application/json; charset=utf-8');
         try {
             $this->ensureAuth();
+            $emp_id = $this->authUser['id'] ?? $this->authUser['employee_id'] ?? null;
 
-            $empId = $this->getEmployeeId();
-            $role = $this->getRole();
+            if (!$emp_id) throw new Exception("Không tìm thấy ID người dùng trong phiên làm việc.");
 
-            $data = $this->getJsonInput();
+            $data = json_decode(file_get_contents("php://input"), true);
+            $start_date = $data['start_date'] ?? '';
+            $end_date   = $data['end_date'] ?? '';
+            $leave_type = $data['leave_type'] ?? 'annual';
+            $reason     = $data['reason'] ?? '';
 
-            $startDate = $this->normalizeDate((string)($data['start_date'] ?? ''), 'ngày bắt đầu');
-            $endDate = $this->normalizeDate((string)($data['end_date'] ?? ''), 'ngày kết thúc');
-            $leaveType = (string)($data['leave_type'] ?? 'annual');
-            $reason = trim((string)($data['reason'] ?? ''));
-
-            if ($reason === '') {
-                throw new Exception('Vui lòng nhập lý do nghỉ.');
+            if (empty($start_date) || empty($end_date) || empty($reason)) {
+                throw new Exception('Vui lòng điền đầy đủ ngày bắt đầu, ngày kết thúc và lý do.');
             }
 
-            $daysRequested = $this->calculateLeaveDays($startDate, $endDate);
+            // Tính số ngày xin nghỉ (Bao gồm ngày bắt đầu và kết thúc)
+            $days_requested = (strtotime($end_date) - strtotime($start_date)) / 86400 + 1;
+            if ($days_requested <= 0) throw new Exception('Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.');
 
-            $stmtBalance = $this->pdo->prepare("
-                SELECT remaining_leave_days
-                FROM employees
-                WHERE id = ?
-                LIMIT 1
-            ");
-            $stmtBalance->execute([$empId]);
-            $currentBalance = (float)$stmtBalance->fetchColumn();
+            // Kiểm tra quỹ phép hiện tại
+            $stmtBalance = $this->pdo->prepare("SELECT remaining_leave_days FROM employees WHERE id = ?");
+            $stmtBalance->execute([$emp_id]);
+            $current_balance = floatval($stmtBalance->fetchColumn());
 
-            if ($daysRequested > $currentBalance) {
-                throw new Exception("Quỹ phép không đủ. Bạn xin nghỉ {$daysRequested} ngày, nhưng chỉ còn {$currentBalance} ngày.");
+            if ($days_requested > $current_balance) {
+                throw new Exception("Quỹ phép không đủ. Bạn xin nghỉ {$days_requested} ngày, nhưng chỉ còn {$current_balance} ngày.");
             }
 
-            $reasonToStore = $this->buildReasonWithLeaveType($leaveType, $reason);
-
-            /*
-             * Admin xin nghỉ: duyệt thẳng và trừ phép ngay.
-             */
-            if ($role === 'admin') {
-                $this->pdo->beginTransaction();
-
-                $stmtEmp = $this->pdo->prepare("
-                    SELECT remaining_leave_days
-                    FROM employees
-                    WHERE id = ?
-                    LIMIT 1
-                    FOR UPDATE
-                ");
-                $stmtEmp->execute([$empId]);
-                $oldDays = (float)$stmtEmp->fetchColumn();
-
-                if ($oldDays < $daysRequested) {
-                    throw new Exception("Quỹ phép không đủ. Bạn xin nghỉ {$daysRequested} ngày, nhưng chỉ còn {$oldDays} ngày.");
-                }
-
-                $newDays = $oldDays - $daysRequested;
-
-                $stmtInsert = $this->pdo->prepare("
-                    INSERT INTO leave_requests (
-                        employee_id,
-                        approved_by,
-                        start_date,
-                        end_date,
-                        reason,
-                        status
-                    )
-                    VALUES (?, ?, ?, ?, ?, 'Approved')
-                ");
-
-                $stmtInsert->execute([
-                    $empId,
-                    $empId,
-                    $startDate,
-                    $endDate,
-                    $reasonToStore
-                ]);
-
-                $leaveId = (int)$this->pdo->lastInsertId();
-
-                $stmtUpdateBalance = $this->pdo->prepare("
-                    UPDATE employees
-                    SET remaining_leave_days = ?
-                    WHERE id = ?
-                ");
-                $stmtUpdateBalance->execute([$newDays, $empId]);
-
-                $this->createLeaveAdjustment(
-                    $empId,
-                    -$daysRequested,
-                    $oldDays,
-                    $newDays,
-                    "Admin tự duyệt đơn nghỉ phép #{$leaveId}",
-                    $empId
-                );
-
-                $this->pdo->commit();
-
-                $this->json([
-                    'status' => 'success',
-                    'message' => "Admin gửi đơn nghỉ phép thành công. Đơn đã được duyệt tự động và khấu trừ {$daysRequested} ngày phép.",
-                    'data' => [
-                        'id' => $leaveId,
-                        'duration' => $daysRequested,
-                        'status' => 'Approved'
-                    ]
-                ], 201);
-            }
-
-            /*
-             * Employee và Manager xin nghỉ: bắt buộc chờ Admin duyệt.
-             */
             $stmtInsert = $this->pdo->prepare("
-                INSERT INTO leave_requests (
-                    employee_id,
-                    approved_by,
-                    start_date,
-                    end_date,
-                    reason,
-                    status
-                )
-                VALUES (?, NULL, ?, ?, ?, 'Pending')
+                INSERT INTO leave_requests (employee_id, leave_type, start_date, end_date, duration, reason, status) 
+                VALUES (?, ?, ?, ?, ?, ?, 'Pending')
             ");
+            $stmtInsert->execute([$emp_id, $leave_type, $start_date, $end_date, $days_requested, $reason]);
 
-            $stmtInsert->execute([
-                $empId,
-                $startDate,
-                $endDate,
-                $reasonToStore
-            ]);
-
-            $this->json([
-                'status' => 'success',
-                'message' => 'Gửi đơn nghỉ phép thành công. Vui lòng chờ Admin duyệt.',
-                'data' => [
-                    'id' => (int)$this->pdo->lastInsertId(),
-                    'duration' => $daysRequested,
-                    'status' => 'Pending'
-                ]
-            ], 201);
-        } catch (Throwable $e) {
-            if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
-
-            $this->json([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ], 400);
+            echo json_encode(['status' => 'success', 'message' => 'Gửi đơn nghỉ phép thành công. Vui lòng chờ quản lý duyệt.']);
+        } catch (Exception $e) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         }
     }
 
     /**
      * API: PATCH /api/leaves/:id/approve
-     * Chỉ Admin được phê duyệt hoặc từ chối đơn nghỉ phép.
+     * Quản lý phê duyệt hoặc từ chối đơn nghỉ phép[cite: 3].
      */
     public function approve($id) {
+        header('Content-Type: application/json; charset=utf-8');
         try {
             $this->ensureAuth();
+            $manager_id = $this->authUser['id'] ?? $this->authUser['employee_id'] ?? null;
+            $role = strtolower($this->authUser['role'] ?? 'employee');
 
-            $leaveId = $this->resolveId($id);
-            $adminId = $this->getEmployeeId();
-            $role = $this->getRole();
+            if ($role === 'employee') throw new Exception('Bạn không có quyền duyệt đơn.');
 
-            if ($role !== 'admin') {
-                throw new Exception('Chỉ Admin mới có quyền duyệt đơn nghỉ phép.');
-            }
+            $data = json_decode(file_get_contents("php://input"), true);
+            $action = $data['action'] ?? ''; // Approved hoặc Rejected
 
-            $data = $this->getJsonInput();
-            $action = $data['action'] ?? '';
-
-            if (!in_array($action, ['Approved', 'Rejected'], true)) {
-                throw new Exception('Trạng thái phê duyệt không hợp lệ.');
-            }
-
-            if ($action === 'Rejected') {
-                $stmtReq = $this->pdo->prepare("
-                    SELECT id
-                    FROM leave_requests
-                    WHERE id = ?
-                      AND status = 'Pending'
-                    LIMIT 1
-                ");
-                $stmtReq->execute([$leaveId]);
-                $request = $stmtReq->fetch(PDO::FETCH_ASSOC);
-
-                if (!$request) {
-                    throw new Exception('Đơn nghỉ phép không tồn tại hoặc đã được xử lý trước đó.');
-                }
-
-                $stmtReject = $this->pdo->prepare("
-                    UPDATE leave_requests
-                    SET status = 'Rejected',
-                        approved_by = ?,
-                        updated_at = NOW()
-                    WHERE id = ?
-                ");
-                $stmtReject->execute([$adminId, $leaveId]);
-
-                $this->json([
-                    'status' => 'success',
-                    'message' => 'Đã từ chối đơn nghỉ phép.'
-                ]);
-            }
-
-            $this->pdo->beginTransaction();
-
-            $stmtReq = $this->pdo->prepare("
-                SELECT *
-                FROM leave_requests
-                WHERE id = ?
-                  AND status = 'Pending'
-                LIMIT 1
-                FOR UPDATE
-            ");
-            $stmtReq->execute([$leaveId]);
+            // Kiểm tra đơn có đang chờ duyệt hay không
+            $stmtReq = $this->pdo->prepare("SELECT * FROM leave_requests WHERE id = ? AND status = 'Pending'");
+            $stmtReq->execute([$id]);
             $request = $stmtReq->fetch(PDO::FETCH_ASSOC);
 
-            if (!$request) {
-                throw new Exception('Đơn nghỉ phép không tồn tại hoặc đã được xử lý trước đó.');
+            if (!$request) throw new Exception('Đơn nghỉ phép không tồn tại hoặc đã được xử lý trước đó.');
+
+            // Trường hợp: TỪ CHỐI
+            if ($action === 'Rejected') {
+                $this->pdo->prepare("UPDATE leave_requests SET status = 'Rejected', approved_by = ? WHERE id = ?")
+                          ->execute([$manager_id, $id]);
+                echo json_encode(['status' => 'success', 'message' => 'Đã từ chối đơn nghỉ phép.']);
+                return;
             }
 
-            $employeeId = (int)$request['employee_id'];
-            $days = $this->calculateLeaveDays($request['start_date'], $request['end_date']);
+            // Trường hợp: PHÊ DUYỆT (Sử dụng Transaction để trừ phép an toàn)[cite: 3]
+            $this->pdo->beginTransaction();
+            
+            $emp_id = $request['employee_id'];
+            $days = floatval($request['duration']);
 
-            $stmtEmp = $this->pdo->prepare("
-                SELECT remaining_leave_days
-                FROM employees
-                WHERE id = ?
-                LIMIT 1
-                FOR UPDATE
-            ");
-            $stmtEmp->execute([$employeeId]);
-            $oldDays = (float)$stmtEmp->fetchColumn();
+            // Khóa dòng dữ liệu nhân viên để tránh Race Condition (Tranh chấp dữ liệu)[cite: 3]
+            $stmtEmp = $this->pdo->prepare("SELECT remaining_leave_days FROM employees WHERE id = ? FOR UPDATE");
+            $stmtEmp->execute([$emp_id]);
+            $old_days = floatval($stmtEmp->fetchColumn());
 
-            if ($oldDays < $days) {
+            if ($old_days < $days) {
+                $this->pdo->rollBack();
                 throw new Exception('Nhân viên hiện không đủ ngày phép để thực hiện phê duyệt.');
             }
 
-            $newDays = $oldDays - $days;
+            $new_days = $old_days - $days;
 
-            $stmtApprove = $this->pdo->prepare("
-                UPDATE leave_requests
-                SET status = 'Approved',
-                    approved_by = ?,
-                    updated_at = NOW()
-                WHERE id = ?
-            ");
-            $stmtApprove->execute([$adminId, $leaveId]);
+            // 1. Cập nhật trạng thái đơn
+            $this->pdo->prepare("UPDATE leave_requests SET status = 'Approved', approved_by = ? WHERE id = ?")
+                      ->execute([$manager_id, $id]);
 
-            $stmtUpdateBalance = $this->pdo->prepare("
-                UPDATE employees
-                SET remaining_leave_days = ?
-                WHERE id = ?
-            ");
-            $stmtUpdateBalance->execute([$newDays, $employeeId]);
+            // 2. Cập nhật quỹ phép trong bảng nhân viên
+            $this->pdo->prepare("UPDATE employees SET remaining_leave_days = ? WHERE id = ?")
+                      ->execute([$new_days, $emp_id]);
 
-            $this->createLeaveAdjustment(
-                $employeeId,
-                -$days,
-                $oldDays,
-                $newDays,
-                "Admin duyệt đơn nghỉ phép #{$leaveId}",
-                $adminId
-            );
+            // 3. Ghi log điều chỉnh
+            $this->pdo->prepare("
+                INSERT INTO employee_leave_adjustments (employee_id, adjustment_days, old_remaining_days, new_remaining_days, reason, created_by) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            ")->execute([$emp_id, -$days, $old_days, $new_days, "Hệ thống trừ phép do duyệt đơn #$id", $manager_id]);
 
             $this->pdo->commit();
+            echo json_encode(['status' => 'success', 'message' => "Đã phê duyệt và khấu trừ $days ngày phép thành công."]);
 
-            $this->json([
-                'status' => 'success',
-                'message' => "Đã phê duyệt và khấu trừ {$days} ngày phép thành công."
-            ]);
-        } catch (Throwable $e) {
-            if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
-
-            $this->json([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ], 400);
+        } catch (Exception $e) {
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * Private Helper: Kiểm tra xác thực.
+     */
+    private function ensureAuth() {
+        if (!$this->authUser) throw new Exception("Phiên đăng nhập đã hết hạn hoặc không hợp lệ.");
     }
 }

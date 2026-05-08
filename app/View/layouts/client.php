@@ -92,15 +92,6 @@ $userInitial = strtoupper(mb_substr($currentUser['name'] ?? 'K', 0, 1, 'UTF-8'))
                         <?php echo htmlspecialchars($userInitial); ?>
                     </div>
                 <?php endif; ?>
-
-                <button
-                    type="button"
-                    class="btn btn-light client-logout-btn"
-                    data-client-logout
-                    aria-label="Đăng xuất khỏi Client Portal"
-                >
-                    Đăng xuất
-                </button>
             </div>
         </header>
 

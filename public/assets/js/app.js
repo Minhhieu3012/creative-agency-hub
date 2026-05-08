@@ -67,6 +67,10 @@
             return `${CONFIG.apiRoot}/${path.replace(/^\/+/, "")}`;
         },
 
+        buildViewUrl(path) {
+            return `${CONFIG.baseUrl}/app/View/${String(path || "").replace(/^\/+/, "")}`;
+        },
+
         setLoading(isLoading, message) {
             let overlay = document.querySelector("[data-ui-loading-overlay]");
 
@@ -105,9 +109,372 @@
             }, delay);
         },
 
+        formatRole(role) {
+            const normalizedRole = String(role || "user").trim().toLowerCase();
+
+            const labels = {
+                admin: "ADMIN",
+                manager: "MANAGER",
+                employee: "EMPLOYEE",
+                client: "CLIENT",
+                user: "USER"
+            };
+
+            return labels[normalizedRole] || normalizedRole.toUpperCase();
+        },
+
+        getInitial(name) {
+            const cleanName = String(name || "U").trim();
+            return (cleanName.charAt(0) || "U").toUpperCase();
+        },
+
+        normalizeAvatarUrl(avatar) {
+            const value = String(avatar || "").trim();
+
+            if (!value) {
+                return "";
+            }
+
+            if (/^https?:\/\//i.test(value) || value.startsWith("/")) {
+                return value;
+            }
+
+            if (value.startsWith("public/")) {
+                return `${CONFIG.baseUrl}/${value}`;
+            }
+
+            if (value.startsWith("uploads/")) {
+                return `${CONFIG.baseUrl}/public/${value}`;
+            }
+
+            return `${CONFIG.baseUrl}/public/uploads/avatars/${value}`;
+        },
+
+        applyUserToTopbar(user) {
+            if (!user || typeof user !== "object") return;
+
+            const name = user.full_name || user.name || user.email || "Người dùng";
+            const role = user.role || "user";
+            const avatarUrl = App.normalizeAvatarUrl(user.avatar || user.avatar_url || "");
+            const initial = App.getInitial(name);
+
+            document.querySelectorAll("[data-user-name]").forEach((element) => {
+                element.textContent = name;
+            });
+
+            document.querySelectorAll("[data-user-role]").forEach((element) => {
+                element.textContent = App.formatRole(role);
+            });
+
+            document.querySelectorAll("[data-user-avatar]").forEach((element) => {
+                if (avatarUrl) {
+                    if (element.tagName.toLowerCase() === "img") {
+                        element.src = avatarUrl;
+                        element.alt = name;
+                        return;
+                    }
+
+                    const image = document.createElement("img");
+                    image.src = avatarUrl;
+                    image.alt = name;
+                    image.className = element.className || "user-avatar";
+                    image.setAttribute("data-user-avatar", "");
+                    element.replaceWith(image);
+                    return;
+                }
+
+                if (element.tagName.toLowerCase() === "img") {
+                    element.alt = name;
+                    return;
+                }
+
+                element.textContent = initial;
+            });
+        },
+
+        async initTopbarUser() {
+            const hasTopbarUser = document.querySelector("[data-user-name], [data-user-role], [data-user-avatar]");
+
+            if (!hasTopbarUser) return;
+
+            const serverUser = window.CAH_CURRENT_USER || null;
+
+            if (serverUser) {
+                Auth.setUser(serverUser);
+                App.applyUserToTopbar(serverUser);
+            }
+
+            const cachedUser = Auth.getUser();
+
+            if (!serverUser && cachedUser) {
+                App.applyUserToTopbar(cachedUser);
+            }
+
+            if (!Auth.getToken()) return;
+
+            try {
+                const payload = await Api.get("/api/auth/me", { auth: true });
+                const freshUser = payload?.data?.user || payload?.user || null;
+
+                if (freshUser) {
+                    Auth.setUser(freshUser);
+                    App.applyUserToTopbar(freshUser);
+                }
+            } catch (error) {
+                const nameElement = document.querySelector("[data-user-name]");
+                const roleElement = document.querySelector("[data-user-role]");
+
+                if (nameElement && nameElement.textContent.trim().toLowerCase() === "loading...") {
+                    nameElement.textContent = "Người dùng";
+                }
+
+                if (roleElement && !roleElement.textContent.trim()) {
+                    roleElement.textContent = "USER";
+                }
+            }
+        },
+
+        resolveSearchTarget(keyword) {
+            const value = String(keyword || "").toLowerCase();
+
+            if (
+                value.includes("nhân sự") ||
+                value.includes("nhan su") ||
+                value.includes("nhân viên") ||
+                value.includes("nhan vien") ||
+                value.includes("employee") ||
+                value.includes("staff")
+            ) {
+                return App.buildViewUrl("hrm/employees.php");
+            }
+
+            if (
+                value.includes("dự án") ||
+                value.includes("du an") ||
+                value.includes("project")
+            ) {
+                return App.buildViewUrl("tasks/projects.php");
+            }
+
+            if (
+                value.includes("công việc") ||
+                value.includes("cong viec") ||
+                value.includes("task") ||
+                value.includes("kanban")
+            ) {
+                return App.buildViewUrl("tasks/kanban.php");
+            }
+
+            if (
+                value.includes("gantt") ||
+                value.includes("timeline") ||
+                value.includes("tiến độ") ||
+                value.includes("tien do")
+            ) {
+                return App.buildViewUrl("tasks/gantt.php");
+            }
+
+            if (
+                value.includes("nghỉ phép") ||
+                value.includes("nghi phep") ||
+                value.includes("leave")
+            ) {
+                return App.buildViewUrl("payroll/manager_approvals.php");
+            }
+
+            if (
+                value.includes("lương") ||
+                value.includes("luong") ||
+                value.includes("payroll")
+            ) {
+                return App.buildViewUrl("payroll/payroll_summary.php");
+            }
+
+            return window.location.pathname;
+        },
+
+        initTopbarSearch() {
+            document.querySelectorAll("[data-topbar-search]").forEach((form) => {
+                if (form.dataset.searchReady) return;
+                form.dataset.searchReady = "true";
+
+                const input = form.querySelector('input[name="q"]');
+
+                form.addEventListener("submit", function (event) {
+                    event.preventDefault();
+
+                    const keyword = input ? input.value.trim() : "";
+
+                    if (!keyword) {
+                        input?.focus();
+
+                        if (window.CAHToast) {
+                            CAHToast.info("Tìm kiếm", "Nhập từ khóa rồi bấm biểu tượng kính lúp hoặc nhấn Enter.");
+                        }
+
+                        return;
+                    }
+
+                    const target = App.resolveSearchTarget(keyword);
+                    const separator = target.includes("?") ? "&" : "?";
+                    window.location.href = `${target}${separator}search=${encodeURIComponent(keyword)}`;
+                });
+            });
+        },
+
+        initRefreshPage() {
+            document.querySelectorAll("[data-refresh-page]").forEach((button) => {
+                if (button.dataset.refreshReady) return;
+                button.dataset.refreshReady = "true";
+
+                button.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    button.classList.add("is-spinning");
+                    window.location.reload();
+                });
+            });
+        },
+
+        initSidebarToggle() {
+            const shell = document.querySelector(".app-shell");
+            const sidebar = document.querySelector(".app-sidebar");
+            const toggleButtons = document.querySelectorAll("[data-sidebar-toggle]");
+
+            if (!shell || !sidebar || !toggleButtons.length) return;
+
+            let backdrop = document.querySelector("[data-sidebar-backdrop]");
+
+            if (!backdrop) {
+                backdrop = document.createElement("div");
+                backdrop.className = "sidebar-backdrop";
+                backdrop.setAttribute("data-sidebar-backdrop", "");
+                document.body.appendChild(backdrop);
+            }
+
+            function isMobile() {
+                return window.matchMedia("(max-width: 920px)").matches;
+            }
+
+            function closeMobileSidebar() {
+                sidebar.classList.remove("is-open");
+                backdrop.classList.remove("is-open");
+                document.body.classList.remove("is-sidebar-open");
+            }
+
+            function openMobileSidebar() {
+                sidebar.classList.add("is-open");
+                backdrop.classList.add("is-open");
+                document.body.classList.add("is-sidebar-open");
+            }
+
+            function toggleDesktopSidebar() {
+                shell.classList.toggle("is-sidebar-collapsed");
+
+                try {
+                    localStorage.setItem(
+                        "cah_sidebar_collapsed",
+                        shell.classList.contains("is-sidebar-collapsed") ? "1" : "0"
+                    );
+                } catch (error) {
+                    // LocalStorage có thể bị chặn ở một số trình duyệt. Bỏ qua để UI không gãy.
+                }
+            }
+
+            try {
+                const savedState = localStorage.getItem("cah_sidebar_collapsed");
+
+                if (!isMobile() && savedState === "1") {
+                    shell.classList.add("is-sidebar-collapsed");
+                }
+            } catch (error) {
+                // Không cần xử lý.
+            }
+
+            toggleButtons.forEach((button) => {
+                if (button.dataset.sidebarReady) return;
+                button.dataset.sidebarReady = "true";
+
+                button.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+
+                    if (isMobile()) {
+                        if (sidebar.classList.contains("is-open")) {
+                            closeMobileSidebar();
+                        } else {
+                            openMobileSidebar();
+                        }
+
+                        return;
+                    }
+
+                    closeMobileSidebar();
+                    toggleDesktopSidebar();
+                }, true);
+            });
+
+            document.querySelectorAll("[data-sidebar-close]").forEach((button) => {
+                if (button.dataset.sidebarCloseReady) return;
+                button.dataset.sidebarCloseReady = "true";
+
+                button.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    closeMobileSidebar();
+                });
+            });
+
+            backdrop.addEventListener("click", closeMobileSidebar);
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") {
+                    closeMobileSidebar();
+                }
+            });
+
+            window.addEventListener("resize", function () {
+                if (isMobile()) {
+                    shell.classList.remove("is-sidebar-collapsed");
+                    return;
+                }
+
+                closeMobileSidebar();
+
+                try {
+                    const savedState = localStorage.getItem("cah_sidebar_collapsed");
+                    shell.classList.toggle("is-sidebar-collapsed", savedState === "1");
+                } catch (error) {
+                    // Không cần xử lý.
+                }
+            });
+        },
+
+        initLogout() {
+            document.querySelectorAll("[data-logout]").forEach((button) => {
+                if (button.dataset.logoutReady) return;
+                button.dataset.logoutReady = "true";
+
+                button.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    Auth.clearToken();
+                    window.location.href = App.buildApiUrl("/auth/logout");
+                });
+            });
+        },
+
         initExternalLinks() {
             document.querySelectorAll('a[href="#"], button[data-disabled-demo]').forEach((element) => {
+                if (element.dataset.externalLinkReady) return;
+                element.dataset.externalLinkReady = "true";
+
                 element.addEventListener("click", function (event) {
+                    if (
+                        element.matches("[data-logout]") ||
+                        element.matches("[data-refresh-page]") ||
+                        element.matches("[data-sidebar-toggle]")
+                    ) {
+                        return;
+                    }
+
                     event.preventDefault();
 
                     if (window.CAHToast) {
@@ -143,54 +510,44 @@
         },
 
         init() {
+            App.initSidebarToggle();
+            App.initTopbarSearch();
+            App.initRefreshPage();
+            App.initLogout();
             App.initExternalLinks();
             App.initScrollHints();
             App.initProgressBars();
             App.initPageEntrance();
+            App.initTopbarUser();
         }
     };
 
     const Auth = {
         tokenKey: "cah_auth_token",
-        legacyTokenKey: "cah_token",
         userKey: "cah_auth_user",
-        legacyUserKey: "cah_user",
 
         getToken() {
-            return localStorage.getItem(Auth.legacyTokenKey)
-                || localStorage.getItem(Auth.tokenKey)
-                || "";
+            return localStorage.getItem(Auth.tokenKey) || "";
         },
 
         setToken(token) {
             if (!token) return;
-
             localStorage.setItem(Auth.tokenKey, token);
-            localStorage.setItem(Auth.legacyTokenKey, token);
         },
 
         clearToken() {
             localStorage.removeItem(Auth.tokenKey);
-            localStorage.removeItem(Auth.legacyTokenKey);
             localStorage.removeItem(Auth.userKey);
-            localStorage.removeItem(Auth.legacyUserKey);
         },
 
         setUser(user) {
             if (!user) return;
-
-            const serialized = JSON.stringify(user);
-            localStorage.setItem(Auth.userKey, serialized);
-            localStorage.setItem(Auth.legacyUserKey, serialized);
+            localStorage.setItem(Auth.userKey, JSON.stringify(user));
         },
 
         getUser() {
             try {
-                return JSON.parse(
-                    localStorage.getItem(Auth.legacyUserKey)
-                    || localStorage.getItem(Auth.userKey)
-                    || "null"
-                );
+                return JSON.parse(localStorage.getItem(Auth.userKey) || "null");
             } catch (error) {
                 return null;
             }

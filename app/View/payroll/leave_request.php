@@ -15,7 +15,7 @@ ob_start();
 ?>
 
 <?php
-// Tích hợp Component Header trang
+// Tích hợp Component Header trang[cite: 5]
 $pageHeading = 'Xin Nghỉ phép';
 $pageSubtitle = 'Gửi đơn nghỉ trực tuyến, theo dõi quỹ phép còn lại và lịch sử phê duyệt.';
 $pageAction = '<a class="btn btn-light" href="/creative-agency-hub/app/View/payroll/manager_approvals.php">Xem phê duyệt</a>';
@@ -24,7 +24,7 @@ require __DIR__ . '/../components/page-header.php';
 
 <section class="payroll-grid">
     <div class="payroll-shell">
-        <!-- Thẻ Quỹ phép: Sử dụng ID để JavaScript cập nhật dữ liệu từ employees table -->
+        <!-- Thẻ Quỹ phép: Sử dụng ID để JavaScript cập nhật dữ liệu từ employees table[cite: 4, 5] -->
         <article class="leave-balance-card">
             <div>
                 <h2>Quỹ phép còn lại</h2>
@@ -44,7 +44,7 @@ require __DIR__ . '/../components/page-header.php';
             </button>
         </article>
 
-        <!-- Thẻ Lịch sử: Chuyển sang chế độ Render động qua JavaScript -->
+        <!-- Thẻ Lịch sử: Chuyển sang chế độ Render động qua JavaScript[cite: 4, 5] -->
         <article class="card">
             <div class="card-header dashboard-card-title-row">
                 <h2>Lịch sử đơn nghỉ</h2>
@@ -59,7 +59,7 @@ require __DIR__ . '/../components/page-header.php';
         </article>
     </div>
 
-    <!-- Thẻ Tạo đơn mới: Giữ nguyên cấu trúc Form để đồng bộ với xử lý Submit trong payroll.js -->
+    <!-- Thẻ Tạo đơn mới: Giữ nguyên cấu trúc Form để đồng bộ với xử lý Submit trong payroll.js[cite: 4, 5] -->
     <article class="card leave-form-card">
         <div class="card-header">
             <h2 class="section-title">Tạo đơn nghỉ mới</h2>
@@ -82,7 +82,7 @@ require __DIR__ . '/../components/page-header.php';
 
                     <div class="form-group">
                         <label class="form-label" for="leave_duration">Số ngày</label>
-                        <input id="leave_duration" class="form-control" type="number" min="0.5" step="0.5" name="duration" placeholder="Tự tính theo ngày" readonly>
+                        <input id="leave_duration" class="form-control" type="number" min="0.5" step="0.5" name="duration" placeholder="VD: 1" required>
                     </div>
                 </div>
 
@@ -105,10 +105,7 @@ require __DIR__ . '/../components/page-header.php';
 
                 <div class="form-group">
                     <label class="form-label" for="attachment">Tài liệu đính kèm</label>
-                    <input id="attachment" class="form-control" type="file" name="attachment" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
-                    <small class="form-help">
-                        Tệp đính kèm đang ở bước giao diện. API hiện tại nhận JSON nên chưa lưu file vào database.
-                    </small>
+                    <input id="attachment" class="form-control" type="file" name="attachment">
                 </div>
 
                 <button class="btn btn-primary btn-block" type="submit">

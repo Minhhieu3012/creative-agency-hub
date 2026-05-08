@@ -141,8 +141,7 @@ class TaskModel {
         $assigner_id,
         $assignee_id = null,
         $watcher_id = null,
-        $project_id = null,
-        $status = 'To do'
+        $project_id = null
     ) {
         try {
             $stmt = $this->pdo->prepare("
@@ -155,11 +154,9 @@ class TaskModel {
                     assigner_id,
                     assignee_id,
                     watcher_id,
-                    project_id,
-                    created_at,
-                    updated_at
+                    project_id
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                VALUES (?, ?, ?, ?, 'To do', ?, ?, ?, ?)
             ");
 
             $stmt->execute([
@@ -167,7 +164,6 @@ class TaskModel {
                 $description,
                 $priority,
                 $deadline,
-                $status,
                 $assigner_id,
                 $assignee_id,
                 $watcher_id,
@@ -189,8 +185,7 @@ class TaskModel {
         $deadline,
         $assignee_id = null,
         $watcher_id = null,
-        $project_id = null,
-        $status = 'To do'
+        $project_id = null
     ) {
         try {
             $stmt = $this->pdo->prepare("
@@ -202,9 +197,7 @@ class TaskModel {
                     deadline = ?,
                     assignee_id = ?,
                     watcher_id = ?,
-                    project_id = ?,
-                    status = ?,
-                    updated_at = NOW()
+                    project_id = ?
                 WHERE id = ?
             ");
 
@@ -216,7 +209,6 @@ class TaskModel {
                 $assignee_id,
                 $watcher_id,
                 $project_id,
-                $status,
                 $id
             ]);
         } catch (\PDOException $e) {
@@ -229,8 +221,7 @@ class TaskModel {
         try {
             $stmt = $this->pdo->prepare("
                 UPDATE tasks
-                SET status = ?,
-                    updated_at = NOW()
+                SET status = ?
                 WHERE id = ?
             ");
 
@@ -276,18 +267,6 @@ class TaskModel {
         }
     }
 
-    public function projectExists($projectId) {
-        try {
-            $stmt = $this->pdo->prepare("SELECT id FROM projects WHERE id = ? LIMIT 1");
-            $stmt->execute([(int)$projectId]);
-
-            return $stmt->fetch() ? true : false;
-        } catch (\PDOException $e) {
-            error_log("Lỗi Model projectExists: " . $e->getMessage());
-            return false;
-        }
-    }
-
     public function createNotification($user_id, $message) {
         try {
             $stmt = $this->pdo->prepare("
@@ -320,8 +299,8 @@ class TaskModel {
                 return false;
             }
 
-            return (int)($project['manager_id'] ?? 0) === (int)$userId
-                || (int)($project['assigner_id'] ?? 0) === (int)$userId;
+            return (int) ($project['manager_id'] ?? 0) === (int) $userId
+                || (int) ($project['assigner_id'] ?? 0) === (int) $userId;
         } catch (\PDOException $e) {
             error_log("Lỗi Model isManagerOfProject: " . $e->getMessage());
             return false;

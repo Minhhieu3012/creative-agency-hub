@@ -57,23 +57,23 @@ require __DIR__ . '/../components/page-header.php';
         </article>
     </div>
 
-    <!-- KHỐI 2: BỘ LỌC -->
+    <!-- KHỐI 2: BỘ LỌC (Tạm thời giữ UI, có thể phát triển thêm tính năng filter API sau) -->
     <div class="payroll-filter">
         <select class="form-select" id="filter-month">
             <option value="<?php echo date('m'); ?>">Tháng <?php echo date('m/Y'); ?></option>
             <option value="<?php echo date('m', strtotime('-1 month')); ?>">Tháng <?php echo date('m/Y', strtotime('-1 month')); ?></option>
         </select>
 
-        <select class="form-select" id="filter-department">
-            <option value="">Tất cả phòng ban</option>
+        <select class="form-select">
+            <option>Tất cả phòng ban</option>
         </select>
 
         <div class="input-with-icon">
             <span class="input-icon">⌕</span>
-            <input class="form-control" id="filter-employee-search" type="search" placeholder="Tìm nhân sự...">
+            <input class="form-control" type="search" placeholder="Tìm nhân sự...">
         </div>
 
-        <button class="btn btn-soft" type="button" onclick="applyPayrollFilters()">Lọc dữ liệu</button>
+        <button class="btn btn-soft" type="button" onclick="loadPayrollData()">Lọc dữ liệu</button>
     </div>
 
     <section class="payroll-grid">
@@ -111,7 +111,7 @@ require __DIR__ . '/../components/page-header.php';
             </div>
         </article>
 
-        <!-- KHỐI 4: CHI TIẾT TỔNG HỢP -->
+        <!-- KHỐI 4: CHI TIẾT TỔNG HỢP (SIDEBAR PHẢI) -->
         <aside class="card">
             <div class="card-header">
                 <h2 class="section-title">Chi tiết tổng hợp</h2>
@@ -146,143 +146,30 @@ require __DIR__ . '/../components/page-header.php';
     </section>
 </section>
 
+<!-- ========================================== -->
+<!-- SCRIPT XỬ LÝ FETCH API VÀ RENDER DỮ LIỆU ĐỘNG -->
+<!-- ========================================== -->
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     loadPayrollData();
-
-    const departmentFilter = document.getElementById('filter-department');
-    const searchInput = document.getElementById('filter-employee-search');
-    const monthFilter = document.getElementById('filter-month');
-
-    if (departmentFilter) {
-        departmentFilter.addEventListener('change', applyPayrollFilters);
-    }
-
-    if (searchInput) {
-        searchInput.addEventListener('input', applyPayrollFilters);
-    }
-
-    if (monthFilter) {
-        monthFilter.addEventListener('change', loadPayrollData);
-    }
 });
 
-let allPayrollData = [];
-
-const escapeHtml = (value) => {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-};
-
+// Format tiền tệ VNĐ
 const formatCurrency = (value) => {
-    const safeValue = Number(value || 0);
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(safeValue);
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 };
 
-const formatCompactMoney = (value) => {
-    const safeValue = Number(value || 0);
-
-    if (safeValue >= 1000000) {
-        return (safeValue / 1000000).toFixed(1) + 'M';
-    }
-
-    return formatCurrency(safeValue);
-};
-
+// Lấy chữ cái đầu của tên
 const getInitials = (name) => {
     if (!name) return 'NV';
-
-    const parts = String(name).trim().split(/\s+/);
-    const first = parts[0] || '';
-    const last = parts[parts.length - 1] || '';
-
+    const parts = name.split(' ');
+    const last = parts[parts.length - 1];
+    const first = parts[0];
     return (first.charAt(0) + (parts.length > 1 ? last.charAt(0) : '')).toUpperCase();
 };
 
-const getDepartmentValue = (emp) => {
-    if (emp.department_id !== null && emp.department_id !== undefined && emp.department_id !== '') {
-        return String(emp.department_id);
-    }
-
-    return String(emp.department_name || 'Chưa có phòng ban');
-};
-
-function resetPayrollStats() {
-    document.getElementById('stat-total-salary').innerText = '0đ';
-    document.getElementById('stat-total-days').innerText = '0';
-    document.getElementById('stat-emp-count').innerText = '0 nhân sự';
-    document.getElementById('stat-avg-kpi').innerText = '0%';
-    document.getElementById('stat-warnings').innerText = '00';
-
-    document.getElementById('side-base-salary').innerText = '0đ';
-    document.getElementById('side-bonus').innerText = '0đ';
-    document.getElementById('side-penalty').innerText = '0đ';
-    document.getElementById('side-net-salary').innerText = '0đ';
-}
-
-function populateDepartmentFilter(data) {
-    const select = document.getElementById('filter-department');
-
-    if (!select) return;
-
-    const currentValue = select.value;
-    const departmentMap = new Map();
-
-    data.forEach((emp) => {
-        const key = getDepartmentValue(emp);
-        const label = emp.department_name || 'Chưa có phòng ban';
-
-        if (!departmentMap.has(key)) {
-            departmentMap.set(key, label);
-        }
-    });
-
-    const options = ['<option value="">Tất cả phòng ban</option>'];
-
-    Array.from(departmentMap.entries())
-        .sort((a, b) => a[1].localeCompare(b[1], 'vi'))
-        .forEach(([value, label]) => {
-            options.push(`<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`);
-        });
-
-    select.innerHTML = options.join('');
-
-    if (currentValue && departmentMap.has(currentValue)) {
-        select.value = currentValue;
-    }
-}
-
-function applyPayrollFilters() {
-    const departmentValue = document.getElementById('filter-department')?.value || '';
-    const keyword = String(document.getElementById('filter-employee-search')?.value || '').trim().toLowerCase();
-
-    const filteredData = allPayrollData.filter((emp) => {
-        const empDepartmentValue = getDepartmentValue(emp);
-        const departmentMatched = departmentValue === '' || empDepartmentValue === departmentValue;
-
-        const haystack = [
-            emp.full_name,
-            emp.email,
-            emp.employee_code,
-            emp.department_name,
-            emp.position_name,
-            emp.role
-        ].join(' ').toLowerCase();
-
-        const keywordMatched = keyword === '' || haystack.includes(keyword);
-
-        return departmentMatched && keywordMatched;
-    });
-
-    renderPayrollTable(filteredData);
-}
-
 async function loadPayrollData() {
-    const token = localStorage.getItem('cah_token') || localStorage.getItem('cah_auth_token') || '';
+    const token = localStorage.getItem('cah_token');
     const baseUrl = '/creative-agency-hub/public';
     const month = document.getElementById('filter-month').value;
     const year = new Date().getFullYear();
@@ -291,26 +178,88 @@ async function loadPayrollData() {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">Đang tính toán...</td></tr>';
 
     try {
-        const response = await fetch(`${baseUrl}/api/payroll/summary?month=${month}&year=${year}&_=${Date.now()}`, {
-            method: 'GET',
-            cache: 'no-store',
-            headers: {
+        const response = await fetch(`${baseUrl}/api/payroll/summary?month=${month}&year=${year}`, {
+            headers: { 
                 'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Cache-Control': 'no-cache'
+                'Content-Type': 'application/json'
             }
         });
 
         const res = await response.json();
 
         if (res.status === 'success') {
-            allPayrollData = Array.isArray(res.data) ? res.data : [];
+            const data = res.data;
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">Chưa có dữ liệu lương tháng này.</td></tr>';
+                return;
+            }
 
-            populateDepartmentFilter(allPayrollData);
-            applyPayrollFilters();
+            let html = '';
+            let totalBase = 0, totalNet = 0, totalBonus = 0, totalPenalty = 0;
+            let totalDays = 0, totalKpi = 0, warnings = 0;
+
+            data.forEach(emp => {
+                // Tính tổng cho các chỉ số
+                totalBase += emp.financial.actual_salary; // Lương ngày công thực tế
+                totalNet += emp.financial.net_salary;
+                totalBonus += emp.financial.bonus;
+                totalPenalty += emp.financial.penalty;
+                totalDays += emp.attendance.actual_days;
+                totalKpi += emp.kpi.percent;
+                
+                if (emp.kpi.percent < 80) warnings++;
+
+                // Xác định trạng thái màu sắc dựa vào KPI
+                let statusTone = 'success';
+                let statusText = 'Đã chốt';
+                if (emp.kpi.percent < 80) { statusTone = 'danger'; statusText = 'Cần kiểm tra'; }
+                else if (emp.attendance.late > 0) { statusTone = 'warning'; statusText = 'Có đi muộn'; }
+
+                html += `
+                    <tr>
+                        <td>
+                            <div class="employee-cell">
+                                <div class="employee-avatar">${getInitials(emp.full_name)}</div>
+                                <div class="employee-name">
+                                    <strong>${emp.full_name}</strong>
+                                    <small>ID: ${emp.employee_id}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="text-transform: capitalize;">${emp.role}</td>
+                        <td><strong>${emp.attendance.actual_days} / ${emp.attendance.standard_days}</strong></td>
+                        <td>${emp.attendance.late}</td>
+                        <td><strong>${emp.kpi.percent}%</strong></td>
+                        <td>${formatCurrency(emp.base_salary)}</td>
+                        <td class="salary-amount">${formatCurrency(emp.financial.net_salary)}</td>
+                        <td>
+                            <span class="badge badge-${statusTone}">
+                                ${statusText}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            // 1. Gắn HTML vào bảng
+            tbody.innerHTML = html;
+
+            // 2. Cập nhật khối Thống kê trên cùng
+            document.getElementById('stat-total-salary').innerText = (totalNet / 1000000).toFixed(1) + 'M';
+            document.getElementById('stat-total-days').innerText = totalDays;
+            document.getElementById('stat-emp-count').innerText = data.length + ' nhân sự';
+            document.getElementById('stat-avg-kpi').innerText = Math.round(totalKpi / data.length) + '%';
+            document.getElementById('stat-warnings').innerText = warnings < 10 ? '0'+warnings : warnings;
+
+            // 3. Cập nhật khối Sidebar tổng hợp
+            document.getElementById('side-base-salary').innerText = formatCurrency(totalBase);
+            document.getElementById('side-bonus').innerText = formatCurrency(totalBonus);
+            document.getElementById('side-penalty').innerText = '-' + formatCurrency(totalPenalty);
+            document.getElementById('side-net-salary').innerText = formatCurrency(totalNet);
+
         } else {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: red;">Lỗi: ${escapeHtml(res.message)}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: red;">Lỗi: ${res.message}</td></tr>`;
         }
     } catch (error) {
         tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: red;">Lỗi kết nối máy chủ!</td></tr>`;
@@ -318,109 +267,9 @@ async function loadPayrollData() {
     }
 }
 
-function renderPayrollTable(data) {
-    const tbody = document.getElementById('js-payroll-table-body');
-
-    if (!Array.isArray(data) || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">Không tìm thấy dữ liệu lương phù hợp.</td></tr>';
-        resetPayrollStats();
-        return;
-    }
-
-    let html = '';
-    let totalContractBase = 0;
-    let totalNet = 0;
-    let totalBonus = 0;
-    let totalPenalty = 0;
-    let totalDays = 0;
-    let totalKpi = 0;
-    let warnings = 0;
-
-    data.forEach(emp => {
-        const baseSalary = Number(emp.base_salary || 0);
-        const netSalary = Number(emp.financial?.net_salary || 0);
-        const bonus = Number(emp.financial?.bonus || 0);
-        const penalty = Number(emp.financial?.penalty || 0);
-        const actualDays = Number(emp.attendance?.actual_days || 0);
-        const lateDays = Number(emp.attendance?.late || 0);
-        const earlyDays = Number(emp.attendance?.early || 0);
-        const kpiPercent = Number(emp.kpi?.percent || 0);
-
-        totalContractBase += baseSalary;
-        totalNet += netSalary;
-        totalBonus += bonus;
-        totalPenalty += penalty;
-        totalDays += actualDays;
-        totalKpi += kpiPercent;
-
-        if (kpiPercent < 80) warnings++;
-
-        let statusTone = 'success';
-        let statusText = 'Đã chốt';
-
-        if (baseSalary <= 0) {
-            statusTone = 'danger';
-            statusText = 'Thiếu hợp đồng';
-        } else if (kpiPercent < 80) {
-            statusTone = 'danger';
-            statusText = 'Cần kiểm tra';
-        } else if (lateDays > 0 || earlyDays > 0) {
-            statusTone = 'warning';
-            statusText = 'Có vi phạm';
-        }
-
-        const departmentName = emp.department_name || 'Chưa có phòng ban';
-        const positionName = emp.position_name || emp.role || 'N/A';
-
-        html += `
-            <tr>
-                <td>
-                    <div class="employee-cell">
-                        <div class="employee-avatar">${escapeHtml(getInitials(emp.full_name))}</div>
-                        <div class="employee-name">
-                            <strong>${escapeHtml(emp.full_name || 'Không rõ tên')}</strong>
-                            <small>ID: ${escapeHtml(emp.employee_id)}</small>
-                        </div>
-                    </div>
-                </td>
-
-                <td>
-                    <div class="employee-name">
-                        <strong>${escapeHtml(departmentName)}</strong>
-                        <small style="text-transform: capitalize;">${escapeHtml(positionName)} • ${escapeHtml(emp.role || 'N/A')}</small>
-                    </div>
-                </td>
-
-                <td><strong>${actualDays} / ${emp.attendance?.standard_days || 24}</strong></td>
-                <td>${lateDays}</td>
-                <td><strong>${kpiPercent}%</strong></td>
-                <td>${formatCurrency(baseSalary)}</td>
-                <td class="salary-amount">${formatCurrency(netSalary)}</td>
-                <td>
-                    <span class="badge badge-${statusTone}">
-                        ${escapeHtml(statusText)}
-                    </span>
-                </td>
-            </tr>
-        `;
-    });
-
-    tbody.innerHTML = html;
-
-    document.getElementById('stat-total-salary').innerText = formatCompactMoney(totalNet);
-    document.getElementById('stat-total-days').innerText = totalDays;
-    document.getElementById('stat-emp-count').innerText = data.length + ' nhân sự';
-    document.getElementById('stat-avg-kpi').innerText = Math.round(totalKpi / data.length) + '%';
-    document.getElementById('stat-warnings').innerText = warnings < 10 ? '0' + warnings : warnings;
-
-    document.getElementById('side-base-salary').innerText = formatCurrency(totalContractBase);
-    document.getElementById('side-bonus').innerText = formatCurrency(totalBonus);
-    document.getElementById('side-penalty').innerText = totalPenalty > 0 ? '-' + formatCurrency(totalPenalty) : formatCurrency(0);
-    document.getElementById('side-net-salary').innerText = formatCurrency(totalNet);
-}
-
+// Hàm xử lý tải file Excel với JWT Token
 async function exportExcel() {
-    const token = localStorage.getItem('cah_token') || localStorage.getItem('cah_auth_token') || '';
+    const token = localStorage.getItem('cah_token');
     const baseUrl = '/creative-agency-hub/public';
     const month = document.getElementById('filter-month').value;
     const year = new Date().getFullYear();
@@ -428,30 +277,27 @@ async function exportExcel() {
     try {
         const response = await fetch(`${baseUrl}/api/payroll/export?month=${month}&year=${year}`, {
             method: 'GET',
-            cache: 'no-store',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Cache-Control': 'no-cache'
-            }
+            headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        if (!response.ok) {
-            throw new Error("Không thể xuất file");
-        }
+        if (!response.ok) throw new Error("Không thể xuất file");
 
+        // Nhận dữ liệu dạng Blob (File)
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-
+        
+        // Tạo thẻ a ảo để kích hoạt tải xuống
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
         a.download = `Bang_Luong_Thang_${month}_${year}.csv`;
-
         document.body.appendChild(a);
         a.click();
-
+        
+        // Dọn dẹp
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
+        
     } catch (error) {
         alert("Lỗi xuất Excel: " + error.message);
     }

@@ -5,6 +5,7 @@ use App\Models\HRM\Employee;
 use Core\Database;
 use Core\JwtHandler;
 use PDO;
+use ReflectionMethod;
 use Throwable;
 
 class EmployeeController {
@@ -67,12 +68,36 @@ class EmployeeController {
         ];
     }
 
-    private function getAuthUser(): ?array {
+    private function getAuthorizationHeader(): string {
         $headers = function_exists('getallheaders') ? getallheaders() : [];
-        $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+
+        $authHeader =
+            $headers['Authorization']
+            ?? $headers['authorization']
+            ?? $_SERVER['HTTP_AUTHORIZATION']
+            ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+            ?? '';
+
+        return trim((string)$authHeader);
+    }
+
+    private function extractBearerToken(string $authHeader): string {
+        if ($authHeader === '') {
+            return '';
+        }
+
+        if (stripos($authHeader, 'Bearer ') === 0) {
+            return trim(substr($authHeader, 7));
+        }
+
+        return trim($authHeader);
+    }
+
+    private function getAuthUser(): ?array {
+        $authHeader = $this->getAuthorizationHeader();
 
         if ($authHeader) {
-            $token = trim(str_replace('Bearer ', '', $authHeader));
+            $token = $this->extractBearerToken($authHeader);
 
             try {
                 $decoded = $this->jwt->decode($token);
@@ -99,19 +124,6 @@ class EmployeeController {
             }
         }
 
-        if (!empty($_COOKIE['cah_auth_token'])) {
-            try {
-                $decoded = $this->jwt->decode($_COOKIE['cah_auth_token']);
-                $authUser = $this->normalizeAuthPayload($decoded);
-
-                if ($authUser && !empty($authUser['id'])) {
-                    return $authUser;
-                }
-            } catch (Throwable $e) {
-                // Fallback xuống session.
-            }
-        }
-
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
@@ -121,7 +133,7 @@ class EmployeeController {
                 'id' => (int)$_SESSION['user_id'],
                 'email' => $_SESSION['user_email'] ?? null,
                 'role' => strtolower((string)($_SESSION['user_role'] ?? '')),
-                'full_name' => null,
+                'full_name' => $_SESSION['full_name'] ?? null,
             ];
         }
 
@@ -180,32 +192,20 @@ class EmployeeController {
         return $name !== '' ? $name : 'document';
     }
 
-    private function departmentExists(int $departmentId): bool {
-        $stmt = $this->db->prepare("
-            SELECT id
-            FROM departments
-            WHERE id = :id
-              AND status = 'active'
-              AND deleted_at IS NULL
-            LIMIT 1
-        ");
+    private function getMimeType(string $tmpPath): ?string {
+        $mimeType = null;
 
-        $stmt->execute([':id' => $departmentId]);
-        return (bool)$stmt->fetchColumn();
-    }
+        if (function_exists('finfo_open')) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $tmpPath);
+            finfo_close($finfo);
+        }
 
-    private function positionExists(int $positionId): bool {
-        $stmt = $this->db->prepare("
-            SELECT id
-            FROM positions
-            WHERE id = :id
-              AND status = 'active'
-              AND deleted_at IS NULL
-            LIMIT 1
-        ");
+        if (!$mimeType && function_exists('mime_content_type')) {
+            $mimeType = mime_content_type($tmpPath);
+        }
 
-        $stmt->execute([':id' => $positionId]);
-        return (bool)$stmt->fetchColumn();
+        return $mimeType ?: null;
     }
 
     public function index(): void {
@@ -222,8 +222,6 @@ class EmployeeController {
             $search = trim($_GET['search'] ?? '');
             $status = trim($_GET['status'] ?? '');
 
-            $allowedStatus = ['active', 'inactive', 'resigned', 'suspended'];
-
             $query = "SELECT e.*, d.name AS department_name, p.name AS position_name
                       FROM employees e
                       LEFT JOIN departments d ON e.department_id = d.id
@@ -231,7 +229,7 @@ class EmployeeController {
                       WHERE e.deleted_at IS NULL
                         AND (e.full_name LIKE :s1 OR e.email LIKE :s2 OR e.employee_code LIKE :s3)";
 
-            if ($status !== '' && in_array($status, $allowedStatus, true)) {
+            if ($status !== '') {
                 $query .= " AND e.status = :status";
             }
 
@@ -242,7 +240,7 @@ class EmployeeController {
             $stmt->bindValue(':s2', "%{$search}%");
             $stmt->bindValue(':s3', "%{$search}%");
 
-            if ($status !== '' && in_array($status, $allowedStatus, true)) {
+            if ($status !== '') {
                 $stmt->bindValue(':status', $status);
             }
 
@@ -275,7 +273,7 @@ class EmployeeController {
             if (!$this->canAccessEmployee($authUser, $employeeId)) {
                 $this->json([
                     'status' => 'error',
-                    'message' => 'Bạn không có quyền xem hồ sơ nhân sự này.'
+                    'message' => 'Bạn chỉ được xem hồ sơ của chính mình.'
                 ], 403);
             }
 
@@ -290,12 +288,9 @@ class EmployeeController {
 
             unset($employee['password']);
 
-            $data = $employee;
-            $data['employee'] = $employee;
-
             $this->json([
                 'status' => 'success',
-                'data' => $data
+                'data' => $employee
             ]);
         } catch (Throwable $e) {
             $this->json([
@@ -325,14 +320,6 @@ class EmployeeController {
             }
 
             $role = strtolower((string)$input['role']);
-            $allowedRoles = ['admin', 'manager', 'employee', 'client'];
-
-            if (!in_array($role, $allowedRoles, true)) {
-                $this->json([
-                    'status' => 'error',
-                    'message' => 'Vai trò không hợp lệ.'
-                ], 422);
-            }
 
             if ($authUser['role'] === 'manager' && $role !== 'employee') {
                 $this->json([
@@ -393,7 +380,7 @@ class EmployeeController {
             if (!$this->canAccessEmployee($authUser, $employeeId)) {
                 $this->json([
                     'status' => 'error',
-                    'message' => 'Bạn không có quyền chỉnh sửa hồ sơ nhân sự này.'
+                    'message' => 'Bạn chỉ được chỉnh sửa hồ sơ của chính mình.'
                 ], 403);
             }
 
@@ -407,18 +394,8 @@ class EmployeeController {
             }
 
             $input = $this->getInput();
-            $isAdmin = $authUser['role'] === 'admin';
-            $isManager = $authUser['role'] === 'manager';
-            $isSelf = (int)$authUser['id'] === $employeeId;
 
-            if ($isManager && !$isSelf && strtolower((string)($employee['role'] ?? '')) !== 'employee') {
-                $this->json([
-                    'status' => 'error',
-                    'message' => 'Manager chỉ được cập nhật nhân viên cấp employee.'
-                ], 403);
-            }
-
-            $profileFields = [
+            $allowedFields = [
                 'full_name',
                 'phone',
                 'gender',
@@ -426,27 +403,13 @@ class EmployeeController {
                 'address',
             ];
 
-            $hrmFields = [
-                'department_id',
-                'position_id',
-                'status',
-                'role',
-                'manager_id',
-            ];
-
-            $allowedFields = ($isAdmin || $isManager)
-                ? array_merge($profileFields, $hrmFields)
-                : $profileFields;
-
             $data = [];
 
             foreach ($allowedFields as $field) {
-                if (!array_key_exists($field, $input)) {
-                    continue;
+                if (array_key_exists($field, $input)) {
+                    $value = is_string($input[$field]) ? trim($input[$field]) : $input[$field];
+                    $data[$field] = ($value === '') ? null : $value;
                 }
-
-                $value = is_string($input[$field]) ? trim($input[$field]) : $input[$field];
-                $data[$field] = ($value === '') ? null : $value;
             }
 
             if (isset($data['full_name']) && $data['full_name'] === null) {
@@ -481,93 +444,6 @@ class EmployeeController {
                 }
             }
 
-            if (isset($data['department_id'])) {
-                $departmentId = (int)$data['department_id'];
-
-                if ($departmentId <= 0 || !$this->departmentExists($departmentId)) {
-                    $this->json([
-                        'status' => 'error',
-                        'message' => 'Phòng ban không hợp lệ.'
-                    ], 422);
-                }
-
-                $data['department_id'] = $departmentId;
-            }
-
-            if (isset($data['position_id'])) {
-                $positionId = (int)$data['position_id'];
-
-                if ($positionId <= 0 || !$this->positionExists($positionId)) {
-                    $this->json([
-                        'status' => 'error',
-                        'message' => 'Chức danh không hợp lệ.'
-                    ], 422);
-                }
-
-                $data['position_id'] = $positionId;
-            }
-
-            if (isset($data['manager_id'])) {
-                $managerId = $data['manager_id'] !== null ? (int)$data['manager_id'] : null;
-
-                if ($managerId !== null && $managerId <= 0) {
-                    $this->json([
-                        'status' => 'error',
-                        'message' => 'Quản lý trực tiếp không hợp lệ.'
-                    ], 422);
-                }
-
-                if ($managerId !== null && $managerId === $employeeId) {
-                    $this->json([
-                        'status' => 'error',
-                        'message' => 'Nhân sự không thể tự quản lý chính mình.'
-                    ], 422);
-                }
-
-                $data['manager_id'] = $managerId;
-            }
-
-            if (isset($data['role'])) {
-                $role = strtolower((string)$data['role']);
-                $allowedRoles = ['admin', 'manager', 'employee', 'client'];
-
-                if (!in_array($role, $allowedRoles, true)) {
-                    $this->json([
-                        'status' => 'error',
-                        'message' => 'Vai trò không hợp lệ.'
-                    ], 422);
-                }
-
-                if ($isManager && $role !== 'employee') {
-                    $this->json([
-                        'status' => 'error',
-                        'message' => 'Manager chỉ được giữ nhân sự ở vai trò employee.'
-                    ], 403);
-                }
-
-                $data['role'] = $role;
-            }
-
-            if (isset($data['status'])) {
-                $status = strtolower((string)$data['status']);
-                $allowedStatus = ['active', 'inactive', 'resigned', 'suspended'];
-
-                if (!in_array($status, $allowedStatus, true)) {
-                    $this->json([
-                        'status' => 'error',
-                        'message' => 'Trạng thái nhân sự không hợp lệ.'
-                    ], 422);
-                }
-
-                $data['status'] = $status;
-
-                if ($status === 'resigned') {
-                    $data['resigned_date'] = date('Y-m-d');
-                } else {
-                    $data['resigned_date'] = null;
-                }
-            }
-
             if (empty($data)) {
                 $this->json([
                     'status' => 'error',
@@ -582,13 +458,10 @@ class EmployeeController {
                 unset($updated['password']);
             }
 
-            $responseData = $updated ?: [];
-            $responseData['employee'] = $updated;
-
             $this->json([
                 'status' => 'success',
                 'message' => 'Cập nhật hồ sơ thành công.',
-                'data' => $responseData
+                'data' => $updated
             ]);
         } catch (Throwable $e) {
             $this->json([
@@ -651,17 +524,7 @@ class EmployeeController {
                 ], 422);
             }
 
-            $mimeType = null;
-
-            if (function_exists('finfo_open')) {
-                $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                $mimeType = finfo_file($finfo, $file['tmp_name']);
-                finfo_close($finfo);
-            }
-
-            if (!$mimeType && function_exists('mime_content_type')) {
-                $mimeType = mime_content_type($file['tmp_name']);
-            }
+            $mimeType = $this->getMimeType($file['tmp_name']);
 
             $allowedMimeTypes = [
                 'image/jpeg' => 'jpg',
@@ -705,12 +568,19 @@ class EmployeeController {
                 }
             }
 
+            $updated = $this->employeeModel->findProfileById($employeeId);
+
+            if ($updated) {
+                unset($updated['password']);
+            }
+
             $this->json([
                 'status' => 'success',
                 'message' => 'Cập nhật ảnh đại diện thành công.',
                 'data' => [
                     'avatar' => $filename,
-                    'avatar_url' => '/creative-agency-hub/public/uploads/avatars/' . rawurlencode($filename)
+                    'avatar_url' => '/creative-agency-hub/public/uploads/avatars/' . rawurlencode($filename),
+                    'employee' => $updated
                 ]
             ]);
         } catch (Throwable $e) {
@@ -813,17 +683,7 @@ class EmployeeController {
                 ], 422);
             }
 
-            $mimeType = null;
-
-            if (function_exists('finfo_open')) {
-                $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                $mimeType = finfo_file($finfo, $file['tmp_name']);
-                finfo_close($finfo);
-            }
-
-            if (!$mimeType && function_exists('mime_content_type')) {
-                $mimeType = mime_content_type($file['tmp_name']);
-            }
+            $mimeType = $this->getMimeType($file['tmp_name']);
 
             $allowedMimeTypes = [
                 'application/pdf' => 'pdf',
@@ -1046,7 +906,13 @@ class EmployeeController {
                 ], 422);
             }
 
-            $this->employeeModel->adjustLeaveBalance($employeeId, $adjustDays, $reason, (int)$authUser['id']);
+            $method = new ReflectionMethod($this->employeeModel, 'adjustLeaveBalance');
+
+            if ($method->getNumberOfParameters() >= 4) {
+                $this->employeeModel->adjustLeaveBalance($employeeId, $adjustDays, $reason, (int)$authUser['id']);
+            } else {
+                $this->employeeModel->adjustLeaveBalance($employeeId, $adjustDays, $reason);
+            }
 
             $this->json([
                 'status' => 'success',

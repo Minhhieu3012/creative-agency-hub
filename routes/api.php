@@ -1,21 +1,22 @@
 <?php
 /**
  * NEXUS AGENCY HUB - DEFINITION OF ROUTES
+ * Kết hợp hoàn hảo Logic API và Điều hướng Hệ thống
  * Format: [Method, Path, Handler, Roles]
  */
 
 return [
-    // AUTH
+    // AUTH (XÁC THỰC)
     ['POST', '/api/auth/login-internal', 'Auth\\AuthController@loginInternal', null],
     ['POST', '/api/auth/login-client',   'Auth\\AuthController@loginClient', null],
     ['POST', '/api/auth/register-client','Auth\\AuthController@registerClient', null],
     ['GET', '/api/auth/me', 'Auth\\AuthController@me', ['admin', 'manager', 'employee', 'client']],
     ['GET', '/auth/logout', 'Auth\\LogoutController@index', null],
 
-    // DASHBOARD
+    // DASHBOARD (BẢNG ĐIỀU KHIỂN)
     ['GET', '/api/dashboard/stats', 'DashboardController@getStats', ['admin', 'manager']],
 
-    // HRM
+    // HRM (QUẢN TRỊ NHÂN SỰ & TỔ CHỨC)
     ['GET', '/api/organization/data', 'OrganizationController@getOrgData', ['admin', 'manager', 'employee']],
     ['POST', '/api/organization/store', 'OrganizationController@storeDepartment', ['admin', 'manager']],
     ['POST', '/api/organization/positions/store', 'OrganizationController@storePosition', ['admin', 'manager']],
@@ -29,31 +30,27 @@ return [
     ['POST',   '/api/employees/:id/adjust-leave', 'HRM\\EmployeeController@adjustLeave',  ['admin', 'manager']],
     ['POST',   '/api/employees/:id/avatar',       'HRM\\EmployeeController@uploadAvatar', ['admin', 'manager', 'employee']],
 
-    // EMPLOYEE DOCUMENTS
+    // EMPLOYEE DOCUMENTS (HỒ SƠ ĐIỆN TỬ)
     ['GET',    '/api/employees/:id/documents',        'HRM\\EmployeeController@documents',        ['admin', 'manager', 'employee']],
     ['POST',   '/api/employees/:id/documents',        'HRM\\EmployeeController@uploadDocument',   ['admin', 'manager', 'employee']],
     ['GET',    '/api/employee-documents/:id/download','HRM\\EmployeeController@downloadDocument', ['admin', 'manager', 'employee']],
     ['DELETE', '/api/employee-documents/:id',         'HRM\\EmployeeController@deleteDocument',   ['admin', 'manager', 'employee']],
 
-    // PROJECT
-    ['GET',    '/api/projects',        'ProjectController@index',  ['admin','manager','employee']],
-    ['GET',    '/api/projects/:id',    'ProjectController@show',   ['admin','manager','employee']],
+    // PROJECT (QUẢN LÝ DỰ ÁN)
+    ['GET',    '/api/projects',        'ProjectController@index',  ['admin','manager']],
+    ['GET',    '/api/projects/:id',    'ProjectController@show',   ['admin','manager']],
     ['POST',   '/api/projects',        'ProjectController@store',  ['admin','manager']],
     ['PUT',    '/api/projects/:id',    'ProjectController@update', ['admin','manager']],
     ['DELETE', '/api/projects/:id',    'ProjectController@delete', ['admin', 'manager']],
 
-    // CLIENT PORTAL PROJECTS
-    ['GET',    '/api/client/projects',     'ProjectController@clientIndex', ['client']],
-    ['GET',    '/api/client/projects/:id', 'ProjectController@clientShow',  ['client']],
-
-    // TASK
+    // TASK (QUẢN LÝ CÔNG VIỆC)
     ['GET',    '/api/tasks',            'Task\\TaskController@index',        ['admin', 'manager', 'employee', 'client']],
-    ['POST',   '/api/tasks',            'Task\\TaskController@store',        ['admin', 'manager', 'employee']],
+    ['POST',   '/api/tasks',            'Task\\TaskController@store',        ['admin', 'manager']],
     ['PUT',    '/api/tasks/:id',        'Task\\TaskController@update',       ['admin', 'manager']],
     ['DELETE', '/api/tasks/:id',        'Task\\TaskController@destroy',      ['admin', 'manager']],
     ['PATCH',  '/api/tasks/:id/status', 'Task\\TaskController@updateStatus', ['admin', 'manager', 'employee']],
 
-    // TASK APPROVAL
+    // TASK APPROVAL (PHÊ DUYỆT CÔNG VIỆC)
     ['POST', '/api/tasks/:id/submit',  'Task\\TaskApprovalController@submit', ['employee', 'admin', 'manager']],
     ['POST', '/api/tasks/:id/approve', 'Task\\TaskApprovalController@approve', ['admin','manager']],
     ['POST', '/api/tasks/:id/reject',  'Task\\TaskApprovalController@reject', ['admin','manager']],
@@ -68,7 +65,7 @@ return [
     // ACTIVITY & HISTORY
     ['GET', '/api/tasks/:id/activity', 'Task\\TaskActivityController@history', ['admin','manager','employee']],
 
-    // CORE SERVICES
+    // CORE SERVICES (NOTIFICATIONS & COMMENTS)
     ['GET', '/api/notifications',               'Core\\NotificationController@index', ['admin', 'manager', 'employee']],
     ['GET', '/api/notifications/unread',        'Core\\NotificationController@unread', ['admin', 'manager', 'employee']],
     ['GET', '/api/notifications/unread-count',  'Core\\NotificationController@unreadCount', ['admin', 'manager', 'employee']],
@@ -81,7 +78,7 @@ return [
     ['PUT',    '/api/tasks/comments/:id',      'Task\\TaskCommentController@update', ['admin','manager','employee']],
     ['DELETE', '/api/tasks/comments/:id',      'Task\\TaskCommentController@delete', ['admin','manager','employee']],
 
-    // PAYROLL
+    // PAYROLL (CHẤM CÔNG & NGHỈ PHÉP)
     ['GET',   '/api/leaves',                'Payroll\\LeaveController@index',        ['admin', 'manager', 'employee']],
     ['GET',   '/api/admin/leaves',          'Payroll\\LeaveController@adminIndex',   ['admin', 'manager']],
     ['POST',  '/api/leaves',                'Payroll\\LeaveController@store',        ['admin', 'manager', 'employee']],
@@ -90,7 +87,8 @@ return [
     ['GET',   '/api/attendance',            'Payroll\\AttendanceController@index',    ['admin', 'manager', 'employee']],
     ['POST',  '/api/attendance/checkin',    'Payroll\\AttendanceController@checkin',  ['admin', 'manager', 'employee']],
     ['POST',  '/api/attendance/checkout',   'Payroll\\AttendanceController@checkout', ['admin', 'manager', 'employee']],
-
+    
+    // PAYROLL SUMMARY & EXPORT
     ['GET',   '/api/payroll/summary',      'Payroll\\PayrollController@getSummary',  ['admin', 'manager']],
     ['GET',   '/api/payroll/export',       'Payroll\\PayrollController@exportCsv',   ['admin', 'manager']],
 ];
