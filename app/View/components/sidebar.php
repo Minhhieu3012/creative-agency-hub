@@ -1,20 +1,13 @@
 <?php
 /**
  * SIDEBAR COMPONENT
- *
- * Nguyên tắc hiện tại:
- * - Giữ UI cũ.
- * - Render menu theo role bằng JS để tránh nhảy role.
- * - Admin: quản trị hệ thống, duyệt tài khoản, khóa/mở khóa.
- * - Manager: vận hành project/task/employee.
- * - Employee: làm task, chấm công, nghỉ phép.
  */
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$userRoleSession = isset($_SESSION['user_role']) ? strtolower($_SESSION['user_role']) : null;
+$userRoleSession = isset($_SESSION['user_role']) ? strtolower((string)$_SESSION['user_role']) : null;
 $activeMenu = $activeMenu ?? 'dashboard';
 $brandName  = $brandName  ?? 'Creative Agency Hub';
 $baseUrl    = $baseUrl    ?? '/creative-agency-hub';
@@ -119,6 +112,13 @@ const SidebarController = {
             roles: ['admin']
         },
         {
+            key: 'admin-projects',
+            label: 'Danh sách project',
+            href: '/admin/projects/index.php',
+            icon: '▣',
+            roles: ['admin']
+        },
+        {
             key: 'admin-account-security',
             label: 'Khóa / mở khóa',
             href: '/admin/accounts/security.php',
@@ -172,7 +172,7 @@ const SidebarController = {
             key: 'approvals',
             label: 'Phê duyệt',
             href: '/payroll/manager_approvals.php',
-            icon: '☷',
+            icon: '✓',
             roles: ['manager']
         }
     ],
@@ -255,8 +255,8 @@ const SidebarController = {
         });
 
         navContainer.innerHTML = menuHtml || `
-            <div style="padding: 20px; color: #999; font-size: 0.8rem; text-align: center;">
-                Chưa có menu khả dụng.
+            <div style="padding: 20px; color: #999; text-align: center;">
+                Chưa có menu.
             </div>
         `;
 

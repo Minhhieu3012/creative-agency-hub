@@ -122,6 +122,24 @@
         return "badge-info";
     }
 
+    function projectBadgeClass(status) {
+        const value = String(status || "").toLowerCase();
+
+        if (value === "active") {
+            return "badge-success";
+        }
+
+        if (value === "completed") {
+            return "badge-info";
+        }
+
+        if (value === "archived") {
+            return "badge-danger";
+        }
+
+        return "badge-warning";
+    }
+
     function formatDate(value) {
         if (!value) {
             return "Chưa cập nhật";
@@ -166,6 +184,20 @@
                         ${escapeHtml(email)} • ${escapeHtml(code)}
                     </small>
                 </div>
+            </div>
+        `;
+    }
+
+    function projectIdentityHtml(project) {
+        const name = project.name || project.project_name || project.title || ("Project #" + (project.id || ""));
+        const desc = project.description || project.short_description || "Không có mô tả";
+
+        return `
+            <div>
+                <strong>${escapeHtml(name)}</strong>
+                <small style="display:block;color:var(--text-muted);margin-top:4px;max-width:360px;">
+                    ${escapeHtml(desc)}
+                </small>
             </div>
         `;
     }
@@ -253,6 +285,7 @@
             state.projects = extractArray(payload);
         } catch (error) {
             state.projects = [];
+            console.error("Không thể tải project:", error);
         }
 
         return state.projects;
@@ -264,6 +297,7 @@
             state.tasks = extractArray(payload);
         } catch (error) {
             state.tasks = [];
+            console.error("Không thể tải task:", error);
         }
 
         return state.tasks;
@@ -341,6 +375,13 @@
         setText('[data-admin-account-stat="suspended"]', countByStatus("suspended"));
     }
 
+    function renderProjectStats(projects = state.projects) {
+        setText('[data-admin-project-stat="total"]', projects.length);
+        setText('[data-admin-project-stat="active"]', projects.filter((project) => String(project.status || "").toLowerCase() === "active").length);
+        setText('[data-admin-project-stat="completed"]', projects.filter((project) => String(project.status || "").toLowerCase() === "completed").length);
+        setText('[data-admin-project-stat="archived"]', projects.filter((project) => String(project.status || "").toLowerCase() === "archived").length);
+    }
+
     function actionButtons(account) {
         const id = Number(account.id || 0);
         const status = String(account.status || "").toLowerCase();
@@ -348,6 +389,10 @@
 
         if (!id) {
             return "";
+        }
+
+        if (role === "admin" && status === "active") {
+            return `<span style="color:var(--text-muted);font-weight:700;">Admin core</span>`;
         }
 
         const buttons = [];
@@ -382,15 +427,89 @@
             `);
         }
 
-        if (role === "admin" && status === "active") {
-            return `<span style="color:var(--text-muted);font-weight:700;">Admin core</span>`;
-        }
-
         return `
             <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;">
                 ${buttons.join("") || '<span style="color:var(--text-muted);">Không có thao tác</span>'}
             </div>
         `;
+    }
+
+    function filterApprovalAccounts(roleMode) {
+        return state.pendingAccounts.filter(function (account) {
+            const role = String(account.role || "").toLowerCase();
+
+            if (roleMode === "manager") {
+                return role === "manager";
+            }
+
+            if (roleMode === "staff-client") {
+                return role === "employee" || role === "client";
+            }
+
+            return true;
+        });
+    }
+
+    function renderApprovalPage() {
+        const root = qs("[data-admin-approval-page]");
+        const body = qs("[data-admin-approval-body]");
+
+        if (!root || !body) {
+            return;
+        }
+
+        const roleMode = root.getAttribute("data-approval-role") || "";
+        const items = filterApprovalAccounts(roleMode);
+        const colspan = roleMode === "manager" ? 5 : 6;
+
+        if (items.length === 0) {
+            body.innerHTML = `
+                <tr>
+                    <td colspan="${colspan}">Không có tài khoản nào đang chờ duyệt.</td>
+                </tr>
+            `;
+            return;
+        }
+
+        if (roleMode === "manager") {
+            body.innerHTML = items.map(function (account) {
+                return `
+                    <tr>
+                        <td>${accountIdentityHtml(account)}</td>
+                        <td>${escapeHtml(account.email || "")}</td>
+                        <td>${escapeHtml(formatDate(account.created_at))}</td>
+                        <td>
+                            <span class="badge ${statusBadgeClass(account.status)}">
+                                ${escapeHtml(statusLabel(account.status))}
+                            </span>
+                        </td>
+                        <td style="text-align:right;">
+                            ${actionButtons(account)}
+                        </td>
+                    </tr>
+                `;
+            }).join("");
+            return;
+        }
+
+        body.innerHTML = items.map(function (account) {
+            return `
+                <tr>
+                    <td>${accountIdentityHtml(account)}</td>
+                    <td>${escapeHtml(roleLabel(account.role))}</td>
+                    <td>${escapeHtml(account.manager_name || "Chưa có")}</td>
+                    <td>${escapeHtml(formatDate(account.created_at))}</td>
+                    <td>
+                        <span class="badge ${statusBadgeClass(account.status)}">
+                            ${escapeHtml(statusLabel(account.status))}
+                        </span>
+                    </td>
+                    <td style="text-align:right;">
+                        ${actionButtons(account)}
+                    </td>
+                </tr>
+            `;
+        }).join("");
     }
 
     function renderPendingAccountsTable() {
@@ -445,7 +564,13 @@
             return;
         }
 
+        const hasActionColumn = Boolean(qs("[data-admin-accounts-actions]"));
+
         body.innerHTML = state.accounts.map(function (account) {
+            const actionCell = hasActionColumn
+                ? `<td style="text-align:right;">${actionButtons(account)}</td>`
+                : "";
+
             return `
                 <tr>
                     <td>${accountIdentityHtml(account)}</td>
@@ -458,9 +583,133 @@
                             ${escapeHtml(statusLabel(account.status))}
                         </span>
                     </td>
+                    ${actionCell}
+                </tr>
+            `;
+        }).join("");
+    }
+
+    function renderSecurityTable() {
+        const body = qs("[data-admin-security-body]");
+
+        if (!body) {
+            return;
+        }
+
+        if (state.accounts.length === 0) {
+            body.innerHTML = `
+                <tr>
+                    <td colspan="5">Không có tài khoản phù hợp.</td>
+                </tr>
+            `;
+            return;
+        }
+
+        body.innerHTML = state.accounts.map(function (account) {
+            return `
+                <tr>
+                    <td>${accountIdentityHtml(account)}</td>
+                    <td>${escapeHtml(roleLabel(account.role))}</td>
+                    <td>${escapeHtml(account.manager_name || "Chưa có")}</td>
+                    <td>
+                        <span class="badge ${statusBadgeClass(account.status)}">
+                            ${escapeHtml(statusLabel(account.status))}
+                        </span>
+                    </td>
                     <td style="text-align:right;">
                         ${actionButtons(account)}
                     </td>
+                </tr>
+            `;
+        }).join("");
+    }
+
+    function currentProjectFilters() {
+        return {
+            search: String(qs("[data-admin-project-search]")?.value || "").trim().toLowerCase(),
+            status: String(qs("[data-admin-project-status]")?.value || "").trim()
+        };
+    }
+
+    function filteredProjects() {
+        const filters = currentProjectFilters();
+
+        return state.projects.filter(function (project) {
+            const status = String(project.status || "");
+
+            if (filters.status && status.toLowerCase() !== filters.status.toLowerCase()) {
+                return false;
+            }
+
+            if (!filters.search) {
+                return true;
+            }
+
+            const haystack = [
+                project.name,
+                project.project_name,
+                project.title,
+                project.description,
+                project.manager_name,
+                project.client_name,
+                project.customer_name
+            ].join(" ").toLowerCase();
+
+            return haystack.includes(filters.search);
+        });
+    }
+
+    function progressText(project) {
+        const explicitProgress = project.progress ?? project.progress_percent;
+
+        if (explicitProgress !== undefined && explicitProgress !== null && explicitProgress !== "") {
+            return Math.round(Number(explicitProgress) || 0) + "%";
+        }
+
+        const total = Number(project.total_tasks || project.tasks_count || project.task_count || 0);
+        const done = Number(project.done_tasks || project.completed_tasks || 0);
+
+        if (total <= 0) {
+            return "0%";
+        }
+
+        return Math.round((done / total) * 100) + "%";
+    }
+
+    function renderProjectsTable() {
+        const body = qs("[data-admin-projects-body]");
+
+        if (!body) {
+            return;
+        }
+
+        const items = filteredProjects();
+
+        renderProjectStats(items);
+
+        if (items.length === 0) {
+            body.innerHTML = `
+                <tr>
+                    <td colspan="7">Không có project phù hợp.</td>
+                </tr>
+            `;
+            return;
+        }
+
+        body.innerHTML = items.map(function (project) {
+            return `
+                <tr>
+                    <td>${projectIdentityHtml(project)}</td>
+                    <td>${escapeHtml(project.manager_name || project.owner_name || "Chưa có")}</td>
+                    <td>${escapeHtml(project.client_name || project.customer_name || "Chưa có")}</td>
+                    <td>
+                        <span class="badge ${projectBadgeClass(project.status)}">
+                            ${escapeHtml(project.status || "Unknown")}
+                        </span>
+                    </td>
+                    <td>${escapeHtml(progressText(project))}</td>
+                    <td>${escapeHtml(formatDate(project.start_date || project.created_at))}</td>
+                    <td>${escapeHtml(formatDate(project.end_date || project.deadline))}</td>
                 </tr>
             `;
         }).join("");
@@ -508,7 +757,7 @@
             });
 
             toast("success", "Thành công", config.success);
-            await reloadAccountsPage();
+            await reloadCurrentAdminPage();
         } catch (error) {
             toast("error", "Không thể xử lý", error.message);
         }
@@ -522,21 +771,62 @@
         };
     }
 
-    async function reloadAccountsPage() {
-        await loadAccounts(currentAccountFilters());
-        await loadPendingAccounts();
-
-        renderAccountStats();
-        renderPendingAccountsTable();
-        renderAccountsTable();
+    function currentSecurityFilters() {
+        return {
+            search: String(qs("[data-admin-security-search]")?.value || "").trim(),
+            status: String(qs("[data-admin-security-status]")?.value || "").trim()
+        };
     }
 
-    function bindAccountActions() {
+    async function reloadCurrentAdminPage() {
+        if (qs("[data-admin-dashboard]")) {
+            await Promise.all([
+                loadAccounts(),
+                loadPendingAccounts(),
+                loadProjects(),
+                loadTasks()
+            ]);
+
+            renderDashboardStats();
+            renderDashboardPending();
+            return;
+        }
+
+        if (qs("[data-admin-approval-page]")) {
+            await loadPendingAccounts();
+            renderApprovalPage();
+            return;
+        }
+
+        if (qs("[data-admin-accounts]")) {
+            await loadAccounts(currentAccountFilters());
+            await loadPendingAccounts();
+
+            renderAccountStats();
+            renderPendingAccountsTable();
+            renderAccountsTable();
+            return;
+        }
+
+        if (qs("[data-admin-security]")) {
+            await loadAccounts(currentSecurityFilters());
+            renderSecurityTable();
+            return;
+        }
+
+        if (qs("[data-admin-projects]")) {
+            await loadProjects();
+            renderProjectsTable();
+        }
+    }
+
+    function bindActions() {
         document.addEventListener("click", function (event) {
             const approve = event.target.closest("[data-admin-approve]");
             const reject = event.target.closest("[data-admin-reject]");
             const suspend = event.target.closest("[data-admin-suspend]");
             const activate = event.target.closest("[data-admin-activate]");
+            const refresh = event.target.closest("[data-admin-page-refresh], [data-admin-accounts-refresh], [data-admin-security-refresh], [data-admin-projects-refresh]");
 
             if (approve) {
                 performAccountAction(approve.getAttribute("data-admin-approve"), "approve");
@@ -553,85 +843,89 @@
             if (activate) {
                 performAccountAction(activate.getAttribute("data-admin-activate"), "activate");
             }
+
+            if (refresh) {
+                reloadCurrentAdminPage();
+            }
         });
 
-        const refreshButton = qs("[data-admin-accounts-refresh]");
+        const accountApply = qs("[data-admin-account-apply-filter]");
 
-        if (refreshButton) {
-            refreshButton.addEventListener("click", function () {
-                reloadAccountsPage();
-            });
-        }
-
-        const applyButton = qs("[data-admin-account-apply-filter]");
-
-        if (applyButton) {
-            applyButton.addEventListener("click", function () {
-                reloadAccountsPage();
-            });
-        }
-
-        const searchInput = qs("[data-admin-account-search]");
-
-        if (searchInput) {
-            searchInput.addEventListener("input", function () {
-                window.clearTimeout(searchInput._adminTimer);
-                searchInput._adminTimer = window.setTimeout(function () {
-                    reloadAccountsPage();
-                }, 280);
-            });
+        if (accountApply) {
+            accountApply.addEventListener("click", reloadCurrentAdminPage);
         }
 
         qsa("[data-admin-account-role], [data-admin-account-status]").forEach(function (select) {
-            select.addEventListener("change", function () {
-                reloadAccountsPage();
-            });
+            select.addEventListener("change", reloadCurrentAdminPage);
         });
-    }
 
-    async function initDashboard() {
-        const root = qs("[data-admin-dashboard]");
+        const accountSearch = qs("[data-admin-account-search]");
 
-        if (!root) {
-            return;
+        if (accountSearch) {
+            accountSearch.addEventListener("input", function () {
+                window.clearTimeout(accountSearch._adminTimer);
+                accountSearch._adminTimer = window.setTimeout(reloadCurrentAdminPage, 280);
+            });
         }
 
-        await loadCurrentUser();
-        await Promise.all([
-            loadAccounts(),
-            loadPendingAccounts(),
-            loadProjects(),
-            loadTasks()
-        ]);
+        const securityFilter = qs("[data-admin-security-filter]");
 
-        renderDashboardStats();
-        renderDashboardPending();
-    }
-
-    async function initAccounts() {
-        const root = qs("[data-admin-accounts]");
-
-        if (!root) {
-            return;
+        if (securityFilter) {
+            securityFilter.addEventListener("click", reloadCurrentAdminPage);
         }
 
-        await loadCurrentUser();
-        bindAccountActions();
-        await reloadAccountsPage();
+        const securityStatus = qs("[data-admin-security-status]");
+
+        if (securityStatus) {
+            securityStatus.addEventListener("change", reloadCurrentAdminPage);
+        }
+
+        const securitySearch = qs("[data-admin-security-search]");
+
+        if (securitySearch) {
+            securitySearch.addEventListener("input", function () {
+                window.clearTimeout(securitySearch._adminTimer);
+                securitySearch._adminTimer = window.setTimeout(reloadCurrentAdminPage, 280);
+            });
+        }
+
+        const projectFilter = qs("[data-admin-project-filter]");
+
+        if (projectFilter) {
+            projectFilter.addEventListener("click", renderProjectsTable);
+        }
+
+        const projectStatus = qs("[data-admin-project-status]");
+
+        if (projectStatus) {
+            projectStatus.addEventListener("change", renderProjectsTable);
+        }
+
+        const projectSearch = qs("[data-admin-project-search]");
+
+        if (projectSearch) {
+            projectSearch.addEventListener("input", function () {
+                window.clearTimeout(projectSearch._adminTimer);
+                projectSearch._adminTimer = window.setTimeout(renderProjectsTable, 280);
+            });
+        }
     }
 
     async function init() {
-        try {
-            await initDashboard();
-            await initAccounts();
-        } catch (error) {
-            toast("error", "Không thể tải trang Admin", error.message);
-        }
+        await loadCurrentUser();
+        bindActions();
+        await reloadCurrentAdminPage();
     }
 
     if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", init);
+        document.addEventListener("DOMContentLoaded", function () {
+            init().catch(function (error) {
+                toast("error", "Không thể tải trang Admin", error.message);
+            });
+        });
     } else {
-        init();
+        init().catch(function (error) {
+            toast("error", "Không thể tải trang Admin", error.message);
+        });
     }
 })();

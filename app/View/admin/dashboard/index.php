@@ -11,7 +11,7 @@ ob_start();
 
 <?php
 $pageHeading = 'Admin Dashboard';
-$pageSubtitle = 'Tổng quan hệ thống Creative Agency Hub ở cấp quản trị. Admin chỉ giám sát, duyệt và quản lý tài khoản, không vận hành project/task.';
+$pageSubtitle = 'Tổng quan hệ thống Creative Agency Hub.';
 $pageAction = '
     <a class="btn btn-primary" href="/creative-agency-hub/app/View/admin/accounts/index.php">
         Quản lý tài khoản
@@ -27,7 +27,7 @@ require __DIR__ . '/../../components/page-header.php';
             <div class="stat-card-body">
                 <span>Tổng tài khoản</span>
                 <strong data-admin-stat="total_accounts">0</strong>
-                <small>Admin / Manager / Employee / Client</small>
+                <small>Toàn hệ thống</small>
             </div>
         </article>
 
@@ -36,7 +36,7 @@ require __DIR__ . '/../../components/page-header.php';
             <div class="stat-card-body">
                 <span>Manager</span>
                 <strong data-admin-stat="managers">0</strong>
-                <small>Tài khoản quản lý workspace</small>
+                <small>Tài khoản quản lý</small>
             </div>
         </article>
 
@@ -45,7 +45,7 @@ require __DIR__ . '/../../components/page-header.php';
             <div class="stat-card-body">
                 <span>Employee</span>
                 <strong data-admin-stat="employees">0</strong>
-                <small>Nhân sự vận hành task</small>
+                <small>Nhân sự vận hành</small>
             </div>
         </article>
 
@@ -54,7 +54,7 @@ require __DIR__ . '/../../components/page-header.php';
             <div class="stat-card-body">
                 <span>Client</span>
                 <strong data-admin-stat="clients">0</strong>
-                <small>Tài khoản cổng khách hàng</small>
+                <small>Tài khoản khách hàng</small>
             </div>
         </article>
 
@@ -63,7 +63,7 @@ require __DIR__ . '/../../components/page-header.php';
             <div class="stat-card-body">
                 <span>Chờ duyệt</span>
                 <strong data-admin-stat="pending_accounts">0</strong>
-                <small>Tài khoản cần Admin xử lý</small>
+                <small>Tài khoản pending</small>
             </div>
         </article>
 
@@ -72,7 +72,7 @@ require __DIR__ . '/../../components/page-header.php';
             <div class="stat-card-body">
                 <span>Bị khóa</span>
                 <strong data-admin-stat="suspended_accounts">0</strong>
-                <small>Tài khoản suspended</small>
+                <small>Suspended</small>
             </div>
         </article>
 
@@ -81,7 +81,7 @@ require __DIR__ . '/../../components/page-header.php';
             <div class="stat-card-body">
                 <span>Project</span>
                 <strong data-admin-stat="projects">0</strong>
-                <small>Chỉ thống kê, không vận hành</small>
+                <small>Tổng dự án</small>
             </div>
         </article>
 
@@ -90,7 +90,7 @@ require __DIR__ . '/../../components/page-header.php';
             <div class="stat-card-body">
                 <span>Task</span>
                 <strong data-admin-stat="tasks">0</strong>
-                <small>Chỉ thống kê, không thao tác</small>
+                <small>Tổng công việc</small>
             </div>
         </article>
     </div>
@@ -100,11 +100,11 @@ require __DIR__ . '/../../components/page-header.php';
             <div class="card-header dashboard-card-title-row">
                 <div>
                     <h2>Tài khoản chờ duyệt</h2>
-                    <p>Manager đăng ký mới hoặc Manager tạo Employee/Client sẽ xuất hiện tại đây.</p>
+                    <p>Danh sách tài khoản mới nhất cần xử lý.</p>
                 </div>
 
-                <a class="btn btn-soft" href="/creative-agency-hub/app/View/admin/accounts/index.php">
-                    Xem tất cả
+                <a class="btn btn-soft" href="/creative-agency-hub/app/View/admin/approvals/managers.php">
+                    Xem duyệt Manager
                 </a>
             </div>
 
@@ -115,7 +115,7 @@ require __DIR__ . '/../../components/page-header.php';
                             <tr>
                                 <th>Tài khoản</th>
                                 <th>Vai trò</th>
-                                <th>Người quản lý</th>
+                                <th>Manager</th>
                                 <th>Trạng thái</th>
                             </tr>
                         </thead>
@@ -132,39 +132,39 @@ require __DIR__ . '/../../components/page-header.php';
         <article class="card">
             <div class="card-header dashboard-card-title-row">
                 <div>
-                    <h2>Phạm vi quyền Admin</h2>
-                    <p>Admin giữ vai trò quản trị hệ thống, không vận hành thay Manager.</p>
+                    <h2>Truy cập nhanh</h2>
+                    <p>Các khu vực quản trị chính.</p>
                 </div>
             </div>
 
             <div class="card-body">
                 <div class="hrm-grid">
-                    <div class="document-card">
+                    <a class="document-card" href="/creative-agency-hub/app/View/admin/approvals/managers.php">
+                        <div class="document-icon">M</div>
+                        <div class="document-info">
+                            <strong>Duyệt Manager</strong>
+                            <small>Tài khoản quản lý mới đăng ký.</small>
+                        </div>
+                        <span>→</span>
+                    </a>
+
+                    <a class="document-card" href="/creative-agency-hub/app/View/admin/approvals/accounts.php">
                         <div class="document-icon">✓</div>
                         <div class="document-info">
-                            <strong>Được làm</strong>
-                            <small>Duyệt tài khoản, khóa/mở khóa, xem thống kê hệ thống.</small>
+                            <strong>Duyệt nhân sự</strong>
+                            <small>Employee và Client do Manager tạo.</small>
                         </div>
-                        <span></span>
-                    </div>
+                        <span>→</span>
+                    </a>
 
-                    <div class="document-card">
-                        <div class="document-icon">×</div>
+                    <a class="document-card" href="/creative-agency-hub/app/View/admin/accounts/security.php">
+                        <div class="document-icon">!</div>
                         <div class="document-info">
-                            <strong>Không vận hành</strong>
-                            <small>Không tạo project, không tạo task, không giao việc.</small>
+                            <strong>Khóa / mở khóa</strong>
+                            <small>Quản lý trạng thái tài khoản.</small>
                         </div>
-                        <span></span>
-                    </div>
-
-                    <div class="document-card">
-                        <div class="document-icon">◉</div>
-                        <div class="document-info">
-                            <strong>Luồng chuẩn</strong>
-                            <small>Manager được duyệt sẽ tự quản lý project, employee và client của họ.</small>
-                        </div>
-                        <span></span>
-                    </div>
+                        <span>→</span>
+                    </a>
                 </div>
             </div>
         </article>

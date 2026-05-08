@@ -1,17 +1,17 @@
 <?php
-$pageTitle = 'Quản lý tài khoản | Creative Agency Hub';
+$pageTitle = 'Danh sách tài khoản | Creative Agency Hub';
 $pageCss = ['dashboard.css', 'hrm.css'];
 $pageJs = ['admin.js'];
 $activeMenu = 'admin-accounts';
-$topbarTitle = 'Quản lý tài khoản';
+$topbarTitle = 'Danh sách tài khoản';
 $brandName = 'Creative Agency Hub';
 
 ob_start();
 ?>
 
 <?php
-$pageHeading = 'Quản lý tài khoản hệ thống';
-$pageSubtitle = 'Admin duyệt tài khoản Manager đăng ký, duyệt Employee/Client do Manager tạo, khóa hoặc mở khóa tài khoản. Không vận hành project/task.';
+$pageHeading = 'Danh sách tài khoản';
+$pageSubtitle = 'Xem và lọc tài khoản theo vai trò, trạng thái.';
 $pageAction = '
     <button class="btn btn-light" type="button" data-admin-accounts-refresh>
         ⟳ Làm mới
@@ -45,7 +45,7 @@ require __DIR__ . '/../../components/page-header.php';
             <div class="stat-card-body">
                 <span>Chờ duyệt</span>
                 <strong data-admin-account-stat="inactive">0</strong>
-                <small>Pending approval</small>
+                <small>Pending</small>
             </div>
         </article>
 
@@ -54,7 +54,7 @@ require __DIR__ . '/../../components/page-header.php';
             <div class="stat-card-body">
                 <span>Suspended</span>
                 <strong data-admin-account-stat="suspended">0</strong>
-                <small>Bị khóa/đóng băng</small>
+                <small>Bị khóa</small>
             </div>
         </article>
     </div>
@@ -62,39 +62,8 @@ require __DIR__ . '/../../components/page-header.php';
     <article class="card">
         <div class="card-header dashboard-card-title-row">
             <div>
-                <h2>Tài khoản chờ duyệt</h2>
-                <p>Gồm Manager đăng ký mới và Employee/Client do Manager tạo.</p>
-            </div>
-        </div>
-
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Tài khoản</th>
-                            <th>Vai trò</th>
-                            <th>Manager</th>
-                            <th>Ngày tạo</th>
-                            <th>Trạng thái</th>
-                            <th style="text-align:right;">Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody data-admin-pending-body>
-                        <tr>
-                            <td colspan="6">Đang tải tài khoản chờ duyệt...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </article>
-
-    <article class="card">
-        <div class="card-header dashboard-card-title-row">
-            <div>
-                <h2>Danh sách tài khoản</h2>
-                <p>Xem, lọc và khóa/mở khóa tài khoản trong hệ thống.</p>
+                <h2>Tất cả tài khoản</h2>
+                <p>Admin, Manager, Employee và Client.</p>
             </div>
         </div>
 
@@ -105,7 +74,7 @@ require __DIR__ . '/../../components/page-header.php';
                     <input
                         class="form-control"
                         type="search"
-                        placeholder="Tìm tên, email, mã tài khoản..."
+                        placeholder="Tìm tên, email, mã..."
                         data-admin-account-search
                     >
                 </div>
@@ -141,12 +110,11 @@ require __DIR__ . '/../../components/page-header.php';
                             <th>Chức vụ</th>
                             <th>Manager</th>
                             <th>Trạng thái</th>
-                            <th style="text-align:right;">Hành động</th>
                         </tr>
                     </thead>
                     <tbody data-admin-accounts-body>
                         <tr>
-                            <td colspan="7">Đang tải danh sách tài khoản...</td>
+                            <td colspan="6">Đang tải danh sách tài khoản...</td>
                         </tr>
                     </tbody>
                 </table>
