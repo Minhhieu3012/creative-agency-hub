@@ -2,10 +2,12 @@ D:\LTW_2026\creative-agency-hub
 ├── API_CONTRACTS.md
 ├── app
 |  ├── Controllers
+|  |  ├── Admin
 |  |  ├── Auth
 |  |  |  ├── AuthController.php
 |  |  |  └── LogoutController.php
 |  |  ├── BaseController.php
+|  |  ├── Client
 |  |  ├── Core
 |  |  |  └── NotificationController.php
 |  |  ├── DashboardController.php
@@ -20,6 +22,7 @@ D:\LTW_2026\creative-agency-hub
 |  |  |  ├── AttendanceController.php
 |  |  |  ├── LeaveController.php
 |  |  |  └── PayrollController.php
+|  |  ├── Project
 |  |  └── Task
 |  |     ├── ProjectController.php
 |  |     ├── TaskActivityController.php
@@ -62,8 +65,10 @@ D:\LTW_2026\creative-agency-hub
 |  |     ├── TaskAttachmentService.php
 |  |     └── TaskCommentService.php
 |  └── View
+|     ├── admin
 |     ├── auth
 |     |  └── login.php
+|     ├── client
 |     ├── client-portal
 |     |  ├── login-client.php
 |     |  ├── projects.php
@@ -100,11 +105,13 @@ D:\LTW_2026\creative-agency-hub
 |     |  ├── leave_request.php
 |     |  ├── manager_approvals.php
 |     |  └── payroll_summary.php
+|     ├── staff
 |     └── tasks
 |        ├── activity.php
 |        ├── gantt.php
 |        ├── kanban.php
 |        └── projects.php
+├── cau_truc.txt
 ├── composer.json
 ├── composer.lock
 ├── config
@@ -157,10 +164,15 @@ D:\LTW_2026\creative-agency-hub
 |  ├── get_hash.php
 |  ├── index.php
 |  └── uploads
-|     └── avatars
-|        └── avatar_8728381b719ff964692f.jpg
+|     ├── avatars
+|     |  └── avatar_3_efa8941d9a2487d136d41b38.png
+|     └── employee-documents
+|        └── employee_3
 ├── routes
-|  └── api.php
+|  ├── admin.php
+|  ├── api.php
+|  ├── client.php
+|  └── staff.php
 └── vendor
    ├── autoload.php
    ├── composer
@@ -223,5 +235,5 @@ D:\LTW_2026\creative-agency-hub
          ├── LICENSE
          └── src
 
-directory: 63 file: 160
+directory: 71 file: 164
 
