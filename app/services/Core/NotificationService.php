@@ -212,6 +212,23 @@ class NotificationService {
         ]);
     }
 
+    public static function markAllAsRead($userId): int {
+        $conn = self::connection();
+
+        $stmt = $conn->prepare("
+            UPDATE notifications
+            SET is_read = 1
+            WHERE user_id = :user_id
+              AND is_read = 0
+        ");
+
+        $stmt->execute([
+            ':user_id' => (int)$userId,
+        ]);
+
+        return $stmt->rowCount();
+    }
+
     public static function safeSend($userId, $message): void {
         try {
             self::send($userId, $message);

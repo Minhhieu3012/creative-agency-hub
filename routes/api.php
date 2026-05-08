@@ -126,14 +126,12 @@ return [
 
     /**
      * NOTIFICATIONS
-     *
-     * Không thêm bảng mới. Dùng bảng notifications hiện có:
-     * id, user_id, message, is_read, created_at
      */
-    ['GET',   '/api/notifications',              'Core\\NotificationController@index',       ['admin', 'manager', 'employee']],
-    ['GET',   '/api/notifications/unread',       'Core\\NotificationController@unread',      ['admin', 'manager', 'employee']],
-    ['GET',   '/api/notifications/unread-count', 'Core\\NotificationController@unreadCount', ['admin', 'manager', 'employee']],
-    ['PATCH', '/api/notifications/:id/read',     'Core\\NotificationController@markAsRead',  ['admin', 'manager', 'employee']],
+    ['GET',   '/api/notifications',              'Core\\NotificationController@index',         ['admin', 'manager', 'employee']],
+    ['GET',   '/api/notifications/unread',       'Core\\NotificationController@unread',        ['admin', 'manager', 'employee']],
+    ['GET',   '/api/notifications/unread-count', 'Core\\NotificationController@unreadCount',   ['admin', 'manager', 'employee']],
+    ['PATCH', '/api/notifications/read-all',     'Core\\NotificationController@markAllAsRead', ['admin', 'manager', 'employee']],
+    ['PATCH', '/api/notifications/:id/read',     'Core\\NotificationController@markAsRead',    ['admin', 'manager', 'employee']],
 
     /**
      * ATTENDANCE & LEAVE

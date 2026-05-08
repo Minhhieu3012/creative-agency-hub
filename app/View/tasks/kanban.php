@@ -19,36 +19,27 @@ ob_start();
 <?php
 $pageHeading = 'Bảng Công việc';
 $pageSubtitle = 'Theo dõi luồng task: Cần sửa, Task mới, Chờ Duyệt và Hoàn Thành.';
-
-$pageAction = '
-<div class="task-top-actions">
-    <div class="kanban-view-switch">
-        <a class="is-active" href="/creative-agency-hub/app/View/tasks/kanban.php">☑ Kanban</a>
-        <a href="/creative-agency-hub/app/View/tasks/gantt.php">▥ Gantt Chart</a>
-    </div>
-';
+$pageAction = '';
 
 if ($isManager) {
-    $pageAction .= '
-    <button class="btn btn-primary" type="button" data-add-task>
-        ＋ Tạo Task mới
-    </button>
-    ';
+    $pageAction = '
+    <div class="task-top-actions">
+        <button class="btn btn-primary" type="button" data-add-task>
+            ＋ Tạo task
+        </button>
+    </div>';
 }
-
-$pageAction .= '</div>';
 
 require __DIR__ . '/../components/page-header.php';
 ?>
 
 <section class="kanban-shell">
-    <div id="js-board-message" style="display: none; padding: 20px; text-align: center; margin-bottom: 20px; border-radius: 12px;"></div>
+    <div
+        id="js-board-message"
+        style="display: none; padding: 20px; text-align: center; margin-bottom: 20px; border-radius: 12px;"
+    ></div>
 
-    <div class="kanban-board" data-kanban-board>
-        <div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 40px;">
-            Đang tải bảng công việc...
-        </div>
-    </div>
+    <div class="kanban-board" data-kanban-board></div>
 </section>
 
 <?php

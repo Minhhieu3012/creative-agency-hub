@@ -156,4 +156,25 @@ class NotificationController {
             ], 400);
         }
     }
+
+    public function markAllAsRead(): void {
+        try {
+            $user = $this->currentUser();
+
+            $affected = NotificationService::markAllAsRead((int)$user['id']);
+
+            $this->json([
+                'status' => 'success',
+                'message' => 'Đã đánh dấu tất cả thông báo là đã đọc.',
+                'data' => [
+                    'affected' => $affected
+                ]
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
 }

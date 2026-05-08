@@ -120,8 +120,8 @@ $userAvatarUrl = cah_topbar_avatar_url($userAvatar, $baseUrl);
                         position:absolute;
                         right:0;
                         top:calc(100% + 12px);
-                        width:min(380px, calc(100vw - 32px));
-                        max-height:460px;
+                        width:min(390px, calc(100vw - 32px));
+                        max-height:470px;
                         overflow:hidden;
                         border:1px solid #e5e7eb;
                         border-radius:18px;
@@ -135,12 +135,19 @@ $userAvatarUrl = cah_topbar_avatar_url($userAvatar, $baseUrl);
                             <strong style="display:block;color:#0f172a;">Thông báo</strong>
                             <small style="color:#64748b;">Cập nhật hệ thống và công việc</small>
                         </div>
-                        <button class="btn btn-light btn-sm" type="button" data-notification-refresh>
-                            Làm mới
-                        </button>
+
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <button class="btn btn-light btn-sm" type="button" data-notification-mark-all>
+                                Đã đọc
+                            </button>
+
+                            <button class="btn btn-light btn-sm" type="button" data-notification-refresh>
+                                Làm mới
+                            </button>
+                        </div>
                     </div>
 
-                    <div data-notification-list style="max-height:340px;overflow:auto;">
+                    <div data-notification-list style="max-height:350px;overflow:auto;">
                         <div style="padding:18px;color:#64748b;text-align:center;">
                             Đang tải thông báo...
                         </div>
@@ -189,6 +196,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const list = document.querySelector('[data-notification-list]');
     const countBadge = document.querySelector('[data-notification-count]');
     const refreshButton = document.querySelector('[data-notification-refresh]');
+    const markAllButton = document.querySelector('[data-notification-mark-all]');
 
     if (!menu || !trigger || !dropdown || !list || !countBadge) {
         return;
@@ -352,6 +360,33 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    async function markAllAsRead() {
+        if (markAllButton) {
+            markAllButton.disabled = true;
+            markAllButton.textContent = 'Đang xử lý...';
+        }
+
+        try {
+            await apiRequest('/api/notifications/read-all', {
+                method: 'PATCH'
+            });
+
+            setCount(0);
+            await loadNotifications();
+        } catch (error) {
+            list.innerHTML = `
+                <div style="padding:18px;color:#b91c1c;text-align:center;">
+                    Không thể đánh dấu đã đọc: ${escapeHtml(error.message)}
+                </div>
+            `;
+        } finally {
+            if (markAllButton) {
+                markAllButton.disabled = false;
+                markAllButton.textContent = 'Đã đọc';
+            }
+        }
+    }
+
     trigger.addEventListener('click', function (event) {
         event.preventDefault();
 
@@ -366,6 +401,11 @@ document.addEventListener('DOMContentLoaded', function () {
     refreshButton?.addEventListener('click', function (event) {
         event.preventDefault();
         loadNotifications();
+    });
+
+    markAllButton?.addEventListener('click', function (event) {
+        event.preventDefault();
+        markAllAsRead();
     });
 
     list.addEventListener('click', function (event) {
