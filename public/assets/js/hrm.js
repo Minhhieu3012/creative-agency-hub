@@ -256,7 +256,7 @@
                 openTemplateModal(
                     "#profile-edit-template",
                     "Chỉnh sửa hồ sơ",
-                    "Cập nhật thông tin cá nhân. Email, vai trò, phòng ban và chức vụ được quản lý bởi hệ thống."
+                    "Cập nhật thông hiện cá nhân. Email, vai trò, phòng ban và chức vụ được quản lý bởi hệ thống."
                 );
 
                 return;

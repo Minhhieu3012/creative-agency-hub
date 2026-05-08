@@ -1,4 +1,11 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+$userRole = strtolower((string)($_SESSION['user_role'] ?? 'employee'));
+$isManagerLike = in_array($userRole, ['admin', 'manager'], true);
+
 $pageTitle = 'Gantt Chart | Creative Agency Hub';
 $pageCss = ['tasks.css'];
 $pageJs = ['tasks-gantt.js'];
@@ -12,24 +19,25 @@ ob_start();
 <?php
 $pageHeading = 'Biểu đồ Gantt';
 $pageSubtitle = 'Theo dõi lịch trình, deadline và trạng thái triển khai của các đầu việc trong dự án.';
+
+// Ẩn nút tạo Task nếu là Employee
+$createTaskBtn = $isManagerLike 
+    ? '<button class="btn btn-primary" type="button" data-add-task>＋ Tạo task mới</button>' 
+    : '';
+
 $pageAction = '
 <div class="task-top-actions">
     <div class="kanban-view-switch">
         <a href="/creative-agency-hub/app/View/tasks/kanban.php">☑ Kanban</a>
         <a class="is-active" href="/creative-agency-hub/app/View/tasks/gantt.php">▥ Gantt Chart</a>
     </div>
-    <!-- LỖI GỐC ĐÃ SỬA: Đổi thẻ a href thành button kích hoạt Modal -->
-    <button class="btn btn-primary" type="button" data-add-task>＋ Tạo task mới</button>
+    ' . $createTaskBtn . '
 </div>';
 require __DIR__ . '/../components/page-header.php';
 ?>
 
 <section class="task-shell">
     <div class="task-filter-bar">
-        <select class="form-select" data-gantt-project-filter>
-            <option value="">Tất cả dự án</option>
-            <option value="1" selected>NexusHR Web</option>
-        </select>
 
         <select class="form-select" data-gantt-month-filter>
             <option value="">Tất cả thời gian</option>
@@ -148,8 +156,9 @@ require __DIR__ . '/../components/page-header.php';
 </section>
 
 <?php
-// LỖI GỐC ĐÃ SỬA: Bổ sung components/modal.php để giao diện JS có chỗ gọi Popup
-require __DIR__ . '/../components/modal.php';
+if ($isManagerLike) {
+    require __DIR__ . '/../components/modal.php';
+}
 $content = ob_get_clean();
 require __DIR__ . '/../layouts/app.php';
 ?>

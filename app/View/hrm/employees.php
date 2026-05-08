@@ -309,11 +309,12 @@ require __DIR__ . '/../components/page-header.php';
                             <th>Manager</th>
                             <th>Trạng thái</th>
                             <th>Ngày vào</th>
+                            <th style="text-align:right;">Hành động</th>
                         </tr>
                     </thead>
                     <tbody data-account-table-body>
                         <tr>
-                            <td colspan="7">Đang tải danh sách tài khoản...</td>
+                            <td colspan="8">Đang tải danh sách tài khoản...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -386,12 +387,10 @@ document.addEventListener('DOMContentLoaded', function () {
             window.CAHToast[type](title, message);
             return;
         }
-
         if (type === 'error') {
             console.error(title, message);
             return;
         }
-
         console.log(title, message);
     }
 
@@ -414,7 +413,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         const text = await response.text();
-
         let payload;
 
         try {
@@ -438,7 +436,6 @@ document.addEventListener('DOMContentLoaded', function () {
             employee: 'Employee',
             client: 'Client'
         };
-
         return map[String(role || '').toLowerCase()] || role || 'Employee';
     }
 
@@ -449,52 +446,29 @@ document.addEventListener('DOMContentLoaded', function () {
             suspended: 'Suspended',
             resigned: 'Resigned'
         };
-
         return map[String(status || '').toLowerCase()] || status || 'Chưa rõ';
     }
 
     function statusBadgeClass(status) {
         status = String(status || '').toLowerCase();
-
-        if (status === 'active') {
-            return 'badge-success';
-        }
-
-        if (status === 'inactive') {
-            return 'badge-warning';
-        }
-
-        if (status === 'suspended') {
-            return 'badge-danger';
-        }
-
+        if (status === 'active') return 'badge-success';
+        if (status === 'inactive') return 'badge-warning';
+        if (status === 'suspended') return 'badge-danger';
         return 'badge-info';
     }
 
     function formatDate(value) {
-        if (!value) {
-            return 'Chưa cập nhật';
-        }
-
+        if (!value) return 'Chưa cập nhật';
         const date = new Date(String(value).replace(' ', 'T'));
-
-        if (Number.isNaN(date.getTime())) {
-            return value;
-        }
-
+        if (Number.isNaN(date.getTime())) return value;
         return date.toLocaleDateString('vi-VN');
     }
 
     function initialsFromName(name) {
         const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-
-        if (parts.length === 0) {
-            return 'CA';
-        }
-
+        if (parts.length === 0) return 'CA';
         const first = parts[0].charAt(0);
         const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
-
         return (first + last).toUpperCase();
     }
 
@@ -611,65 +585,35 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function extractProjectsFromPayload(payload) {
         const data = payload?.data || {};
-
-        if (Array.isArray(data.projects)) {
-            return data.projects;
-        }
-
-        if (Array.isArray(data.data?.projects)) {
-            return data.data.projects;
-        }
-
-        if (Array.isArray(data)) {
-            return data;
-        }
-
+        if (Array.isArray(data.projects)) return data.projects;
+        if (Array.isArray(data.data?.projects)) return data.data.projects;
+        if (Array.isArray(data)) return data;
         return [];
     }
 
     function extractEmployeesFromPayload(payload) {
         const data = payload?.data || {};
-
-        if (Array.isArray(data.employees)) {
-            return data.employees;
-        }
-
-        if (Array.isArray(data.assignees)) {
-            return data.assignees;
-        }
-
-        if (Array.isArray(data.data?.employees)) {
-            return data.data.employees;
-        }
-
-        if (Array.isArray(data.data?.assignees)) {
-            return data.data.assignees;
-        }
-
+        if (Array.isArray(data.employees)) return data.employees;
+        if (Array.isArray(data.assignees)) return data.assignees;
+        if (Array.isArray(data.data?.employees)) return data.data.employees;
+        if (Array.isArray(data.data?.assignees)) return data.data.assignees;
         return [];
     }
 
     function renderProjectMemberOptions() {
-        if (!projectMemberProjectSelect || !projectMemberEmployeeSelect) {
-            return;
-        }
-
+        if (!projectMemberProjectSelect || !projectMemberEmployeeSelect) return;
         const selectedProjectId = projectMemberProjectSelect.value || '';
-
         projectMemberProjectSelect.innerHTML = projectOptionHtml(projectOptions.projects, selectedProjectId);
         projectMemberEmployeeSelect.innerHTML = employeeOptionHtml(projectOptions.employees, '', selectedProjectMembers);
     }
 
     async function loadProjectOptions() {
-        if (!isManager() || !projectMemberCard) {
-            return;
-        }
+        if (!isManager() || !projectMemberCard) return;
 
         projectMemberSummary.textContent = 'Đang tải project và danh sách Employee...';
 
         try {
             const optionsPayload = await apiRequest('/api/tasks/options');
-
             projectOptions.projects = extractProjectsFromPayload(optionsPayload);
             projectOptions.employees = extractEmployeesFromPayload(optionsPayload);
 
@@ -677,11 +621,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (projectOptions.projects.length === 0) {
                 projectMemberSummary.textContent = 'Chưa có project nào trong phạm vi quản lý của Manager hiện tại.';
-                projectMemberTableBody.innerHTML = `
-                    <tr>
-                        <td colspan="5">Chưa có project để thêm nhân sự.</td>
-                    </tr>
-                `;
+                projectMemberTableBody.innerHTML = `<tr><td colspan="5">Chưa có project để thêm nhân sự.</td></tr>`;
                 return;
             }
 
@@ -692,65 +632,38 @@ document.addEventListener('DOMContentLoaded', function () {
             await loadProjectMembers(projectMemberProjectSelect.value);
         } catch (error) {
             projectMemberSummary.textContent = 'Không thể tải project/employees: ' + error.message;
-            projectMemberTableBody.innerHTML = `
-                <tr>
-                    <td colspan="5" style="color: var(--danger);">
-                        Không thể tải dữ liệu project: ${escapeHtml(error.message)}
-                    </td>
-                </tr>
-            `;
+            projectMemberTableBody.innerHTML = `<tr><td colspan="5" style="color: var(--danger);">Không thể tải dữ liệu project: ${escapeHtml(error.message)}</td></tr>`;
         }
     }
 
     async function loadProjectMembers(projectId = null) {
-        if (!isManager() || !projectMemberCard) {
-            return;
-        }
+        if (!isManager() || !projectMemberCard) return;
 
         const selectedProjectId = projectId || projectMemberProjectSelect.value;
 
         if (!selectedProjectId) {
             selectedProjectMembers = [];
             projectMemberSummary.textContent = 'Chọn project để xem danh sách nhân sự đang tham gia.';
-            projectMemberTableBody.innerHTML = `
-                <tr>
-                    <td colspan="5">Chưa chọn project.</td>
-                </tr>
-            `;
+            projectMemberTableBody.innerHTML = `<tr><td colspan="5">Chưa chọn project.</td></tr>`;
             renderProjectMemberOptions();
             return;
         }
 
-        projectMemberTableBody.innerHTML = `
-            <tr>
-                <td colspan="5">Đang tải nhân sự project...</td>
-            </tr>
-        `;
+        projectMemberTableBody.innerHTML = `<tr><td colspan="5">Đang tải nhân sự project...</td></tr>`;
 
         try {
             const payload = await apiRequest('/api/projects/' + encodeURIComponent(selectedProjectId) + '/members');
             const data = payload.data || {};
 
-            if (Array.isArray(data)) {
-                selectedProjectMembers = data;
-            } else if (Array.isArray(data.members)) {
-                selectedProjectMembers = data.members;
-            } else if (Array.isArray(data.data)) {
-                selectedProjectMembers = data.data;
-            } else {
-                selectedProjectMembers = [];
-            }
+            if (Array.isArray(data)) selectedProjectMembers = data;
+            else if (Array.isArray(data.members)) selectedProjectMembers = data.members;
+            else if (Array.isArray(data.data)) selectedProjectMembers = data.data;
+            else selectedProjectMembers = [];
 
             renderProjectMembers();
             renderProjectMemberOptions();
         } catch (error) {
-            projectMemberTableBody.innerHTML = `
-                <tr>
-                    <td colspan="5" style="color: var(--danger);">
-                        Không thể tải nhân sự project: ${escapeHtml(error.message)}
-                    </td>
-                </tr>
-            `;
+            projectMemberTableBody.innerHTML = `<tr><td colspan="5" style="color: var(--danger);">Không thể tải nhân sự project: ${escapeHtml(error.message)}</td></tr>`;
         }
     }
 
@@ -767,17 +680,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (selectedProjectMembers.length === 0) {
-            projectMemberTableBody.innerHTML = `
-                <tr>
-                    <td colspan="5">Project này chưa có Employee nào. Hãy thêm nhân sự trước khi giao task.</td>
-                </tr>
-            `;
+            projectMemberTableBody.innerHTML = `<tr><td colspan="5">Project này chưa có Employee nào. Hãy thêm nhân sự trước khi giao task.</td></tr>`;
             return;
         }
 
         projectMemberTableBody.innerHTML = selectedProjectMembers.map(function (member) {
             const memberId = getEmployeeId(member);
-
             return `
                 <tr data-project-member-id="${escapeHtml(memberId)}">
                     <td>${accountIdentityHtml(member)}</td>
@@ -785,11 +693,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <td>${escapeHtml(member.position_name || 'Chưa cập nhật')}</td>
                     <td>${escapeHtml(formatDate(member.joined_at || member.created_at))}</td>
                     <td style="text-align:right;">
-                        <button
-                            class="btn btn-light btn-sm"
-                            type="button"
-                            data-remove-project-member="${escapeHtml(memberId)}"
-                        >
+                        <button class="btn btn-light btn-sm" type="button" data-remove-project-member="${escapeHtml(memberId)}">
                             Gỡ khỏi project
                         </button>
                     </td>
@@ -818,12 +722,8 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             await apiRequest('/api/projects/' + encodeURIComponent(projectId) + '/members', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    employee_id: Number(employeeId)
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ employee_id: Number(employeeId) })
             });
 
             toast('success', 'Đã thêm nhân sự', 'Employee đã được thêm vào project. Dropdown giao task sẽ nhận nhân sự này.');
@@ -849,10 +749,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         const ok = window.confirm(`Gỡ ${member?.full_name || 'nhân sự này'} khỏi project?`);
-
-        if (!ok) {
-            return;
-        }
+        if (!ok) return;
 
         try {
             await apiRequest('/api/projects/' + encodeURIComponent(projectId) + '/members/' + encodeURIComponent(employeeId), {
@@ -868,34 +765,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function buildEmployeesQuery() {
         const params = new URLSearchParams();
-
         const search = String(searchInput.value || '').trim();
         const role = String(roleFilter.value || '').trim();
         const status = String(statusFilter.value || '').trim();
 
-        if (search) {
-            params.set('search', search);
-        }
-
-        if (role) {
-            params.set('role', role);
-        }
-
-        if (status) {
-            params.set('status', status);
-        }
-
+        if (search) params.set('search', search);
+        if (role) params.set('role', role);
+        if (status) params.set('status', status);
         params.set('limit', '200');
 
         return params.toString();
     }
 
     async function loadAccounts() {
-        accountBody.innerHTML = `
-            <tr>
-                <td colspan="7">Đang tải danh sách tài khoản...</td>
-            </tr>
-        `;
+        accountBody.innerHTML = `<tr><td colspan="8">Đang tải danh sách tài khoản...</td></tr>`;
 
         try {
             const query = buildEmployeesQuery();
@@ -906,13 +789,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderAccounts();
             updateStats();
         } catch (error) {
-            accountBody.innerHTML = `
-                <tr>
-                    <td colspan="7" style="color: var(--danger);">
-                        Không thể tải tài khoản: ${escapeHtml(error.message)}
-                    </td>
-                </tr>
-            `;
+            accountBody.innerHTML = `<tr><td colspan="8" style="color: var(--danger);">Không thể tải tài khoản: ${escapeHtml(error.message)}</td></tr>`;
         }
     }
 
@@ -921,11 +798,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        pendingBody.innerHTML = `
-            <tr>
-                <td colspan="6">Đang tải tài khoản chờ duyệt...</td>
-            </tr>
-        `;
+        pendingBody.innerHTML = `<tr><td colspan="6">Đang tải tài khoản chờ duyệt...</td></tr>`;
 
         try {
             const payload = await apiRequest('/api/admin/accounts/pending');
@@ -934,27 +807,22 @@ document.addEventListener('DOMContentLoaded', function () {
             renderPendingAccounts();
             updateStats();
         } catch (error) {
-            pendingBody.innerHTML = `
-                <tr>
-                    <td colspan="6" style="color: var(--danger);">
-                        Không thể tải pending: ${escapeHtml(error.message)}
-                    </td>
-                </tr>
-            `;
+            pendingBody.innerHTML = `<tr><td colspan="6" style="color: var(--danger);">Không thể tải pending: ${escapeHtml(error.message)}</td></tr>`;
         }
     }
 
     function renderAccounts() {
         if (accounts.length === 0) {
-            accountBody.innerHTML = `
-                <tr>
-                    <td colspan="7">Không có tài khoản phù hợp bộ lọc.</td>
-                </tr>
-            `;
+            accountBody.innerHTML = `<tr><td colspan="8">Không có tài khoản phù hợp bộ lọc.</td></tr>`;
             return;
         }
 
         accountBody.innerHTML = accounts.map(function (account) {
+            // Chỉ hiển thị nút soi Deadline với role Employee
+            const btnHtml = account.role === 'employee' 
+                ? `<button class="btn btn-soft btn-sm" type="button" data-view-upcoming="${account.id}" title="Xem task sắp hết hạn của nhân viên này">🔎 Deadline</button>` 
+                : '';
+
             return `
                 <tr>
                     <td>${accountIdentityHtml(account)}</td>
@@ -968,6 +836,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         </span>
                     </td>
                     <td>${escapeHtml(formatDate(account.hire_date || account.created_at))}</td>
+                    <td style="text-align:right;">${btnHtml}</td>
                 </tr>
             `;
         }).join('');
@@ -975,11 +844,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderPendingAccounts() {
         if (pendingAccounts.length === 0) {
-            pendingBody.innerHTML = `
-                <tr>
-                    <td colspan="6">Không có tài khoản nào đang chờ duyệt.</td>
-                </tr>
-            `;
+            pendingBody.innerHTML = `<tr><td colspan="6">Không có tài khoản nào đang chờ duyệt.</td></tr>`;
             return;
         }
 
@@ -997,12 +862,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     </td>
                     <td style="text-align:right;">
                         <div style="display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap;">
-                            <button class="btn btn-emerald btn-sm" type="button" data-approve-account="${account.id}">
-                                Duyệt
-                            </button>
-                            <button class="btn btn-light btn-sm" type="button" data-reject-account="${account.id}">
-                                Từ chối
-                            </button>
+                            <button class="btn btn-emerald btn-sm" type="button" data-approve-account="${account.id}">Duyệt</button>
+                            <button class="btn btn-light btn-sm" type="button" data-reject-account="${account.id}">Từ chối</button>
                         </div>
                     </td>
                 </tr>
@@ -1022,15 +883,9 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         const total = merged.length;
-        const active = merged.filter(function (account) {
-            return String(account.status || '').toLowerCase() === 'active';
-        }).length;
-        const pending = merged.filter(function (account) {
-            return String(account.status || '').toLowerCase() === 'inactive';
-        }).length;
-        const suspended = merged.filter(function (account) {
-            return String(account.status || '').toLowerCase() === 'suspended';
-        }).length;
+        const active = merged.filter(function (account) { return String(account.status || '').toLowerCase() === 'active'; }).length;
+        const pending = merged.filter(function (account) { return String(account.status || '').toLowerCase() === 'inactive'; }).length;
+        const suspended = merged.filter(function (account) { return String(account.status || '').toLowerCase() === 'suspended'; }).length;
 
         statTotal.textContent = String(total);
         statActive.textContent = String(active);
@@ -1045,10 +900,7 @@ document.addEventListener('DOMContentLoaded', function () {
         createPanel.style.display = nextOpen ? 'block' : 'none';
 
         if (nextOpen) {
-            createPanel.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            });
+            createPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }
 
@@ -1074,9 +926,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             await apiRequest('/api/accounts', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
 
@@ -1094,10 +944,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function approveAccount(id) {
         try {
-            await apiRequest('/api/admin/accounts/' + encodeURIComponent(id) + '/approve', {
-                method: 'PATCH'
-            });
-
+            await apiRequest('/api/admin/accounts/' + encodeURIComponent(id) + '/approve', { method: 'PATCH' });
             toast('success', 'Đã duyệt tài khoản', 'Tài khoản hiện có thể đăng nhập.');
             await loadPendingAccounts();
             await loadAccounts();
@@ -1108,21 +955,99 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function rejectAccount(id) {
         const ok = window.confirm('Từ chối tài khoản này? Tài khoản sẽ chuyển sang trạng thái Suspended.');
-
-        if (!ok) {
-            return;
-        }
+        if (!ok) return;
 
         try {
-            await apiRequest('/api/admin/accounts/' + encodeURIComponent(id) + '/reject', {
-                method: 'PATCH'
-            });
-
+            await apiRequest('/api/admin/accounts/' + encodeURIComponent(id) + '/reject', { method: 'PATCH' });
             toast('success', 'Đã từ chối tài khoản', 'Tài khoản đã chuyển sang Suspended.');
             await loadPendingAccounts();
             await loadAccounts();
         } catch (error) {
             toast('error', 'Không thể từ chối', error.message);
+        }
+    }
+
+    // ĐÃ THÊM: Logic Gọi API và Hiển thị Modal "Task sắp hết hạn"
+    async function viewUpcomingTasks(employeeId) {
+        const emp = accounts.find(a => Number(a.id) === Number(employeeId));
+        const empName = emp ? emp.full_name : 'nhân viên';
+
+        if (window.CAHModal) {
+            CAHModal.open({
+                title: `🔎 Task sắp hết hạn - ${escapeHtml(empName)}`,
+                subtitle: `Đang tải dữ liệu...`,
+                body: `<div style="text-align:center; padding:20px;">Vui lòng chờ trong giây lát.</div>`
+            });
+        }
+
+        try {
+            const payload = await apiRequest(`/api/tasks/upcoming?employee_id=${employeeId}`);
+            const tasks = payload.data || [];
+
+            let bodyHtml = '';
+            if (tasks.length === 0) {
+                bodyHtml = `<div class="ui-empty-state" style="padding: 30px;">
+                                <div class="ui-empty-icon">🎉</div>
+                                <div class="ui-empty-content">
+                                    <h3>Thảnh thơi!</h3>
+                                    <p>Nhân viên này không có task nào trễ hạn hay sắp đến hạn trong 3 ngày tới.</p>
+                                </div>
+                            </div>`;
+            } else {
+                const rows = tasks.map(task => {
+                    let deadlineStyle = '';
+                    const today = new Date();
+                    today.setHours(0,0,0,0);
+                    const dDate = new Date(task.deadline);
+                    
+                    if (dDate < today) deadlineStyle = 'color: var(--danger); font-weight: bold;';
+                    else if (dDate.getTime() === today.getTime()) deadlineStyle = 'color: #d97706; font-weight: bold;';
+
+                    return `
+                        <tr>
+                            <td>${escapeHtml(task.project_name)}</td>
+                            <td><strong>${escapeHtml(task.title)}</strong></td>
+                            <td><span class="badge ${statusBadgeClass(task.status)}">${escapeHtml(task.status)}</span></td>
+                            <td style="${deadlineStyle}">${escapeHtml(task.deadline)}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                bodyHtml = `
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Dự án</th>
+                                    <th>Tên Task</th>
+                                    <th>Trạng thái</th>
+                                    <th>Deadline</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            if (window.CAHModal) {
+                CAHModal.open({
+                    title: `🔎 Task sắp hết hạn - ${escapeHtml(empName)}`,
+                    subtitle: `Các task chưa hoàn thành (có deadline trong 3 ngày tới hoặc đã trễ hạn).`,
+                    body: bodyHtml
+                });
+            } else {
+                alert("Dữ liệu tải thành công nhưng thiếu module UI CAHModal.");
+            }
+
+        } catch (error) {
+            if (window.CAHModal) {
+                CAHModal.open({
+                    title: `🔎 Task sắp hết hạn - ${escapeHtml(empName)}`,
+                    subtitle: `Lỗi tải dữ liệu.`,
+                    body: `<div style="color:var(--danger); padding:20px; text-align:center;">Lỗi: ${escapeHtml(error.message)}</div>`
+                });
+            }
         }
     }
 
@@ -1180,6 +1105,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const approveButton = event.target.closest('[data-approve-account]');
         const rejectButton = event.target.closest('[data-reject-account]');
         const removeProjectMemberButton = event.target.closest('[data-remove-project-member]');
+        
+        // Bắt sự kiện click nút xem Task sắp đến hạn
+        const viewUpcomingButton = event.target.closest('[data-view-upcoming]');
 
         if (removeProjectMemberButton) {
             removeProjectMember(removeProjectMemberButton.getAttribute('data-remove-project-member'));
@@ -1191,6 +1119,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (rejectButton) {
             rejectAccount(rejectButton.getAttribute('data-reject-account'));
+        }
+
+        if (viewUpcomingButton) {
+            viewUpcomingTasks(viewUpcomingButton.getAttribute('data-view-upcoming'));
         }
     });
 
@@ -1211,6 +1143,8 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <?php
+// Tích hợp components/modal.php để giao diện JS có chỗ render UI Kính lúp
+require __DIR__ . '/../components/modal.php';
 $content = ob_get_clean();
 require __DIR__ . '/../layouts/app.php';
 ?>

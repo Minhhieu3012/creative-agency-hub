@@ -829,6 +829,35 @@ class TaskController {
         }
     }
 
+    // ĐÃ THÊM: Hàm xử lý lấy task sắp hết hạn (của employee chỉ định)
+    public function upcoming(): void {
+        try {
+            // Cho phép Admin và Manager xem task sắp hết hạn của nhân viên
+            $authUser = $this->requireRole(['admin', 'manager']);
+            $employeeId = $this->normalizeNullableId($_GET['employee_id'] ?? null);
+
+            if (!$employeeId) {
+                $this->json([
+                    'status' => 'error',
+                    'message' => 'Thiếu ID nhân viên cần soi deadline.'
+                ], 400);
+            }
+
+            $taskModel = new \App\Models\Task\TaskModel();
+            $tasks = $taskModel->getUpcomingTasks($employeeId);
+
+            $this->json([
+                'status' => 'success',
+                'data' => $tasks
+            ]);
+        } catch (Throwable $e) {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không thể tải task sắp hết hạn: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
     public function options(): void {
         try {
             $authUser = $this->requireRole(['manager']);

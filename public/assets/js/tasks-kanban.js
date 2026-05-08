@@ -1,1335 +1,779 @@
 (function () {
-    "use strict";
+  "use strict";
 
-    const API_ROOT = window.CAH_CONFIG?.apiRoot || "/creative-agency-hub/public";
+  const board = document.querySelector("[data-kanban-board]");
+  if (!board) return;
 
-    const API_STATUS_LIST = ["To do", "Doing", "Review", "Done"];
-    const BOARD_COLUMN_LIST = ["Revision", "Task", "Review", "Done"];
+  // Hỗ trợ cả tên cột mới và cũ phòng trường hợp DB của bạn dùng tên khác
+  const STATUS_TO_COLUMN = {
+    "to do": "todo",
+    todo: "todo",
+    "cần làm": "todo",
+    "task mới": "todo",
 
-    const STATUS_META = {
-        Revision: {
-            label: "Cần sửa",
-            tone: "revision"
-        },
-        Task: {
-            label: "Task mới",
-            tone: "task"
-        },
-        Review: {
-            label: "Chờ Duyệt",
-            tone: "review"
-        },
-        Done: {
-            label: "Hoàn Thành",
-            tone: "done"
-        }
+    doing: "doing",
+    in_progress: "doing",
+    "đang thực hiện": "doing",
+    "cần sửa": "doing",
+
+    review: "review",
+    "đang kiểm tra": "review",
+    "chờ duyệt": "review",
+
+    done: "done",
+    completed: "done",
+    "hoàn thành": "done",
+  };
+
+  const COLUMN_TO_STATUS = {
+    todo: "To do",
+    doing: "Doing",
+    review: "Review",
+    done: "Done",
+  };
+
+  const PRIORITY_TONE = {
+    Low: "info",
+    Medium: "primary",
+    High: "danger",
+    low: "info",
+    medium: "primary",
+    high: "danger",
+  };
+
+  const DEFAULT_PROJECT_ID = 1;
+  const DEFAULT_ASSIGNEE_ID = 2;
+  const DEFAULT_WATCHER_ID = 1;
+
+  let draggedCard = null;
+  let previousDropState = null;
+  let latestTasks = [];
+  let isFilterUpcoming = false; // BIẾN TRẠNG THÁI NÚT KÍNH LÚP
+
+  injectActionStyles();
+
+  function escapeHtml(value) {
+    if (window.CAHApp && typeof window.CAHApp.escapeHtml === "function") {
+      return window.CAHApp.escapeHtml(value);
+    }
+    return String(value || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function toNumberOrNull(value) {
+    if (value === undefined || value === null || value === "") return null;
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : null;
+  }
+
+  function getToken() {
+    return localStorage.getItem("cah_token") || localStorage.getItem("cah_auth_token") || "";
+  }
+
+  function getDecodedToken() {
+    try {
+      const token = getToken();
+      if (!token) return null;
+      const base64Url = token.split(".")[1];
+      if (!base64Url) return null;
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const paddedBase64 = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+      const jsonPayload = decodeURIComponent(
+        atob(paddedBase64)
+          .split("")
+          .map(function (char) {
+            return "%" + ("00" + char.charCodeAt(0).toString(16)).slice(-2);
+          })
+          .join(""),
+      );
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function getCurrentUser() {
+    const tokenData = getDecodedToken();
+    if (tokenData) {
+      return { id: tokenData.id, role: tokenData.role, email: tokenData.email };
+    }
+    if (window.CAH_CURRENT_USER) return window.CAH_CURRENT_USER;
+    if (window.CAHAuth && typeof window.CAHAuth.getUser === "function") return window.CAHAuth.getUser();
+    return {};
+  }
+
+  function getCurrentUserId() {
+    const user = getCurrentUser();
+    return toNumberOrNull(user.id) || toNumberOrNull(user.employee_id) || DEFAULT_WATCHER_ID;
+  }
+
+  function getCurrentRole() {
+    return String(getCurrentUser().role || "").toLowerCase();
+  }
+
+  function isManagerLike() {
+    const role = getCurrentRole();
+    return role === "admin" || role === "manager";
+  }
+
+  function isEmployee() {
+    return getCurrentRole() === "employee";
+  }
+
+  function getFallbackAssigneeId() {
+    if (isEmployee()) return getCurrentUserId();
+    return DEFAULT_ASSIGNEE_ID;
+  }
+
+  function getAuthHeaders() {
+    const token = getToken();
+    return token ? { Authorization: "Bearer " + token } : {};
+  }
+
+  function normalizePriority(priority) {
+    const value = String(priority || "Medium")
+      .trim()
+      .toLowerCase();
+    if (value === "low") return "Low";
+    if (value === "high") return "High";
+    return "Medium";
+  }
+
+  function normalizeStatus(status) {
+    const key = String(status || "To do")
+      .trim()
+      .toLowerCase();
+    return STATUS_TO_COLUMN[key] ? getStatusByColumn(STATUS_TO_COLUMN[key]) : "To do";
+  }
+
+  function getColumnByStatus(status) {
+    const key = String(status || "To do")
+      .trim()
+      .toLowerCase();
+    return STATUS_TO_COLUMN[key] || "todo";
+  }
+
+  function getStatusByColumn(column) {
+    return COLUMN_TO_STATUS[column] || "To do";
+  }
+
+  function getSelectedProjectId() {
+    const selectors = [
+      "[data-project-filter]",
+      "[name='project_id_filter']",
+      "[name='project_id']",
+      "[data-task-project-id]",
+    ];
+    for (const selector of selectors) {
+      const element = document.querySelector(selector);
+      if (!element) continue;
+      const value = element.dataset.taskProjectId || element.value;
+      const number = toNumberOrNull(value);
+      if (number) return number;
+    }
+    return DEFAULT_PROJECT_ID;
+  }
+
+  function getTaskProgress(status) {
+    const column = getColumnByStatus(status);
+    return { todo: 10, doing: 55, review: 82, done: 100 }[column] || 10;
+  }
+
+  function getInitials(task) {
+    const value = task.assignee_name || task.assignee || task.assignee_id || task.assigner_id || "CA";
+    const str = String(value).trim();
+    if (/^\d+$/.test(str)) return "#" + str;
+    const words = str.split(/\s+/).filter(Boolean);
+    if (words.length >= 2) return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+    return str.slice(0, 2).toUpperCase();
+  }
+
+  function normalizeTask(task) {
+    const normalizedStatus = normalizeStatus(task && task.status);
+    return {
+      id: task && task.id,
+      title: task && task.title ? task.title : "Chưa có tiêu đề",
+      description: task && task.description ? task.description : "Chưa có mô tả.",
+      status: normalizedStatus,
+      priority: normalizePriority(task && task.priority),
+      deadline: task && task.deadline ? task.deadline : "",
+      assignee_id: task && task.assignee_id ? task.assignee_id : "",
+      assignee_name: task && task.assignee_name ? task.assignee_name : "",
+      assigner_id: task && task.assigner_id ? task.assigner_id : "",
+      assigner_name: task && task.assigner_name ? task.assigner_name : "",
+      watcher_id: task && task.watcher_id ? task.watcher_id : "",
+      watcher_name: task && task.watcher_name ? task.watcher_name : "",
+      project_id: task && task.project_id ? task.project_id : "",
+      project_name: task && task.project_name ? task.project_name : "",
     };
+  }
 
-    const state = {
-        tasksByStatus: createEmptyBoardState(),
-        currentUser: null,
-        draggedTaskId: null,
-        isLoading: false,
-        taskOptions: null,
-        activeModal: null
-    };
+  function showToast(type, title, message) {
+    if (!window.CAHToast) {
+      if (type === "error") alert(message || title);
+      return;
+    }
+    if (type === "success" && typeof window.CAHToast.success === "function")
+      return window.CAHToast.success(title, message);
+    if (type === "error" && typeof window.CAHToast.error === "function") return window.CAHToast.error(title, message);
+    if (type === "info" && typeof window.CAHToast.info === "function") window.CAHToast.info(title, message);
+  }
 
-    function createEmptyBoardState() {
-        return {
-            Revision: [],
-            Task: [],
-            Review: [],
-            Done: []
-        };
+  function updateColumnCounts() {
+    document.querySelectorAll("[data-kanban-column]").forEach(function (column) {
+      const count = column.querySelectorAll("[data-task-card]").length;
+      const countEl = column.querySelector("[data-column-count]");
+      if (countEl) countEl.textContent = count;
+    });
+  }
+
+  function renderTaskCard(rawTask) {
+    const task = normalizeTask(rawTask);
+    const columnKey = getColumnByStatus(task.status);
+    const priorityTone = PRIORITY_TONE[task.priority] || "primary";
+    const progress = getTaskProgress(task.status);
+
+    let deadlineText = task.deadline ? "Deadline: " + escapeHtml(task.deadline) : "Chưa có deadline";
+    let deadlineStyle = "";
+
+    // TÔ ĐỎ NẾU TRỄ HẠN / SẮP HẾT HẠN
+    if (task.deadline && columnKey !== "done") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dDate = new Date(task.deadline);
+      if (dDate < today) {
+        deadlineStyle = "color: #dc2626; font-weight: bold;";
+        deadlineText = "Trễ hạn: " + escapeHtml(task.deadline);
+      } else if (dDate.getTime() === today.getTime()) {
+        deadlineStyle = "color: #d97706; font-weight: bold;";
+        deadlineText = "Hôm nay: " + escapeHtml(task.deadline);
+      }
     }
 
-    function getToken() {
-        return localStorage.getItem("cah_auth_token") || localStorage.getItem("cah_token") || "";
-    }
+    const initials = escapeHtml(getInitials(task));
+    const doneClass = columnKey === "done" ? " is-completed" : "";
 
-    function qs(selector, scope = document) {
-        return scope.querySelector(selector);
-    }
-
-    function qsa(selector, scope = document) {
-        return Array.from(scope.querySelectorAll(selector));
-    }
-
-    function cssEscape(value) {
-        if (window.CSS && typeof window.CSS.escape === "function") {
-            return window.CSS.escape(String(value));
-        }
-
-        return String(value).replace(/"/g, '\\"');
-    }
-
-    function escapeHtml(value) {
-        return String(value ?? "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-
-    function normalizeApiStatus(status) {
-        const value = String(status || "").trim();
-
-        return API_STATUS_LIST.includes(value) ? value : "To do";
-    }
-
-    function normalizeBoardColumn(column) {
-        const value = String(column || "").trim();
-
-        return BOARD_COLUMN_LIST.includes(value) ? value : "Task";
-    }
-
-    function hasRejectReason(task) {
-        return String(task?.reject_reason || "").trim() !== "";
-    }
-
-    function boardColumnForTask(task) {
-        const status = normalizeApiStatus(task?.status);
-
-        if (status === "Doing" && hasRejectReason(task)) {
-            return "Revision";
-        }
-
-        if (status === "Review") {
-            return "Review";
-        }
-
-        if (status === "Done") {
-            return "Done";
-        }
-
-        return "Task";
-    }
-
-    function roleOfCurrentUser() {
-        return String(state.currentUser?.role || window.CAH_CURRENT_USER?.role || "").toLowerCase();
-    }
-
-    function currentUserId() {
-        return Number(state.currentUser?.id || window.CAH_CURRENT_USER?.id || 0);
-    }
-
-    function isManager() {
-        return roleOfCurrentUser() === "manager";
-    }
-
-    function cannotCompleteMessage() {
-        return "Bạn không có quyền hoàn thành thao tác này.";
-    }
-
-    function invalidFlowMessage() {
-        return "Trạng thái này không hợp lệ với luồng hiện tại.";
-    }
-
-    function managerReviewOnlyMessage() {
-        return "Manager chỉ xử lý task ở cột Chờ Duyệt: trả về Cần sửa hoặc duyệt Hoàn Thành.";
-    }
-
-    function canDragTask(task) {
-        const role = roleOfCurrentUser();
-        const boardColumn = boardColumnForTask(task);
-
-        if (boardColumn === "Done") {
-            return false;
-        }
-
-        if (role === "manager") {
-            return boardColumn === "Review";
-        }
-
-        if (role === "employee") {
-            return Number(task.assignee_id || 0) === currentUserId()
-                && (boardColumn === "Task" || boardColumn === "Revision");
-        }
-
-        return false;
-    }
-
-    function canDropToColumn(task, nextColumn) {
-        const role = roleOfCurrentUser();
-        const currentColumn = boardColumnForTask(task);
-        const targetColumn = normalizeBoardColumn(nextColumn);
-
-        if (currentColumn === "Done") {
-            return false;
-        }
-
-        if (role === "manager") {
-            if (currentColumn !== "Review") {
-                return false;
-            }
-
-            return targetColumn === "Revision" || targetColumn === "Done";
-        }
-
-        if (role === "employee") {
-            if (targetColumn === "Done") {
-                return false;
-            }
-
-            if (targetColumn === "Revision") {
-                return false;
-            }
-
-            if (targetColumn === "Task") {
-                return false;
-            }
-
-            return (currentColumn === "Task" || currentColumn === "Revision") && targetColumn === "Review";
-        }
-
-        return false;
-    }
-
-    async function apiRequest(path, options = {}) {
-        const headers = {
-            Accept: "application/json",
-            ...(options.headers || {})
-        };
-
-        const token = getToken();
-
-        if (token) {
-            headers.Authorization = "Bearer " + token;
-        }
-
-        const response = await fetch(API_ROOT + path, {
-            credentials: "same-origin",
-            ...options,
-            headers
-        });
-
-        const payload = await response.json().catch(() => ({
-            status: "error",
-            message: "Server không trả JSON hợp lệ."
-        }));
-
-        if (!response.ok || payload.status === "error") {
-            throw new Error(payload.message || "Yêu cầu không thành công.");
-        }
-
-        return payload;
-    }
-
-    function toast(type, title, message) {
-        if (window.CAHToast && typeof window.CAHToast[type] === "function") {
-            window.CAHToast[type](title, message);
-            return;
-        }
-
-        if (type === "error") {
-            console.error(title, message);
-            return;
-        }
-
-        console.log(title, message);
-    }
-
-    function showBoardMessage(message, isError = false) {
-        const holder = qs("#js-board-message");
-
-        if (!holder) {
-            return;
-        }
-
-        holder.style.display = "block";
-        holder.style.backgroundColor = isError ? "#fef2f2" : "#ecfdf5";
-        holder.style.color = isError ? "#b91c1c" : "#047857";
-        holder.innerHTML = message;
-    }
-
-    function hideBoardMessage() {
-        const holder = qs("#js-board-message");
-
-        if (holder) {
-            holder.style.display = "none";
-            holder.innerHTML = "";
-        }
-    }
-
-    function findBoard() {
-        return qs("[data-kanban-board]")
-            || qs(".kanban-board")
-            || qs(".kanban-columns")
-            || qs(".kanban-wrapper");
-    }
-
-    function findColumn(columnKey) {
-        return qs(`[data-kanban-status="${cssEscape(columnKey)}"]`);
-    }
-
-    function findColumnList(column) {
-        if (!column) {
-            return null;
-        }
-
-        return qs("[data-kanban-list]", column)
-            || qs(".kanban-list", column)
-            || qs(".kanban-card-list", column)
-            || qs(".kanban-cards", column)
-            || qs(".task-list", column)
-            || qs(".kanban-column-body", column)
-            || column;
-    }
-
-    function removeOldColumns(board) {
-        qsa(".kanban-column, .kanban-lane, .task-column", board).forEach(function (column) {
-            column.remove();
-        });
-    }
-
-    function createColumn(columnKey) {
-        const meta = STATUS_META[columnKey];
-
-        const column = document.createElement("section");
-        column.className = `kanban-column kanban-column-${meta.tone}`;
-        column.setAttribute("data-kanban-column", "");
-        column.setAttribute("data-kanban-status", columnKey);
-
-        column.innerHTML = `
-            <header class="kanban-column-head">
-                <div class="kanban-column-title">
-                    <span class="kanban-dot ${escapeHtml(meta.tone)}"></span>
-                    <span>${escapeHtml(meta.label)}</span>
-                    <span class="kanban-count" data-kanban-count="${escapeHtml(columnKey)}">0</span>
+    return `
+            <article
+                class="task-card${doneClass}"
+                draggable="true"
+                data-task-card
+                data-task-id="${escapeHtml(task.id)}"
+                data-status="${escapeHtml(columnKey)}"
+                data-title="${escapeHtml(task.title)}"
+                data-description="${escapeHtml(task.description)}"
+                data-project-id="${escapeHtml(task.project_id)}"
+                data-assignee-id="${escapeHtml(task.assignee_id)}"
+                data-watcher-id="${escapeHtml(task.watcher_id)}"
+            >
+                <div class="task-card-top">
+                    <span class="badge badge-${escapeHtml(priorityTone)}">${escapeHtml(String(task.priority).toUpperCase())}</span>
+                    <button class="kanban-column-menu" type="button" aria-label="Mở menu task">⋮</button>
                 </div>
-            </header>
-            <div class="kanban-card-list" data-kanban-list></div>
-        `;
-
-        return column;
-    }
-
-    function ensureBoardSkeleton() {
-        let board = findBoard();
-
-        if (!board) {
-            const content = qs(".app-content") || qs("main") || document.body;
-
-            board = document.createElement("section");
-            board.className = "kanban-board";
-            board.setAttribute("data-kanban-board", "");
-
-            content.appendChild(board);
-        }
-
-        if (board.dataset.cahFourColumnKanbanReady !== "true") {
-            removeOldColumns(board);
-
-            BOARD_COLUMN_LIST.forEach(function (columnKey) {
-                board.appendChild(createColumn(columnKey));
-            });
-
-            board.dataset.cahFourColumnKanbanReady = "true";
-        }
-
-        BOARD_COLUMN_LIST.forEach(function (columnKey) {
-            const meta = STATUS_META[columnKey];
-            let column = findColumn(columnKey);
-
-            if (!column) {
-                column = createColumn(columnKey);
-                board.appendChild(column);
-            }
-
-            column.classList.add(`kanban-column-${meta.tone}`);
-
-            const title = qs(".kanban-column-title span:nth-child(2), .kanban-column-header h2, h2, h3", column);
-
-            if (title) {
-                title.textContent = meta.label;
-            }
-
-            let count = qs("[data-kanban-count]", column);
-
-            if (!count) {
-                count = document.createElement("span");
-                count.className = "kanban-count";
-                count.setAttribute("data-kanban-count", columnKey);
-
-                const header = qs(".kanban-column-title", column) || qs(".kanban-column-head", column) || column;
-                header.appendChild(count);
-            }
-
-            let list = findColumnList(column);
-
-            if (!list || list === column) {
-                list = document.createElement("div");
-                list.className = "kanban-card-list";
-                list.setAttribute("data-kanban-list", "");
-                column.appendChild(list);
-            }
-        });
-
-        return board;
-    }
-
-    function setLoading(isLoading) {
-        state.isLoading = isLoading;
-
-        const board = findBoard();
-
-        if (board) {
-            board.classList.toggle("is-loading", isLoading);
-        }
-    }
-
-    function renderEmpty(list, columnKey) {
-        const label = STATUS_META[columnKey]?.label || columnKey;
-
-        list.innerHTML = `
-            <div class="kanban-empty-state" data-kanban-empty style="text-align:center;color:#94a3b8;padding:22px;">
-                <span>∅</span>
-                <p>Chưa có task ở cột ${escapeHtml(label)}.</p>
-            </div>
-        `;
-    }
-
-    function formatDate(date) {
-        if (!date) {
-            return "Chưa đặt";
-        }
-
-        const parsed = new Date(date + "T00:00:00");
-
-        if (Number.isNaN(parsed.getTime())) {
-            return date;
-        }
-
-        return parsed.toLocaleDateString("vi-VN");
-    }
-
-    function priorityClass(priority) {
-        const value = String(priority || "").toLowerCase();
-
-        if (value === "high") {
-            return "badge-danger";
-        }
-
-        if (value === "low") {
-            return "badge-info";
-        }
-
-        return "badge-warning";
-    }
-
-    function priorityLabel(priority) {
-        const value = String(priority || "Medium");
-
-        const labels = {
-            Low: "Thấp",
-            Medium: "Trung bình",
-            High: "Cao"
-        };
-
-        return labels[value] || value;
-    }
-
-    function publicBadge(task) {
-        if (Number(task.is_client_visible || 0) !== 1) {
-            return "";
-        }
-
-        return `<span class="badge badge-info">Public Client</span>`;
-    }
-
-    function revisionBadge(task) {
-        if (boardColumnForTask(task) !== "Revision") {
-            return "";
-        }
-
-        return `<span class="badge badge-danger">Cần sửa</span>`;
-    }
-
-    function rejectReasonBlock(task) {
-        if (boardColumnForTask(task) !== "Revision") {
-            return "";
-        }
-
-        return `
-            <div class="kanban-task-note" style="margin-top:10px;padding:10px;border-radius:12px;background:#fef2f2;color:#991b1b;">
-                <strong>Lý do cần sửa:</strong>
-                <span>${escapeHtml(task.reject_reason)}</span>
-            </div>
-        `;
-    }
-
-    function renderCard(task) {
-        const card = document.createElement("article");
-        const draggable = canDragTask(task);
-        const boardColumn = boardColumnForTask(task);
-
-        card.className = "task-card";
-        card.setAttribute("data-task-card", "");
-        card.setAttribute("data-task-id", String(task.id));
-        card.setAttribute("data-task-status", normalizeApiStatus(task.status));
-        card.setAttribute("data-board-column", boardColumn);
-        card.draggable = draggable;
-
-        if (!draggable) {
-            card.classList.add("is-readonly");
-        }
-
-        if (boardColumn === "Revision") {
-            card.classList.add("is-revision-task");
-        }
-
-        if (boardColumn === "Done") {
-            card.classList.add("is-done-task");
-        }
-
-        const overdue = task.is_overdue ? `<span class="badge badge-danger">Quá hạn</span>` : "";
-        const assigneeName = task.assignee_name || "Chưa giao";
-        const projectName = task.project_name || "Không có project";
-        const managerActions = isManager()
-            ? `
-                <button class="btn btn-light btn-sm" type="button" data-task-edit="${escapeHtml(task.id)}">Sửa</button>
-                <button class="btn btn-danger btn-sm" type="button" data-task-delete="${escapeHtml(task.id)}">Xoá</button>
-            `
-            : "";
-
-        card.innerHTML = `
-            <div class="task-card-top">
-                <span class="badge ${priorityClass(task.priority)}">
-                    ${escapeHtml(priorityLabel(task.priority))}
-                </span>
-                <span class="badge badge-info">${escapeHtml(STATUS_META[boardColumn]?.label || boardColumn)}</span>
-            </div>
-
-            <span class="kanban-project" style="display:block;margin-top:10px;color:#64748b;font-weight:700;font-size:12px;">
-                ${escapeHtml(projectName)}
-            </span>
-
-            <h3 class="task-card-title">${escapeHtml(task.title)}</h3>
-
-            ${task.description ? `<p class="task-card-desc">${escapeHtml(task.description)}</p>` : ""}
-
-            ${rejectReasonBlock(task)}
-
-            <div class="task-assignee-row">
-                <div class="task-assignee">
-                    <span>Người phụ trách: ${escapeHtml(assigneeName)}</span>
+                <h3 class="task-card-title">${escapeHtml(task.title)}</h3>
+                <p class="task-card-desc">${escapeHtml(task.description)}</p>
+                <div class="task-card-progress">
+                    <div class="progress-line"><div class="progress-line-fill" style="width: ${progress}%;"></div></div>
+                    <small>${progress}% hoàn thành</small>
                 </div>
-                <div class="task-card-meta-group">
-                    <span>Deadline: ${escapeHtml(formatDate(task.deadline))}</span>
+                <div class="task-assignee-row">
+                    <div class="task-assignee">
+                        <span class="task-avatar">${initials}</span>
+                        <span style="${deadlineStyle}">${deadlineText}</span>
+                    </div>
+                    <div class="task-card-meta-group">
+                        ${columnKey === "done" ? "<span>✓ Done</span>" : "<span>▣ 0</span><span>□ 0</span>"}
+                    </div>
                 </div>
-            </div>
-
-            <div class="task-card-meta-group" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-                ${overdue}
-                ${revisionBadge(task)}
-                ${publicBadge(task)}
-            </div>
-
-            <div class="kanban-task-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
-                ${renderWorkflowButtons(task)}
-                ${managerActions}
-            </div>
+            </article>
         `;
+  }
 
-        card.addEventListener("dragstart", function (event) {
-            if (!canDragTask(task)) {
-                event.preventDefault();
-                return;
-            }
+  function clearBoard() {
+    document.querySelectorAll("[data-kanban-list]").forEach(function (list) {
+      list.innerHTML = "";
+    });
+  }
 
-            state.draggedTaskId = Number(task.id);
-            card.classList.add("is-dragging");
+  function renderTasks(tasks) {
+    clearBoard();
+    latestTasks = Array.isArray(tasks) ? tasks.map(normalizeTask) : [];
+    let displayTasks = latestTasks;
 
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("text/plain", String(task.id));
-        });
+    if (isFilterUpcoming) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const limitDate = new Date(today);
+      limitDate.setDate(today.getDate() + 3);
 
-        card.addEventListener("dragend", function () {
-            state.draggedTaskId = null;
-            card.classList.remove("is-dragging");
-        });
+      displayTasks = latestTasks.filter((task) => {
+        const columnKey = getColumnByStatus(task.status);
+        if (columnKey === "done") return false;
+        if (!task.deadline) return false;
 
-        bindCardActions(card, task);
-
-        return card;
+        const dDate = new Date(task.deadline);
+        return dDate <= limitDate;
+      });
     }
 
-    function renderWorkflowButtons(task) {
-        const role = roleOfCurrentUser();
-        const apiStatus = normalizeApiStatus(task.status);
-        const boardColumn = boardColumnForTask(task);
-
-        if (boardColumn === "Done") {
-            return "";
-        }
-
-        if (role === "employee") {
-            if (boardColumn === "Task" || boardColumn === "Revision") {
-                return `<button class="btn btn-soft btn-sm" type="button" data-task-submit-review>Gửi Chờ Duyệt</button>`;
-            }
-
-            return "";
-        }
-
-        if (role === "manager") {
-            if (apiStatus === "Review") {
-                return `
-                    <button class="btn btn-emerald btn-sm" type="button" data-task-approve>Approve</button>
-                    <button class="btn btn-light btn-sm" type="button" data-task-reject>Reject</button>
+    if (displayTasks.length === 0) {
+      const todoList = document.querySelector('[data-kanban-column][data-status="todo"] [data-kanban-list]');
+      if (todoList) {
+        todoList.innerHTML = `
+                    <div class="ui-empty-state" style="min-height: 220px;">
+                        <div class="ui-empty-icon">${isFilterUpcoming ? "🎉" : "☑"}</div>
+                        <div class="ui-empty-content">
+                            <h3>${isFilterUpcoming ? "Thảnh thơi!" : "Chưa có task"}</h3>
+                            <p>${isFilterUpcoming ? "Tuyệt vời, bạn không có deadline nào bị trễ hoặc sắp đến hạn." : "Tạo task mới hoặc chọn dự án khác trên bộ lọc."}</p>
+                        </div>
+                    </div>
                 `;
-            }
-
-            return "";
-        }
-
-        return "";
+      }
+      updateColumnCounts();
+      return;
     }
 
-    function bindCardActions(card, task) {
-        const submitButton = qs("[data-task-submit-review]", card);
+    displayTasks.forEach(function (task) {
+      const columnKey = getColumnByStatus(task.status);
+      const list = document.querySelector(`[data-kanban-column][data-status="${columnKey}"] [data-kanban-list]`);
+      if (list) {
+        list.insertAdjacentHTML("beforeend", renderTaskCard(task));
+      }
+    });
 
-        if (submitButton) {
-            submitButton.addEventListener("click", async function () {
-                await moveTaskToReview(Number(task.id));
-            });
-        }
+    updateColumnCounts();
+  }
 
-        const approveButton = qs("[data-task-approve]", card);
+  function findTaskById(taskId) {
+    return latestTasks.find(function (task) {
+      return String(task.id) === String(taskId);
+    });
+  }
 
-        if (approveButton) {
-            approveButton.addEventListener("click", async function () {
-                await approveTask(Number(task.id));
-            });
-        }
+  function appendTaskToBoard(task) {
+    const normalized = normalizeTask(task);
+    const columnKey = getColumnByStatus(normalized.status);
+    const list = document.querySelector(`[data-kanban-column][data-status="${columnKey}"] [data-kanban-list]`);
+    if (!list) return;
 
-        const rejectButton = qs("[data-task-reject]", card);
+    const emptyState = list.querySelector(".ui-empty-state");
+    if (emptyState) emptyState.remove();
 
-        if (rejectButton) {
-            rejectButton.addEventListener("click", async function () {
-                const reason = window.prompt("Nhập lý do cần sửa task:", "Cần chỉnh sửa thêm trước khi duyệt.");
+    latestTasks.unshift(normalized);
+    list.insertAdjacentHTML("afterbegin", renderTaskCard(normalized));
+    updateColumnCounts();
+  }
 
-                if (reason === null) {
-                    return;
-                }
-
-                await rejectTask(Number(task.id), reason);
-            });
-        }
-
-        const editButton = qs("[data-task-edit]", card);
-
-        if (editButton) {
-            editButton.addEventListener("click", async function () {
-                await openTaskModal(task);
-            });
-        }
-
-        const deleteButton = qs("[data-task-delete]", card);
-
-        if (deleteButton) {
-            deleteButton.addEventListener("click", async function () {
-                await deleteTask(Number(task.id), task.title);
-            });
-        }
+  async function loadTasksFromApi() {
+    if (!window.CAHApi || !getToken()) {
+      updateColumnCounts();
+      return;
     }
 
-    function renderBoard() {
-        ensureBoardSkeleton();
+    try {
+      let apiUrl = "/api/tasks";
+      const params = new URLSearchParams();
 
-        BOARD_COLUMN_LIST.forEach(function (columnKey) {
-            const column = findColumn(columnKey);
-            const list = findColumnList(column);
-            const tasks = state.tasksByStatus[columnKey] || [];
+      // Lấy project_id từ URL nếu có (trường hợp click từ trang khác sang)
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("project_id")) params.append("project_id", urlParams.get("project_id"));
 
-            if (!list) {
-                return;
-            }
+      const queryString = params.toString();
+      if (queryString) apiUrl += `?${queryString}`;
 
-            list.innerHTML = "";
+      const response = await window.CAHApi.get(apiUrl, {
+        loading: true,
+        loadingMessage: "Đang tải dữ liệu Kanban...",
+        headers: getAuthHeaders(),
+      });
 
-            const countEls = qsa(`[data-kanban-count="${cssEscape(columnKey)}"]`, column || document);
-
-            countEls.forEach(function (el) {
-                el.textContent = String(tasks.length);
-            });
-
-            if (tasks.length === 0) {
-                renderEmpty(list, columnKey);
-                return;
-            }
-
-            tasks.forEach(function (task) {
-                list.appendChild(renderCard(task));
-            });
-        });
-
-        bindDropZones();
+      renderTasks(response.data || []);
+    } catch (error) {
+      updateColumnCounts();
+      showToast("info", "Thông báo", "Lỗi tải danh sách công việc.");
     }
-
-    function bindDropZones() {
-        BOARD_COLUMN_LIST.forEach(function (columnKey) {
-            const column = findColumn(columnKey);
-            const list = findColumnList(column);
-
-            if (!list || list.dataset.dropReady === "true") {
-                return;
-            }
-
-            list.dataset.dropReady = "true";
-
-            list.addEventListener("dragover", function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                list.classList.add("is-drag-over");
-            });
-
-            list.addEventListener("dragleave", function () {
-                list.classList.remove("is-drag-over");
-            });
-
-            list.addEventListener("drop", async function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-
-                if (typeof event.stopImmediatePropagation === "function") {
-                    event.stopImmediatePropagation();
-                }
-
-                list.classList.remove("is-drag-over");
-
-                const taskId = Number(event.dataTransfer.getData("text/plain") || state.draggedTaskId || 0);
-
-                if (!taskId) {
-                    await loadTasks();
-                    return;
-                }
-
-                const task = findTaskById(taskId);
-
-                if (!task) {
-                    await loadTasks();
-                    return;
-                }
-
-                const currentColumn = boardColumnForTask(task);
-                const targetColumn = normalizeBoardColumn(columnKey);
-
-                if (currentColumn === "Done") {
-                    state.draggedTaskId = null;
-                    await loadTasks();
-                    return;
-                }
-
-                if (!canDropToColumn(task, targetColumn)) {
-                    if (targetColumn === "Done" && roleOfCurrentUser() === "employee") {
-                        toast("error", "Không thể xử lý", cannotCompleteMessage());
-                    } else if (roleOfCurrentUser() === "manager") {
-                        toast("error", "Không thể xử lý", managerReviewOnlyMessage());
-                    } else {
-                        toast("error", "Không thể xử lý", invalidFlowMessage());
-                    }
-
-                    state.draggedTaskId = null;
-                    await loadTasks();
-                    return;
-                }
-
-                if (targetColumn === "Revision") {
-                    const reason = window.prompt("Nhập lý do cần sửa task:", "Cần chỉnh sửa thêm trước khi duyệt.");
-
-                    if (reason === null) {
-                        await loadTasks();
-                        return;
-                    }
-
-                    await rejectTask(taskId, reason);
-                    return;
-                }
-
-                if (targetColumn === "Review") {
-                    await moveTaskToReview(taskId);
-                    return;
-                }
-
-                if (targetColumn === "Done") {
-                    await approveTask(taskId);
-                    return;
-                }
-
-                await loadTasks();
-            });
-        });
-    }
-
-    function findTaskById(taskId) {
-        for (const columnKey of BOARD_COLUMN_LIST) {
-            const found = (state.tasksByStatus[columnKey] || []).find(function (task) {
-                return Number(task.id) === Number(taskId);
-            });
-
-            if (found) {
-                return found;
-            }
-        }
-
-        return null;
-    }
-
-    function normalizeGroupedData(data) {
-        const result = createEmptyBoardState();
-
-        if (Array.isArray(data)) {
-            data.forEach(function (task) {
-                const columnKey = boardColumnForTask(task);
-                result[columnKey].push(task);
-            });
-
-            return result;
-        }
-
-        API_STATUS_LIST.forEach(function (status) {
-            const list = Array.isArray(data?.[status]) ? data[status] : [];
-
-            list.forEach(function (task) {
-                const columnKey = boardColumnForTask(task);
-                result[columnKey].push(task);
-            });
-        });
-
-        return result;
-    }
-
-    async function loadCurrentUser() {
-        try {
-            const payload = await apiRequest("/api/auth/me");
-            state.currentUser = payload?.data?.user || payload?.data || window.CAH_CURRENT_USER || null;
-        } catch (error) {
-            state.currentUser = window.CAH_CURRENT_USER || null;
-        }
-
-        qsa("[data-add-task]").forEach(function (button) {
-            button.style.display = isManager() ? "inline-flex" : "none";
-        });
-    }
-
-    function getCurrentProjectId() {
-        const url = new URL(window.location.href);
-        const fromQuery = url.searchParams.get("project_id");
-
-        if (fromQuery) {
-            return fromQuery;
-        }
-
-        const holder = qs("[data-current-project-id]") || qs("[data-project-id]");
-
-        if (holder) {
-            return holder.getAttribute("data-current-project-id") || holder.getAttribute("data-project-id") || "";
-        }
-
-        return "";
-    }
-
-    async function loadTasks() {
-        setLoading(true);
-        hideBoardMessage();
-
-        try {
-            const projectId = getCurrentProjectId();
-            const params = new URLSearchParams();
-
-            if (projectId) {
-                params.set("project_id", projectId);
-            }
-
-            const query = params.toString();
-            const payload = await apiRequest("/api/tasks/kanban" + (query ? "?" + query : ""));
-
-            state.tasksByStatus = normalizeGroupedData(payload.data);
-            renderBoard();
-        } catch (error) {
-            showBoardMessage(`<b>Không thể tải Kanban:</b> ${escapeHtml(error.message || "Có lỗi khi tải danh sách task.")}`, true);
-            ensureBoardSkeleton();
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    async function patchTaskStatus(taskId, nextStatus) {
-        return apiRequest(`/api/tasks/${taskId}/status`, {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                status: normalizeApiStatus(nextStatus)
-            })
-        });
-    }
-
-    async function moveTaskToReview(taskId) {
-        const task = findTaskById(taskId);
-
-        if (!task) {
-            await loadTasks();
-            return;
-        }
-
-        if (!canDropToColumn(task, "Review")) {
-            toast("error", "Không thể xử lý", invalidFlowMessage());
-            await loadTasks();
-            return;
-        }
-
-        try {
-            setLoading(true);
-
-            const payload = await patchTaskStatus(taskId, "Review");
-
-            toast("success", "Đã gửi Chờ Duyệt", payload.message || "Task đã được gửi sang Chờ Duyệt.");
-            await loadTasks();
-        } catch (error) {
-            toast("error", "Không thể gửi Chờ Duyệt", error.message || "Có lỗi xảy ra.");
-            await loadTasks();
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    async function approveTask(taskId) {
-        try {
-            setLoading(true);
-
-            const payload = await apiRequest(`/api/tasks/${taskId}/approve`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({})
-            });
-
-            toast("success", "Đã approve", payload.message || "Task đã chuyển Hoàn Thành.");
-            await loadTasks();
-        } catch (error) {
-            toast("error", "Không thể approve", error.message || "Có lỗi xảy ra.");
-            await loadTasks();
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    async function rejectTask(taskId, reason) {
-        try {
-            setLoading(true);
-
-            const payload = await apiRequest(`/api/tasks/${taskId}/reject`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    reason
-                })
-            });
-
-            toast("success", "Đã chuyển về Cần sửa", payload.message || "Task đã chuyển về cột Cần sửa.");
-            await loadTasks();
-        } catch (error) {
-            toast("error", "Không thể reject", error.message || "Có lỗi xảy ra.");
-            await loadTasks();
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    async function deleteTask(taskId, title) {
-        if (!isManager()) {
-            toast("error", "Không có quyền", "Chỉ Manager được xoá task.");
-            return;
-        }
-
-        const ok = window.confirm(`Xoá task "${title || "này"}"?`);
-
-        if (!ok) {
-            return;
-        }
-
-        try {
-            setLoading(true);
-
-            const payload = await apiRequest(`/api/tasks/${taskId}`, {
-                method: "DELETE"
-            });
-
-            toast("success", "Đã xoá task", payload.message || "Task đã được xoá.");
-            await loadTasks();
-        } catch (error) {
-            toast("error", "Không thể xoá task", error.message || "Có lỗi xảy ra.");
-            await loadTasks();
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    async function loadTaskOptions(projectId = "") {
-        if (!isManager()) {
-            return null;
-        }
-
-        const params = new URLSearchParams();
-
-        if (projectId) {
-            params.set("project_id", projectId);
-        }
-
-        const payload = await apiRequest("/api/tasks/options" + (params.toString() ? "?" + params.toString() : ""));
-        return payload.data || {};
-    }
-
-    function optionHtml(items, selectedValue, labelFallback) {
-        if (!Array.isArray(items) || items.length === 0) {
-            return `<option value="">${escapeHtml(labelFallback)}</option>`;
-        }
-
-        return items.map(function (item) {
-            const value = Number(item.id || 0);
-            const label = item.name || item.full_name || item.title || item.email || `#${value}`;
-            const selected = Number(selectedValue || 0) === value ? "selected" : "";
-
-            return `<option value="${escapeHtml(value)}" ${selected}>${escapeHtml(label)}</option>`;
-        }).join("");
-    }
-
-    function buildTaskForm(task, options) {
-        const isEdit = !!task;
-        const projects = Array.isArray(options?.projects) ? options.projects : [];
-        const employees = Array.isArray(options?.assignees) ? options.assignees : (Array.isArray(options?.employees) ? options.employees : []);
-        const priorities = Array.isArray(options?.priorities) ? options.priorities : ["Low", "Medium", "High"];
-        const clientVisibilityEnabled = !!options?.client_visibility_enabled;
-
-        const selectedProject = task?.project_id || getCurrentProjectId() || "";
-        const selectedAssignee = task?.assignee_id || "";
-        const selectedWatcher = task?.watcher_id || "";
-        const selectedPriority = task?.priority || "Medium";
-
-        return `
-            <form data-task-form data-task-id="${isEdit ? escapeHtml(task.id) : ""}">
-                <div class="form-group">
-                    <label class="form-label" for="task-title">Tên task</label>
-                    <input
-                        id="task-title"
-                        class="form-control"
-                        type="text"
-                        name="title"
-                        value="${escapeHtml(task?.title || "")}"
-                        placeholder="VD: Thiết kế banner campaign"
-                        required
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="task-description">Mô tả</label>
-                    <textarea
-                        id="task-description"
-                        class="form-textarea"
-                        name="description"
-                        rows="4"
-                        placeholder="Mô tả yêu cầu task"
-                    >${escapeHtml(task?.description || "")}</textarea>
-                </div>
-
+  }
+
+  function taskFormBody(mode, taskData) {
+    const isEdit = mode === "edit";
+    const task = taskData ? normalizeTask(taskData) : null;
+    const selectedProjectId = getSelectedProjectId();
+    const fallbackAssigneeId = getFallbackAssigneeId();
+    const fallbackWatcherId = getCurrentUserId();
+    const canEdit = isManagerLike();
+
+    return `
+            <form class="task-modal-form" data-task-form data-task-form-mode="${escapeHtml(mode)}" data-task-id="${escapeHtml(task && task.id ? task.id : "")}">
+                <div class="form-group"><label class="form-label">Tên công việc</label><input class="form-control" type="text" name="title" value="${escapeHtml(task && task.title ? task.title : "")}" ${canEdit ? "required" : "readonly"}></div>
                 <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label" for="task-project">Project</label>
-                        <select id="task-project" class="form-select" name="project_id" required data-task-project-select ${isEdit ? "disabled" : ""}>
-                            <option value="">Chọn project</option>
-                            ${optionHtml(projects, selectedProject, "Chưa có project khả dụng")}
-                        </select>
-                        ${isEdit ? `<input type="hidden" name="project_id" value="${escapeHtml(selectedProject)}">` : ""}
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="task-priority">Ưu tiên</label>
-                        <select id="task-priority" class="form-select" name="priority">
-                            ${priorities.map(function (priority) {
-                                const selected = String(priority) === String(selectedPriority) ? "selected" : "";
-                                return `<option value="${escapeHtml(priority)}" ${selected}>${escapeHtml(priorityLabel(priority))}</option>`;
-                            }).join("")}
-                        </select>
-                    </div>
+                    <div class="form-group"><label class="form-label">Trạng thái</label><select class="form-select" name="status" ${canEdit ? "" : "disabled"}><option value="To do" ${task && task.status === "To do" ? "selected" : ""}>Cần làm</option><option value="Doing" ${task && task.status === "Doing" ? "selected" : ""}>Đang thực hiện</option><option value="Review" ${task && task.status === "Review" ? "selected" : ""}>Đang kiểm tra</option><option value="Done" ${task && task.status === "Done" ? "selected" : ""}>Hoàn thành</option></select></div>
+                    <div class="form-group"><label class="form-label">Độ ưu tiên</label><select class="form-select" name="priority" ${canEdit ? "" : "disabled"}><option value="Low" ${task && task.priority === "Low" ? "selected" : ""}>Thấp</option><option value="Medium" ${!task || task.priority === "Medium" ? "selected" : ""}>Trung bình</option><option value="High" ${task && task.priority === "High" ? "selected" : ""}>Cao</option></select></div>
                 </div>
-
                 <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label" for="task-assignee">Người phụ trách</label>
-                        <select id="task-assignee" class="form-select" name="assignee_id" required data-task-assignee-select>
-                            <option value="">Chọn employee</option>
-                            ${optionHtml(employees, selectedAssignee, "Chưa có employee active trong project")}
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="task-watcher">Watcher</label>
-                        <select id="task-watcher" class="form-select" name="watcher_id">
-                            <option value="">Không chọn</option>
-                            ${optionHtml(employees, selectedWatcher, "Chưa có watcher")}
-                        </select>
-                    </div>
+                    <div class="form-group"><label class="form-label">Deadline</label><input class="form-control" type="date" name="deadline" value="${escapeHtml(task && task.deadline ? task.deadline : "")}" ${canEdit ? "required" : "readonly"}></div>
+                    <div class="form-group"><label class="form-label">Project ID</label><input class="form-control" type="number" name="project_id" value="${escapeHtml(task && task.project_id ? task.project_id : selectedProjectId)}" min="1" ${canEdit ? "" : "readonly"}></div>
                 </div>
-
                 <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label" for="task-deadline">Deadline</label>
-                        <input
-                            id="task-deadline"
-                            class="form-control"
-                            type="date"
-                            name="deadline"
-                            value="${escapeHtml(task?.deadline || "")}"
-                        >
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="task-status">Trạng thái</label>
-                        <select id="task-status" class="form-select" name="status">
-                            <option value="To do" ${normalizeApiStatus(task?.status) === "To do" ? "selected" : ""}>Task mới</option>
-                            <option value="Review" ${normalizeApiStatus(task?.status) === "Review" ? "selected" : ""}>Chờ Duyệt</option>
-                            <option value="Done" ${normalizeApiStatus(task?.status) === "Done" ? "selected" : ""}>Hoàn Thành</option>
-                        </select>
-                    </div>
+                    <div class="form-group"><label class="form-label">Assignee ID</label><input class="form-control" type="number" name="assignee_id" value="${escapeHtml(task && task.assignee_id ? task.assignee_id : fallbackAssigneeId)}" min="1" ${canEdit ? "" : "readonly"}></div>
+                    <div class="form-group"><label class="form-label">Watcher ID</label><input class="form-control" type="number" name="watcher_id" value="${escapeHtml(task && task.watcher_id ? task.watcher_id : fallbackWatcherId)}" min="1" ${canEdit ? "" : "readonly"}></div>
                 </div>
-
-                ${clientVisibilityEnabled ? `
-                    <label class="checkbox-line" style="margin-top: 12px;">
-                        <input type="checkbox" name="is_client_visible" value="1" ${Number(task?.is_client_visible || 0) === 1 ? "checked" : ""}>
-                        <span>Public task này cho Client Portal</span>
-                    </label>
-                ` : ""}
-
-                <div style="display:flex;justify-content:flex-end;gap:12px;flex-wrap:wrap;margin-top:22px;">
-                    <button class="btn btn-light" type="button" data-task-modal-close>Hủy</button>
-                    <button class="btn btn-primary" type="submit">
-                        ${isEdit ? "Lưu thay đổi" : "Tạo task"}
-                    </button>
-                </div>
+                <div class="form-group"><label class="form-label">Mô tả</label><textarea class="form-textarea" name="description" ${canEdit ? "" : "readonly"}>${escapeHtml(task && task.description ? task.description : "")}</textarea></div>
+                <div class="task-modal-footer"><button class="btn btn-light" type="button" data-modal-close>Đóng</button>${canEdit ? '<button class="btn btn-primary" type="submit">' + (isEdit ? "Lưu thay đổi" : "Tạo task") + "</button>" : ""}</div>
             </form>
         `;
+  }
+
+  function openTaskModal(mode, taskData) {
+    if (!window.CAHModal) return;
+    window.CAHModal.open({
+      title: mode === "create" ? "Tạo công việc mới" : "Chi tiết công việc",
+      subtitle: "Task sẽ được lưu vào database và tự đồng bộ lại Kanban.",
+      body: taskFormBody(mode, taskData),
+    });
+  }
+
+  async function updateTaskStatusById(taskId, newStatus) {
+    await window.CAHApi.patch(
+      `/api/tasks/${taskId}/status`,
+      { status: newStatus },
+      { loading: false, headers: getAuthHeaders() },
+    );
+    showToast("success", "Đã cập nhật", `Task đã chuyển sang trạng thái ${newStatus}.`);
+    await loadTasksFromApi();
+  }
+
+  async function updateTaskStatus(card, newColumnKey) {
+    const taskId = card.dataset.taskId;
+    const newStatus = getStatusByColumn(newColumnKey);
+
+    if (!taskId || !window.CAHApi || !getToken()) return;
+
+    try {
+      await updateTaskStatusById(taskId, newStatus);
+    } catch (error) {
+      if (previousDropState && previousDropState.list && previousDropState.nextSibling !== undefined) {
+        previousDropState.list.insertBefore(card, previousDropState.nextSibling);
+        card.dataset.status = previousDropState.status;
+        updateColumnCounts();
+      }
+      showToast("error", "Lỗi cập nhật", error.message);
+    }
+  }
+
+  async function createTaskFromForm(form) {
+    const data = Object.fromEntries(new FormData(form));
+    const payload = {
+      title: data.title,
+      description: data.description || "",
+      priority: data.priority || "Medium",
+      deadline: data.deadline,
+      project_id: toNumberOrNull(data.project_id) || getSelectedProjectId(),
+      assignee_id: toNumberOrNull(data.assignee_id) || getFallbackAssigneeId(),
+      watcher_id: toNumberOrNull(data.watcher_id) || getCurrentUserId(),
+    };
+    await window.CAHApi.post("/api/tasks", payload, { loading: true, headers: getAuthHeaders() });
+    if (window.CAHModal) window.CAHModal.close();
+    showToast("success", "Tạo task thành công", "Task mới đã hiển thị trên Kanban.");
+    await loadTasksFromApi();
+  }
+
+  async function updateTaskFromForm(form) {
+    const taskId = form.dataset.taskId;
+    const data = Object.fromEntries(new FormData(form));
+    const payload = {
+      title: data.title,
+      description: data.description || "",
+      priority: data.priority || "Medium",
+      deadline: data.deadline,
+      project_id: toNumberOrNull(data.project_id) || getSelectedProjectId(),
+      assignee_id: toNumberOrNull(data.assignee_id) || null,
+      watcher_id: toNumberOrNull(data.watcher_id) || null,
+    };
+    await window.CAHApi.put(`/api/tasks/${taskId}`, payload, { loading: true, headers: getAuthHeaders() });
+    if (data.status)
+      await window.CAHApi.patch(
+        `/api/tasks/${taskId}/status`,
+        { status: data.status },
+        { loading: false, headers: getAuthHeaders() },
+      );
+    if (window.CAHModal) window.CAHModal.close();
+    showToast("success", "Đã cập nhật", "Task đã được cập nhật.");
+    await loadTasksFromApi();
+  }
+
+  async function deleteTask(taskId) {
+    const confirmed = window.confirm(`Xoá task này? Thao tác này không thể hoàn tác.`);
+    if (!confirmed) return;
+    await window.CAHApi.delete(`/api/tasks/${taskId}`, { loading: true, headers: getAuthHeaders() });
+    if (window.CAHModal) window.CAHModal.close();
+    await loadTasksFromApi();
+  }
+
+  async function approvalAction(taskId, action) {
+    const endpointMap = {
+      submit: `/api/tasks/${taskId}/submit`,
+      approve: `/api/tasks/${taskId}/approve`,
+      reject: `/api/tasks/${taskId}/reject`,
+    };
+    if (!endpointMap[action]) return;
+    await window.CAHApi.post(endpointMap[action], {}, { loading: true, headers: getAuthHeaders() });
+    if (window.CAHModal) window.CAHModal.close();
+    await loadTasksFromApi();
+  }
+
+  function openActionMenu(button, explicitTaskId) {
+    closeActionMenu();
+    const cardContainer = button.closest("[data-task-card]");
+    const taskId = explicitTaskId || (cardContainer ? cardContainer.dataset.taskId : null);
+    if (!taskId) return;
+
+    let task = findTaskById(taskId) || { id: taskId, status: cardContainer?.dataset.status || "todo" };
+    const menu = document.createElement("div");
+    menu.className = "kanban-action-menu";
+    menu.setAttribute("data-kanban-action-menu", "");
+
+    const currentColumn = getColumnByStatus(task.status);
+    const manager = isManagerLike();
+    const employee = isEmployee();
+
+    const actions = [
+      `<button type="button" data-task-action="view" data-task-id="${escapeHtml(taskId)}">Xem chi tiết</button>`,
+    ];
+    if (manager) {
+      actions.push(
+        `<button type="button" data-task-action="edit" data-task-id="${escapeHtml(taskId)}">Chỉnh sửa</button>`,
+      );
+      actions.push(
+        `<button type="button" data-task-action="delete" data-task-id="${escapeHtml(taskId)}" class="danger">Xoá task</button>`,
+      );
+    }
+    if (currentColumn === "todo" && (employee || manager))
+      actions.push(
+        `<button type="button" data-task-action="move-doing" data-task-id="${escapeHtml(taskId)}">Chuyển Đang thực hiện</button>`,
+      );
+    if (currentColumn === "doing" && (employee || manager))
+      actions.push(
+        `<button type="button" data-task-action="submit" data-task-id="${escapeHtml(taskId)}">Gửi duyệt</button>`,
+      );
+    if (currentColumn === "review" && manager) {
+      actions.push(
+        `<button type="button" data-task-action="approve" data-task-id="${escapeHtml(taskId)}">Duyệt hoàn thành</button>`,
+      );
+      actions.push(
+        `<button type="button" data-task-action="reject" data-task-id="${escapeHtml(taskId)}">Từ chối</button>`,
+      );
     }
 
-    function closeTaskModal() {
-        if (state.activeModal) {
-            state.activeModal.remove();
-            state.activeModal = null;
-        }
-    }
+    menu.innerHTML = actions.join("");
+    document.body.appendChild(menu);
+    const rect = button.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + window.scrollY + 8}px`;
+    menu.style.left = `${Math.max(12, rect.right + window.scrollX - 220)}px`;
+  }
 
-    function openTaskModalShell(title, body) {
-        closeTaskModal();
+  function closeActionMenu() {
+    document.querySelectorAll("[data-kanban-action-menu]").forEach((m) => m.remove());
+  }
 
-        const modal = document.createElement("div");
-        modal.className = "modal-backdrop is-visible";
-        modal.setAttribute("data-task-modal", "");
-        modal.style.position = "fixed";
-        modal.style.inset = "0";
-        modal.style.zIndex = "9999";
-        modal.style.display = "grid";
-        modal.style.placeItems = "center";
-        modal.style.padding = "24px";
-        modal.style.background = "rgba(15, 23, 42, 0.42)";
+  async function handleTaskAction(action, taskId) {
+    const task = findTaskById(taskId) || { id: taskId, title: "Công việc này" };
+    closeActionMenu();
+    if (action === "view" || action === "edit") return openTaskModal(action, task);
+    if (action === "delete") return deleteTask(taskId);
+    if (["submit", "approve", "reject"].includes(action)) return approvalAction(taskId, action);
+    if (action === "move-doing") return updateTaskStatusById(taskId, "Doing");
+  }
 
-        modal.innerHTML = `
-            <div class="modal-panel" style="width:min(760px, calc(100vw - 32px)); max-height:calc(100vh - 48px); overflow:auto; background:#fff; border-radius:22px; box-shadow:0 24px 80px rgba(15,23,42,.24);">
-                <div class="modal-header" style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 24px;border-bottom:1px solid #e5e7eb;">
-                    <h2 style="margin:0;">${escapeHtml(title)}</h2>
-                    <button class="modal-close" type="button" data-task-modal-close>×</button>
-                </div>
-                <div class="modal-body" style="padding:24px;">
-                    ${body}
-                </div>
-            </div>
+  function injectActionStyles() {
+    if (document.querySelector("[data-kanban-action-style]")) return;
+    const style = document.createElement("style");
+    style.setAttribute("data-kanban-action-style", "");
+    style.textContent = `
+            .kanban-action-menu { position: absolute; z-index: 9999; width: 220px; display: grid; gap: 4px; padding: 8px; border-radius: 16px; border: 1px solid rgba(15, 23, 42, 0.1); background: #fff; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18); }
+            .kanban-action-menu button { min-height: 38px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: #22314d; background: transparent; font-weight: 750; border: none; cursor: pointer; }
+            .kanban-action-menu button:hover { color: var(--primary); background: var(--mint); }
+            .kanban-action-menu button.danger { color: var(--danger); }
+            .kanban-action-menu button.danger:hover { background: var(--danger-soft); }
+            .task-card.is-completed { opacity: .82; }
+            .task-card.is-completed .task-card-title { text-decoration: line-through; color: #64748b; }
         `;
+    document.head.appendChild(style);
+  }
 
-        document.body.appendChild(modal);
-        state.activeModal = modal;
-    }
+  document.addEventListener("dragstart", function (event) {
+    const card = event.target.closest("[data-task-card]");
+    if (!card) return;
+    draggedCard = card;
+    previousDropState = { list: card.parentElement, nextSibling: card.nextElementSibling, status: card.dataset.status };
+    card.classList.add("is-dragging");
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", card.dataset.taskId || "");
+  });
 
-    async function refreshAssigneesForProject(projectId, assigneeSelect, watcherSelect, selectedAssignee = "", selectedWatcher = "") {
-        if (!projectId || !assigneeSelect) {
-            return;
+  document.addEventListener("dragend", function () {
+    if (draggedCard) draggedCard.classList.remove("is-dragging");
+    document.querySelectorAll(".kanban-column.is-over").forEach((c) => c.classList.remove("is-over"));
+    draggedCard = null;
+    previousDropState = null;
+    updateColumnCounts();
+  });
+
+  document.querySelectorAll("[data-kanban-column]").forEach(function (column) {
+    column.addEventListener("dragover", function (event) {
+      event.preventDefault();
+      column.classList.add("is-over");
+    });
+    column.addEventListener("dragleave", function (event) {
+      if (!column.contains(event.relatedTarget)) column.classList.remove("is-over");
+    });
+    column.addEventListener("drop", function (event) {
+      event.preventDefault();
+      if (!draggedCard) return;
+      const list = column.querySelector("[data-kanban-list]");
+      if (!list) return;
+
+      const newColumnKey = column.dataset.status || "todo";
+      const oldStatus = draggedCard.dataset.status;
+      const taskId = draggedCard.dataset.taskId;
+
+      function revertDrop() {
+        if (previousDropState && previousDropState.list && previousDropState.nextSibling !== undefined) {
+          previousDropState.list.insertBefore(draggedCard, previousDropState.nextSibling);
+          draggedCard.dataset.status = previousDropState.status;
+          updateColumnCounts();
         }
+      }
 
-        try {
-            const options = await loadTaskOptions(projectId);
-            const employees = Array.isArray(options?.assignees) ? options.assignees : [];
+      if (oldStatus === newColumnKey) {
+        draggedCard.dataset.status = newColumnKey;
+        column.classList.remove("is-over");
+        return;
+      }
 
-            assigneeSelect.innerHTML = `
-                <option value="">Chọn employee</option>
-                ${optionHtml(employees, selectedAssignee, "Chưa có employee active trong project")}
-            `;
-
-            if (watcherSelect) {
-                watcherSelect.innerHTML = `
-                    <option value="">Không chọn</option>
-                    ${optionHtml(employees, selectedWatcher, "Chưa có watcher")}
-                `;
-            }
-        } catch (error) {
-            toast("error", "Không thể tải employee theo project", error.message);
+      if (isEmployee()) {
+        const isValid =
+          (oldStatus === "todo" && newColumnKey === "doing") || (oldStatus === "doing" && newColumnKey === "review");
+        if (!isValid) {
+          revertDrop();
+          column.classList.remove("is-over");
+          return showToast("error", "Sai luồng công việc", "Chỉ kéo: Cần làm -> Đang thực hiện -> Đang kiểm tra.");
         }
-    }
+      }
 
-    async function openTaskModal(task = null) {
-        if (!isManager()) {
-            toast("error", "Không có quyền", "Chỉ Manager được tạo hoặc sửa task.");
-            return;
+      if (newColumnKey === "done" && oldStatus !== "done") {
+        if (oldStatus === "review" && isManagerLike()) {
+          list.insertBefore(draggedCard, list.firstChild);
+          draggedCard.dataset.status = newColumnKey;
+          column.classList.remove("is-over");
+          updateColumnCounts();
+          return approvalAction(taskId, "approve").catch((e) => {
+            revertDrop();
+            showToast("error", "Lỗi", e.message);
+          });
         }
+        revertDrop();
+        column.classList.remove("is-over");
+        return showToast("error", "Lỗi", "Task phải ở Review và được Manager duyệt.");
+      }
 
-        try {
-            const options = await loadTaskOptions(task?.project_id || getCurrentProjectId() || "");
-            openTaskModalShell(task ? "Cập nhật task" : "Tạo task mới", buildTaskForm(task, options));
-
-            const form = qs("[data-task-form]", state.activeModal);
-            const projectSelect = qs("[data-task-project-select]", form);
-            const assigneeSelect = qs("[data-task-assignee-select]", form);
-            const watcherSelect = qs('select[name="watcher_id"]', form);
-
-            if (projectSelect && !task) {
-                projectSelect.addEventListener("change", async function () {
-                    await refreshAssigneesForProject(projectSelect.value, assigneeSelect, watcherSelect);
-                });
-            }
-        } catch (error) {
-            toast("error", "Không thể mở form task", error.message);
-        }
-    }
-
-    async function submitTaskForm(form) {
-        const taskId = Number(form.getAttribute("data-task-id") || 0);
-        const formData = new FormData(form);
-
-        const payload = {
-            title: String(formData.get("title") || "").trim(),
-            description: String(formData.get("description") || "").trim(),
-            project_id: formData.get("project_id") ? Number(formData.get("project_id")) : null,
-            priority: String(formData.get("priority") || "Medium"),
-            deadline: String(formData.get("deadline") || "").trim() || null,
-            assignee_id: formData.get("assignee_id") ? Number(formData.get("assignee_id")) : null,
-            watcher_id: formData.get("watcher_id") ? Number(formData.get("watcher_id")) : null,
-            status: String(formData.get("status") || "To do"),
-            is_client_visible: formData.get("is_client_visible") ? 1 : 0
-        };
-
-        if (!payload.title) {
-            toast("error", "Thiếu tên task", "Vui lòng nhập tên task.");
-            return;
-        }
-
-        if (!payload.project_id) {
-            toast("error", "Thiếu project", "Vui lòng chọn project.");
-            return;
-        }
-
-        if (!payload.assignee_id) {
-            toast("error", "Thiếu người phụ trách", "Vui lòng chọn employee nhận task.");
-            return;
-        }
-
-        try {
-            setLoading(true);
-
-            if (taskId > 0) {
-                const res = await apiRequest(`/api/tasks/${taskId}`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                toast("success", "Đã cập nhật task", res.message || "Task đã được cập nhật.");
-            } else {
-                const res = await apiRequest("/api/tasks", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                toast("success", "Đã tạo task", res.message || "Task mới đã được giao.");
-            }
-
-            closeTaskModal();
-            await loadTasks();
-        } catch (error) {
-            toast("error", taskId > 0 ? "Không thể cập nhật task" : "Không thể tạo task", error.message);
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    function bindGlobalActions() {
-        qsa("[data-add-task]").forEach(function (button) {
-            if (button.dataset.taskCreateReady === "true") {
-                return;
-            }
-
-            button.dataset.taskCreateReady = "true";
-
-            button.addEventListener("click", function (event) {
-                event.preventDefault();
-                openTaskModal();
-            });
+      if (newColumnKey === "review" && oldStatus === "doing") {
+        list.insertBefore(draggedCard, list.firstChild);
+        draggedCard.dataset.status = newColumnKey;
+        column.classList.remove("is-over");
+        updateColumnCounts();
+        return approvalAction(taskId, "submit").catch((e) => {
+          revertDrop();
+          showToast("error", "Lỗi", e.message);
         });
+      }
 
-        document.addEventListener("click", function (event) {
-            const closeButton = event.target.closest("[data-task-modal-close]");
-
-            if (closeButton) {
-                event.preventDefault();
-                closeTaskModal();
-            }
+      if (newColumnKey === "doing" && oldStatus === "review" && isManagerLike()) {
+        list.insertBefore(draggedCard, list.firstChild);
+        draggedCard.dataset.status = newColumnKey;
+        column.classList.remove("is-over");
+        updateColumnCounts();
+        return approvalAction(taskId, "reject").catch((e) => {
+          revertDrop();
+          showToast("error", "Lỗi", e.message);
         });
+      }
 
-        document.addEventListener("submit", function (event) {
-            const form = event.target.closest("[data-task-form]");
+      list.insertBefore(draggedCard, list.firstChild);
+      draggedCard.dataset.status = newColumnKey;
+      column.classList.remove("is-over");
+      updateColumnCounts();
+      updateTaskStatus(draggedCard, newColumnKey);
+    });
+  });
 
-            if (!form) {
-                return;
-            }
+  document.addEventListener("click", function (event) {
+    const actionButton = event.target.closest("[data-task-action]");
+    const addButton = event.target.closest("[data-add-task]");
+    const menuButton = event.target.closest(".kanban-column-menu");
 
-            event.preventDefault();
-            submitTaskForm(form);
-        });
+    if (!event.target.closest("[data-kanban-action-menu]") && !menuButton) closeActionMenu();
+    if (menuButton) {
+      const cardParent = menuButton.closest("[data-task-card]");
+      if (cardParent) {
+        event.preventDefault();
+        event.stopPropagation();
+        return openActionMenu(menuButton, cardParent.dataset.taskId);
+      }
     }
-
-    function bindRefreshButtons() {
-        qsa("[data-kanban-refresh], [data-refresh-kanban]").forEach(function (button) {
-            if (button.dataset.kanbanRefreshReady === "true") {
-                return;
-            }
-
-            button.dataset.kanbanRefreshReady = "true";
-
-            button.addEventListener("click", function (event) {
-                event.preventDefault();
-                loadTasks();
-            });
-        });
+    if (actionButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      return handleTaskAction(actionButton.dataset.taskAction, actionButton.dataset.taskId).catch((e) =>
+        showToast("error", "Lỗi", e.message),
+      );
     }
+    if (addButton) return openTaskModal("create");
 
-    async function init() {
-        ensureBoardSkeleton();
-        bindGlobalActions();
-        bindRefreshButtons();
-
-        await loadCurrentUser();
-        await loadTasks();
+    const card = event.target.closest("[data-task-card]");
+    if (card && !event.target.closest("button")) {
+      openTaskModal(
+        "view",
+        findTaskById(card.dataset.taskId) || {
+          id: card.dataset.taskId,
+          status: getStatusByColumn(card.dataset.status),
+        },
+      );
     }
+  });
 
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", init);
-    } else {
-        init();
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeActionMenu();
+  });
+  document.addEventListener("submit", (e) => {
+    const form = e.target.closest("[data-task-form]");
+    if (form) {
+      e.preventDefault();
+      (form.dataset.taskFormMode === "edit" ? updateTaskFromForm : createTaskFromForm)(form);
     }
+  });
+
+  const btnFilter = document.getElementById("js-btn-filter");
+  if (btnFilter) btnFilter.addEventListener("click", loadTasksFromApi);
+
+  const btnUpcoming = document.getElementById("js-btn-upcoming");
+  if (btnUpcoming) {
+    btnUpcoming.addEventListener("click", function () {
+      isFilterUpcoming = !isFilterUpcoming;
+      if (isFilterUpcoming) {
+        btnUpcoming.classList.replace("btn-warning", "btn-danger");
+        btnUpcoming.innerText = "⏳ Đang soi Deadline";
+      } else {
+        btnUpcoming.classList.replace("btn-danger", "btn-warning");
+        btnUpcoming.innerHTML = `<span style="font-size: 1.1em;">🔎</span> Soi Deadline (3 ngày)`;
+      }
+      renderTasks(latestTasks); // Lọc ngay trên RAM
+    });
+  }
+
+  updateColumnCounts();
+  loadTasksFromApi();
 })();

@@ -100,6 +100,9 @@ return [
     ['GET',    '/api/tasks/kanban',      'Task\\TaskController@kanban',         ['admin', 'manager', 'employee', 'client']],
     ['GET',    '/api/tasks/review',      'Task\\TaskController@getReviewTasks', ['manager']],
     ['GET',    '/api/tasks/submit',      'Task\\TaskController@getReviewTasks', ['manager']],
+    
+    // ĐÃ THÊM: Route Soi Task sắp hết hạn
+    ['GET',    '/api/tasks/upcoming',    'Task\\TaskController@upcoming',       ['admin', 'manager']],
 
     ['GET',    '/api/tasks/:id',         'Task\\TaskController@show',         ['admin', 'manager', 'employee', 'client']],
     ['POST',   '/api/tasks',             'Task\\TaskController@store',        ['manager']],

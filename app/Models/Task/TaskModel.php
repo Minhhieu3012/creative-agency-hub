@@ -304,6 +304,28 @@ class TaskModel {
         return $task;
     }
 
+    // ĐÃ THÊM: Hàm query lấy task sắp hết hạn (trong vòng 3 ngày tới hoặc trễ hạn)
+    public function getUpcomingTasks(int $employeeId): array {
+        $sql = $this->buildSelectSql() . "
+            WHERE t.assignee_id = :employee_id
+              AND t.status != 'Done'
+              AND t.deadline IS NOT NULL
+              AND t.deadline <= DATE_ADD(CURDATE(), INTERVAL 3 DAY)
+            ORDER BY t.deadline ASC
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':employee_id' => $employeeId]);
+        $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($tasks as &$task) {
+            $task = $this->decorateTask($task);
+        }
+        unset($task);
+
+        return $tasks;
+    }
+
     public function all(array $filters = [], ?array $authUser = null): array {
         $params = [];
         $where = [];
@@ -996,10 +1018,6 @@ class TaskModel {
         return $grouped;
     }
 
-    /**
-     * Backward-compatible aliases.
-     * Giữ để controller/JS cũ nếu còn gọi tên cũ không gãy ngay.
-     */
     public function getAll(array $filters = [], ?array $authUser = null): array {
         return $this->all($filters, $authUser);
     }
