@@ -1,10 +1,18 @@
 <?php
 /**
  * SIDEBAR COMPONENT
- * Render sidebar theo role hiện tại.
- * Đã loại bỏ hoàn toàn:
+ *
+ * Đã xoá:
  * - Trung tâm quản lý
  * - Hồ sơ cá nhân
+ * - Trợ giúp
+ * - Bảng lương / Payroll Summary
+ *
+ * Giữ:
+ * - Chấm công
+ * - Nghỉ phép
+ * - Phê duyệt nghỉ phép/task nếu còn dùng
+ * - Client Portal mở tab mới
  */
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -23,7 +31,9 @@ $publicUrl  = $baseUrl    . '/public';
     <div class="sidebar-header">
         <a href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/dashboard/index.php" class="sidebar-brand">
             <span class="brand-mark">CA</span>
-            <span class="brand-text"><strong><?php echo htmlspecialchars($brandName, ENT_QUOTES, 'UTF-8'); ?></strong></span>
+            <span class="brand-text">
+                <strong><?php echo htmlspecialchars($brandName, ENT_QUOTES, 'UTF-8'); ?></strong>
+            </span>
         </a>
 
         <button class="sidebar-close" type="button" data-sidebar-close aria-label="Đóng sidebar">
@@ -41,14 +51,14 @@ $publicUrl  = $baseUrl    . '/public';
         <div class="sidebar-section">
             <div class="sidebar-section-title">KHÔNG GIAN KHÁC</div>
             <nav class="sidebar-nav sidebar-nav-compact">
-                <a href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/client-portal/projects.php" class="sidebar-link">
+                <a
+                    href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/client-portal/projects.php"
+                    class="sidebar-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
                     <span class="sidebar-icon">◇</span>
                     <span>Client Portal</span>
-                </a>
-
-                <a href="#help" class="sidebar-link" data-disabled-demo>
-                    <span class="sidebar-icon">?</span>
-                    <span>Trợ giúp</span>
                 </a>
             </nav>
         </div>
@@ -76,15 +86,16 @@ const SidebarController = {
 
     allMenus: [
         { key: 'dashboard', label: 'Bảng điều khiển', href: '/dashboard/index.php', icon: '▤', roles: ['admin', 'manager'] },
-        { key: 'departments', label: 'Tổ chức', href: '/hrm/departments.php', icon: '▤', roles: ['admin', 'manager'] },
+        { key: 'departments', label: 'Tổ chức', href: '/hrm/departments.php', icon: '▤', roles: ['admin'] },
         { key: 'employees', label: 'Nhân sự', href: '/hrm/employees.php', icon: '◉', roles: ['admin', 'manager'] },
-        { key: 'projects', label: 'Dự án', href: '/tasks/projects.php', icon: '▣', roles: ['admin', 'manager'] },
-        { key: 'kanban', label: 'Bảng Kanban', href: '/tasks/kanban.php', icon: '☑', roles: ['admin', 'manager', 'employee'] },
-        { key: 'gantt', label: 'Gantt Chart', href: '/tasks/gantt.php', icon: '▥', roles: ['admin', 'manager'] },
-        { key: 'attendance', label: 'Chấm công', href: '/payroll/attendance.php', icon: '◴', roles: ['admin', 'manager', 'employee'] },
-        { key: 'leave_request', label: 'Nghỉ phép', href: '/payroll/leave_request.php', icon: '✦', roles: ['admin', 'manager', 'employee'] },
-        { key: 'approvals', label: 'Phê duyệt', href: '/payroll/manager_approvals.php', icon: '☷', roles: ['admin', 'manager'] },
-        { key: 'payroll_summary', label: 'Bảng lương', href: '/payroll/payroll_summary.php', icon: '▧', roles: ['admin', 'manager'] }
+
+        { key: 'projects', label: 'Dự án', href: '/tasks/projects.php', icon: '▣', roles: ['manager'] },
+        { key: 'kanban', label: 'Bảng Kanban', href: '/tasks/kanban.php', icon: '☑', roles: ['manager', 'employee'] },
+        { key: 'gantt', label: 'Gantt Chart', href: '/tasks/gantt.php', icon: '▥', roles: ['manager'] },
+
+        { key: 'attendance', label: 'Chấm công', href: '/payroll/attendance.php', icon: '◴', roles: ['manager', 'employee'] },
+        { key: 'leave_request', label: 'Nghỉ phép', href: '/payroll/leave_request.php', icon: '✦', roles: ['manager', 'employee'] },
+        { key: 'approvals', label: 'Phê duyệt', href: '/payroll/manager_approvals.php', icon: '☷', roles: ['manager'] }
     ],
 
     getToken() {
@@ -182,7 +193,7 @@ const SidebarController = {
         `;
 
         if (actionBtnContainer) {
-            if (['admin', 'manager'].includes(normalizedRole)) {
+            if (normalizedRole === 'manager') {
                 actionBtnContainer.innerHTML = `
                     <a href="${this.config.viewUrl}/tasks/projects.php" class="btn btn-primary btn-block">
                         <span>＋</span>

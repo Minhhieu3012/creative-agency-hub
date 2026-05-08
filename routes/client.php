@@ -1,7 +1,8 @@
 <?php
 /**
  * CLIENT WEB ROUTES
- * Client Portal là luồng riêng.
+ *
+ * Client chỉ đi qua Client Portal.
  */
 
 return [
@@ -19,5 +20,9 @@ return [
 
     ['GET', '/client/tasks', function () {
         cah_redirect(PROJECT_URL . '/app/View/client-portal/tasks.php');
+    }, ['client']],
+
+    ['GET', '/client/support', function () {
+        cah_redirect(PROJECT_URL . '/app/View/client-portal/support.php');
     }, ['client']],
 ];

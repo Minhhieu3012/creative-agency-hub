@@ -1,8 +1,9 @@
 <?php
 /**
  * ADMIN WEB ROUTES
- * Đợt 1 chỉ tách URL luồng admin, chưa move view vật lý.
- * Đợt sau sẽ tạo app/View/admin riêng.
+ *
+ * Admin = quản trị hệ thống web.
+ * Admin không tạo project/task trong workflow vận hành thường ngày.
  */
 
 return [
@@ -11,7 +12,7 @@ return [
     }, ['admin']],
 
     ['GET', '/admin/login', function () {
-        cah_redirect(PROJECT_URL . '/app/View/auth/login.php?portal=admin');
+        cah_redirect(PROJECT_URL . '/app/View/admin/auth/login.php');
     }, null],
 
     ['GET', '/admin/dashboard', function () {

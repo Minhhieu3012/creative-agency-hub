@@ -1,9 +1,8 @@
 <?php
 /**
  * STAFF WEB ROUTES
+ *
  * Staff = Manager + Employee.
- * Manager vận hành project/task.
- * Employee làm task/chấm công/nghỉ phép.
  */
 
 return [
@@ -16,7 +15,7 @@ return [
     }, ['manager', 'employee']],
 
     ['GET', '/staff/login', function () {
-        cah_redirect(PROJECT_URL . '/app/View/auth/login.php?portal=staff');
+        cah_redirect(PROJECT_URL . '/app/View/staff/auth/login.php');
     }, null],
 
     ['GET', '/staff/dashboard', function () {
@@ -26,6 +25,10 @@ return [
     ['GET', '/staff/profile', function () {
         cah_redirect(PROJECT_URL . '/app/View/hrm/profile.php');
     }, ['manager', 'employee']],
+
+    ['GET', '/staff/employees', function () {
+        cah_redirect(PROJECT_URL . '/app/View/hrm/employees.php');
+    }, ['manager']],
 
     ['GET', '/staff/projects', function () {
         cah_redirect(PROJECT_URL . '/app/View/tasks/projects.php');
@@ -39,6 +42,10 @@ return [
         cah_redirect(PROJECT_URL . '/app/View/tasks/gantt.php');
     }, ['manager']],
 
+    ['GET', '/staff/activity', function () {
+        cah_redirect(PROJECT_URL . '/app/View/tasks/activity.php');
+    }, ['manager', 'employee']],
+
     ['GET', '/staff/attendance', function () {
         cah_redirect(PROJECT_URL . '/app/View/payroll/attendance.php');
     }, ['manager', 'employee']],
@@ -47,7 +54,7 @@ return [
         cah_redirect(PROJECT_URL . '/app/View/payroll/leave_request.php');
     }, ['manager', 'employee']],
 
-    ['GET', '/staff/payroll', function () {
-        cah_redirect(PROJECT_URL . '/app/View/payroll/payroll_summary.php');
+    ['GET', '/staff/approvals', function () {
+        cah_redirect(PROJECT_URL . '/app/View/payroll/manager_approvals.php');
     }, ['manager']],
 ];

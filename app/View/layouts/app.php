@@ -19,29 +19,17 @@ $currentUser = $currentUser ?? null;
 if ($currentUser === null) {
     $currentUser = [
         'id' => $_SESSION['user_id'] ?? null,
-        'full_name' => 'Người dùng',
-        'name' => 'Người dùng',
+        'full_name' => $_SESSION['full_name'] ?? 'Người dùng',
+        'name' => $_SESSION['full_name'] ?? 'Người dùng',
+        'email' => $_SESSION['user_email'] ?? '',
         'role' => $_SESSION['user_role'] ?? 'user',
         'avatar' => null,
     ];
-
-    if (!empty($_SESSION['user_id']) && class_exists('\App\Models\Auth\User')) {
-        try {
-            $userModel = new \App\Models\Auth\User();
-            $user = $userModel->findById((int)$_SESSION['user_id']);
-
-            if (is_array($user) && !empty($user)) {
-                $currentUser = array_merge($currentUser, $user);
-                $currentUser['name'] = $user['full_name'] ?? ($user['name'] ?? 'Người dùng');
-            }
-        } catch (\Throwable $e) {
-            // Không phá layout nếu DB tạm lỗi. JS và fallback phía dưới vẫn xử lý được.
-        }
-    }
 }
 
 $clientConfig = [
     'baseUrl' => $baseUrl,
+    'assetUrl' => $assetUrl,
     'apiRoot' => $baseUrl . '/public',
 ];
 
@@ -73,21 +61,22 @@ $clientUser = [
     </div>
 
     <?php require __DIR__ . '/../components/toast.php'; ?>
+    <?php require __DIR__ . '/../components/modal.php'; ?>
 
     <script>
         window.CAH_CONFIG = <?php echo json_encode($clientConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.CAH_CURRENT_USER = <?php echo json_encode($clientUser, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     </script>
 
-    <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/app.js"></script>
-    <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/sidebar.js"></script>
-    <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/dropdown.js"></script>
-    <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/modal.js"></script>
-    <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/toast.js"></script>
-    <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/forms.js"></script>
+    <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/app.js?v=<?php echo time(); ?>"></script>
+    <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/sidebar.js?v=<?php echo time(); ?>"></script>
+    <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/dropdown.js?v=<?php echo time(); ?>"></script>
+    <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/modal.js?v=<?php echo time(); ?>"></script>
+    <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/toast.js?v=<?php echo time(); ?>"></script>
+    <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/forms.js?v=<?php echo time(); ?>"></script>
 
     <?php foreach ($pageJs as $js): ?>
-        <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/<?php echo htmlspecialchars($js, ENT_QUOTES, 'UTF-8'); ?>"></script>
+        <script src="<?php echo htmlspecialchars($assetUrl, ENT_QUOTES, 'UTF-8'); ?>/js/<?php echo htmlspecialchars($js, ENT_QUOTES, 'UTF-8'); ?>?v=<?php echo time(); ?>"></script>
     <?php endforeach; ?>
 </body>
 </html>

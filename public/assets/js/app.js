@@ -234,8 +234,25 @@
             }
         },
 
+        isRemovedPayrollKeyword(keyword) {
+            const value = String(keyword || "").toLowerCase();
+
+            return (
+                value.includes("lương") ||
+                value.includes("luong") ||
+                value.includes("salary") ||
+                value.includes("payroll") ||
+                value.includes("bảng lương") ||
+                value.includes("bang luong")
+            );
+        },
+
         resolveSearchTarget(keyword) {
             const value = String(keyword || "").toLowerCase();
+
+            if (App.isRemovedPayrollKeyword(value)) {
+                return null;
+            }
 
             if (
                 value.includes("nhân sự") ||
@@ -283,11 +300,13 @@
             }
 
             if (
-                value.includes("lương") ||
-                value.includes("luong") ||
-                value.includes("payroll")
+                value.includes("chấm công") ||
+                value.includes("cham cong") ||
+                value.includes("attendance") ||
+                value.includes("checkin") ||
+                value.includes("check-in")
             ) {
-                return App.buildViewUrl("payroll/payroll_summary.php");
+                return App.buildViewUrl("payroll/attendance.php");
             }
 
             return window.location.pathname;
@@ -315,7 +334,29 @@
                         return;
                     }
 
+                    if (App.isRemovedPayrollKeyword(keyword)) {
+                        if (window.CAHToast) {
+                            CAHToast.info(
+                                "Module đã được loại bỏ",
+                                "Phần tính lương đã được xoá khỏi dự án. Chấm công và nghỉ phép vẫn được giữ lại."
+                            );
+                        }
+
+                        input.value = "";
+                        input.focus();
+                        return;
+                    }
+
                     const target = App.resolveSearchTarget(keyword);
+
+                    if (!target) {
+                        if (window.CAHToast) {
+                            CAHToast.info("Không tìm thấy trang phù hợp", "Thử tìm theo nhân sự, dự án, task, chấm công hoặc nghỉ phép.");
+                        }
+
+                        return;
+                    }
+
                     const separator = target.includes("?") ? "&" : "?";
                     window.location.href = `${target}${separator}search=${encodeURIComponent(keyword)}`;
                 });
@@ -527,27 +568,31 @@
         userKey: "cah_auth_user",
 
         getToken() {
-            return localStorage.getItem(Auth.tokenKey) || "";
+            return localStorage.getItem(Auth.tokenKey) || localStorage.getItem("cah_token") || "";
         },
 
         setToken(token) {
             if (!token) return;
             localStorage.setItem(Auth.tokenKey, token);
+            localStorage.setItem("cah_token", token);
         },
 
         clearToken() {
             localStorage.removeItem(Auth.tokenKey);
             localStorage.removeItem(Auth.userKey);
+            localStorage.removeItem("cah_token");
+            localStorage.removeItem("cah_user");
         },
 
         setUser(user) {
             if (!user) return;
             localStorage.setItem(Auth.userKey, JSON.stringify(user));
+            localStorage.setItem("cah_user", JSON.stringify(user));
         },
 
         getUser() {
             try {
-                return JSON.parse(localStorage.getItem(Auth.userKey) || "null");
+                return JSON.parse(localStorage.getItem(Auth.userKey) || localStorage.getItem("cah_user") || "null");
             } catch (error) {
                 return null;
             }

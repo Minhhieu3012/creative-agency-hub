@@ -3,10 +3,10 @@
  * CREATIVE AGENCY HUB - API ROUTES
  *
  * Role baseline:
- * - Admin: quản trị hệ thống, tài khoản, cấu trúc tổ chức, customer/user.
- * - Manager: tạo project/task, giao việc, quản lý project, employee, tiến độ, chấm công/lương trong phạm vi vận hành.
- * - Employee: làm task, cập nhật trạng thái, chấm công, nghỉ phép, không tạo project/task.
- * - Client: portal riêng, chỉ xem dữ liệu được phép.
+ * - Admin: quản trị hệ thống web, tài khoản, customer, manager, employee, cấu trúc tổ chức.
+ * - Manager: quản lý project, task, employee trong phạm vi vận hành, chấm công/nghỉ phép.
+ * - Employee: làm task, cập nhật tiến độ, chấm công, gửi nghỉ phép.
+ * - Client: xem portal khách hàng.
  *
  * Format: [Method, Path, Handler, Roles]
  */
@@ -16,30 +16,27 @@ return [
      * AUTH
      */
     ['POST', '/api/auth/login-internal', 'Auth\\AuthController@loginInternal', null],
-    ['POST', '/api/auth/login-client', 'Auth\\AuthController@loginClient', null],
-    ['POST', '/api/auth/register-client', 'Auth\\AuthController@registerClient', null],
-    ['GET',  '/api/auth/me', 'Auth\\AuthController@me', ['admin', 'manager', 'employee', 'client']],
-    ['GET',  '/auth/logout', 'Auth\\LogoutController@index', null],
+    ['POST', '/api/auth/login-staff',    'Auth\\AuthController@loginStaff', null],
+    ['POST', '/api/auth/login-admin',    'Auth\\AuthController@loginAdmin', null],
+    ['POST', '/api/auth/login-client',   'Auth\\AuthController@loginClient', null],
+    ['POST', '/api/auth/register-client','Auth\\AuthController@registerClient', null],
+    ['GET',  '/api/auth/me',             'Auth\\AuthController@me', ['admin', 'manager', 'employee', 'client']],
+    ['GET',  '/auth/logout',             'Auth\\LogoutController@index', null],
 
     /**
      * DASHBOARD
      */
-    ['GET', '/api/dashboard/stats', 'DashboardController@getStats', ['admin', 'manager']],
+    ['GET', '/api/dashboard/stats', 'DashboardController@getStats', ['admin', 'manager', 'employee', 'client']],
 
     /**
-     * ORGANIZATION
-     * Admin quản trị cấu trúc hệ thống.
-     * Manager/Employee chỉ được đọc dữ liệu phục vụ form/filter.
+     * HRM - ORGANIZATION
      */
-    ['GET',  '/api/organization/data', 'OrganizationController@getOrgData', ['admin', 'manager', 'employee']],
-    ['POST', '/api/organization/store', 'OrganizationController@storeDepartment', ['admin']],
-    ['POST', '/api/organization/positions/store', 'OrganizationController@storePosition', ['admin']],
+    ['GET',  '/api/organization/data',            'OrganizationController@getOrgData',       ['admin', 'manager', 'employee']],
+    ['POST', '/api/organization/store',           'OrganizationController@storeDepartment',  ['admin']],
+    ['POST', '/api/organization/positions/store', 'OrganizationController@storePosition',    ['admin']],
 
     /**
-     * EMPLOYEES
-     * Admin quản lý tài khoản hệ thống.
-     * Manager xem/quản lý nhân sự phục vụ vận hành.
-     * Employee chỉ xem/sửa hồ sơ của chính mình, controller phải chặn theo ID.
+     * HRM - EMPLOYEES
      */
     ['GET',    '/api/employees',     'HRM\\EmployeeController@index',   ['admin', 'manager']],
     ['POST',   '/api/employees',     'HRM\\EmployeeController@store',   ['admin']],
@@ -47,23 +44,23 @@ return [
     ['PUT',    '/api/employees/:id', 'HRM\\EmployeeController@update',  ['admin', 'manager', 'employee']],
     ['DELETE', '/api/employees/:id', 'HRM\\EmployeeController@destroy', ['admin']],
 
-    ['POST', '/api/employees/:id/adjust-leave', 'HRM\\EmployeeController@adjustLeave', ['admin', 'manager']],
+    ['POST', '/api/employees/:id/adjust-leave', 'HRM\\EmployeeController@adjustLeave',  ['admin', 'manager']],
     ['POST', '/api/employees/:id/avatar',       'HRM\\EmployeeController@uploadAvatar', ['admin', 'manager', 'employee']],
 
     /**
      * EMPLOYEE DOCUMENTS
-     * Giữ route vì DB hiện tại có bảng employee_documents.
-     * UI có thể ẩn nút upload, nhưng API không bị xoá để không phá chức năng cũ.
+     * Giữ API vì DB hiện tại có bảng employee_documents.
+     * UI có thể ẩn nút upload, nhưng backend không xoá để tránh phá chức năng cũ.
      */
-    ['GET',    '/api/employees/:id/documents',             'HRM\\EmployeeController@documents',       ['admin', 'manager', 'employee']],
-    ['POST',   '/api/employees/:id/documents',             'HRM\\EmployeeController@uploadDocument',  ['admin', 'manager', 'employee']],
-    ['GET',    '/api/employee-documents/:id/download',     'HRM\\EmployeeController@downloadDocument', ['admin', 'manager', 'employee']],
-    ['DELETE', '/api/employee-documents/:id',              'HRM\\EmployeeController@deleteDocument',   ['admin', 'manager', 'employee']],
+    ['GET',    '/api/employees/:id/documents',         'HRM\\EmployeeController@documents',        ['admin', 'manager', 'employee']],
+    ['POST',   '/api/employees/:id/documents',         'HRM\\EmployeeController@uploadDocument',   ['admin', 'manager', 'employee']],
+    ['GET',    '/api/employee-documents/:id/download', 'HRM\\EmployeeController@downloadDocument', ['admin', 'manager', 'employee']],
+    ['DELETE', '/api/employee-documents/:id',          'HRM\\EmployeeController@deleteDocument',   ['admin', 'manager', 'employee']],
 
     /**
-     * PROJECTS
-     * Manager là người tạo/quản lý project.
-     * Admin chỉ xem tổng quan nếu cần, không tạo/sửa/xoá project trong workflow thường ngày.
+     * PROJECT
+     * Admin chỉ xem tổng quan.
+     * Manager mới được tạo/sửa/xoá project.
      */
     ['GET',    '/api/projects',     'ProjectController@index',  ['admin', 'manager']],
     ['GET',    '/api/projects/:id', 'ProjectController@show',   ['admin', 'manager']],
@@ -72,10 +69,10 @@ return [
     ['DELETE', '/api/projects/:id', 'ProjectController@delete', ['manager']],
 
     /**
-     * TASKS
+     * TASK
      * Manager tạo/sửa/xoá/giao task.
-     * Employee chỉ xem task được giao và cập nhật trạng thái.
-     * Admin không tạo task trong workflow thường ngày.
+     * Employee chỉ xem/cập nhật trạng thái task được giao.
+     * Admin không tạo task trong workflow vận hành.
      */
     ['GET',    '/api/tasks',            'Task\\TaskController@index',        ['admin', 'manager', 'employee', 'client']],
     ['POST',   '/api/tasks',            'Task\\TaskController@store',        ['manager']],
@@ -85,25 +82,26 @@ return [
 
     /**
      * TASK APPROVAL
-     * Employee gửi hoàn thành.
-     * Manager duyệt hoặc yêu cầu làm lại.
      */
-    ['POST', '/api/tasks/:id/submit',  'Task\\TaskApprovalController@submit', ['employee']],
-    ['POST', '/api/tasks/:id/approve', 'Task\\TaskApprovalController@approve', ['manager']],
-    ['POST', '/api/tasks/:id/reject',  'Task\\TaskApprovalController@reject', ['manager']],
+    ['POST', '/api/tasks/:id/submit',  'Task\\TaskApprovalController@submit',         ['employee']],
+    ['POST', '/api/tasks/:id/approve', 'Task\\TaskApprovalController@approve',        ['manager']],
+    ['POST', '/api/tasks/:id/reject',  'Task\\TaskApprovalController@reject',         ['manager']],
     ['GET',  '/api/tasks/submit',      'Task\\TaskApprovalController@getReviewTasks', ['manager']],
 
     /**
-     * ASSIGN & ATTACHMENTS
+     * TASK ASSIGNMENT
      */
     ['POST', '/api/tasks/:id/assign', 'Task\\TaskAssignController@assign', ['manager']],
 
-    ['POST', '/api/tasks/:id/attachments',       'Task\\TaskAttachmentController@upload',   ['manager', 'employee']],
-    ['GET',  '/api/tasks/:id/attachments',       'Task\\TaskAttachmentController@list',     ['manager', 'employee']],
-    ['GET',  '/api/attachments/:id/download',    'Task\\TaskAttachmentController@download', ['manager', 'employee']],
+    /**
+     * TASK ATTACHMENTS
+     */
+    ['POST', '/api/tasks/:id/attachments',    'Task\\TaskAttachmentController@upload',   ['manager', 'employee']],
+    ['GET',  '/api/tasks/:id/attachments',    'Task\\TaskAttachmentController@list',     ['manager', 'employee']],
+    ['GET',  '/api/attachments/:id/download', 'Task\\TaskAttachmentController@download', ['manager', 'employee']],
 
     /**
-     * ACTIVITY
+     * TASK ACTIVITY
      */
     ['GET', '/api/tasks/:id/activity', 'Task\\TaskActivityController@history', ['admin', 'manager', 'employee']],
 
@@ -126,10 +124,9 @@ return [
     ['DELETE', '/api/tasks/comments/:id', 'Task\\TaskCommentController@delete',    ['manager', 'employee']],
 
     /**
-     * PAYROLL, ATTENDANCE, LEAVE
-     * Employee chấm công/gửi nghỉ.
-     * Manager phê duyệt, xem tổng hợp lương.
-     * Admin có thể xem/quản trị dữ liệu hệ thống nếu cần.
+     * ATTENDANCE & LEAVE
+     * Giữ chấm công và nghỉ phép.
+     * Đã xoá API tính lương/export lương.
      */
     ['GET',   '/api/leaves',             'Payroll\\LeaveController@index',      ['admin', 'manager', 'employee']],
     ['GET',   '/api/admin/leaves',       'Payroll\\LeaveController@adminIndex', ['admin', 'manager']],
@@ -139,7 +136,4 @@ return [
     ['GET',  '/api/attendance',          'Payroll\\AttendanceController@index',    ['admin', 'manager', 'employee']],
     ['POST', '/api/attendance/checkin',  'Payroll\\AttendanceController@checkin',  ['manager', 'employee']],
     ['POST', '/api/attendance/checkout', 'Payroll\\AttendanceController@checkout', ['manager', 'employee']],
-
-    ['GET', '/api/payroll/summary', 'Payroll\\PayrollController@getSummary', ['admin', 'manager']],
-    ['GET', '/api/payroll/export',  'Payroll\\PayrollController@exportCsv',  ['admin', 'manager']],
 ];
