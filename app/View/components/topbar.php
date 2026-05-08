@@ -64,37 +64,18 @@ $userAvatarUrl = cah_topbar_avatar_url($userAvatar, $baseUrl);
             ☰
         </button>
 
-        <form class="topbar-search" action="#" method="GET" data-topbar-search>
-            <button class="search-icon" type="submit" aria-label="Tìm kiếm">
-                ⌕
-            </button>
-            <input type="search" name="q" placeholder="Tìm kiếm dự án, nhân sự, công việc...">
-        </form>
-
         <?php if (!empty($topbarTitle)): ?>
-            <div class="topbar-title"><?php echo htmlspecialchars($topbarTitle, ENT_QUOTES, 'UTF-8'); ?></div>
+        <div class="topbar-title"><?php echo htmlspecialchars($topbarTitle, ENT_QUOTES, 'UTF-8'); ?></div>
         <?php endif; ?>
     </div>
 
     <div class="topbar-actions">
-        <button class="icon-btn topbar-refresh-btn" type="button" aria-label="Tải lại trang" title="Tải lại trang" data-refresh-page>
-            ↻
-        </button>
-
         <?php if ($canUseNotifications): ?>
-            <div class="notification-menu" data-notification-menu style="position: relative;">
-                <button
-                    class="icon-btn notification-trigger"
-                    type="button"
-                    aria-label="Thông báo"
-                    title="Thông báo"
-                    data-notification-trigger
-                    style="position: relative;"
-                >
-                    🔔
-                    <span
-                        data-notification-count
-                        style="
+        <div class="notification-menu" data-notification-menu style="position: relative;">
+            <button class="icon-btn notification-trigger" type="button" aria-label="Thông báo" title="Thông báo"
+                data-notification-trigger style="position: relative;">
+                🔔
+                <span data-notification-count style="
                             display:none;
                             position:absolute;
                             top:-4px;
@@ -109,13 +90,10 @@ $userAvatarUrl = cah_topbar_avatar_url($userAvatar, $baseUrl);
                             line-height:18px;
                             font-weight:800;
                             text-align:center;
-                        "
-                    >0</span>
-                </button>
+                        ">0</span>
+            </button>
 
-                <div
-                    data-notification-dropdown
-                    style="
+            <div data-notification-dropdown style="
                         display:none;
                         position:absolute;
                         right:0;
@@ -128,32 +106,32 @@ $userAvatarUrl = cah_topbar_avatar_url($userAvatar, $baseUrl);
                         background:#fff;
                         box-shadow:0 24px 70px rgba(15,23,42,.18);
                         z-index:1000;
-                    "
-                >
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid #e5e7eb;">
-                        <div>
-                            <strong style="display:block;color:#0f172a;">Thông báo</strong>
-                            <small style="color:#64748b;">Cập nhật hệ thống và công việc</small>
-                        </div>
-
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <button class="btn btn-light btn-sm" type="button" data-notification-mark-all>
-                                Đã đọc
-                            </button>
-
-                            <button class="btn btn-light btn-sm" type="button" data-notification-refresh>
-                                Làm mới
-                            </button>
-                        </div>
+                    ">
+                <div
+                    style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid #e5e7eb;">
+                    <div>
+                        <strong style="display:block;color:#0f172a;">Thông báo</strong>
+                        <small style="color:#64748b;">Cập nhật hệ thống và công việc</small>
                     </div>
 
-                    <div data-notification-list style="max-height:350px;overflow:auto;">
-                        <div style="padding:18px;color:#64748b;text-align:center;">
-                            Đang tải thông báo...
-                        </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <button class="btn btn-light btn-sm" type="button" data-notification-mark-all>
+                            Đã đọc
+                        </button>
+
+                        <button class="btn btn-light btn-sm" type="button" data-notification-refresh>
+                            Làm mới
+                        </button>
+                    </div>
+                </div>
+
+                <div data-notification-list style="max-height:350px;overflow:auto;">
+                    <div style="padding:18px;color:#64748b;text-align:center;">
+                        Đang tải thông báo...
                     </div>
                 </div>
             </div>
+        </div>
         <?php endif; ?>
 
         <div class="topbar-divider"></div>
@@ -166,21 +144,22 @@ $userAvatarUrl = cah_topbar_avatar_url($userAvatar, $baseUrl);
                 </span>
 
                 <?php if (!empty($userAvatarUrl)): ?>
-                    <img
-                        src="<?php echo htmlspecialchars($userAvatarUrl, ENT_QUOTES, 'UTF-8'); ?>"
-                        alt="<?php echo htmlspecialchars($userName, ENT_QUOTES, 'UTF-8'); ?>"
-                        class="user-avatar"
-                        data-user-avatar
-                    >
+                <img src="<?php echo htmlspecialchars($userAvatarUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                    alt="<?php echo htmlspecialchars($userName, ENT_QUOTES, 'UTF-8'); ?>" class="user-avatar"
+                    data-user-avatar>
                 <?php else: ?>
-                    <span class="user-avatar" data-user-avatar><?php echo htmlspecialchars($userInitial, ENT_QUOTES, 'UTF-8'); ?></span>
+                <span class="user-avatar"
+                    data-user-avatar><?php echo htmlspecialchars($userInitial, ENT_QUOTES, 'UTF-8'); ?></span>
                 <?php endif; ?>
             </button>
 
             <div class="dropdown-menu user-dropdown" data-dropdown-menu>
-                <a href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/hrm/profile.php">Hồ sơ cá nhân</a>
-                <a href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/payroll/attendance.php">Chấm công hôm nay</a>
-                <a href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/client-portal/projects.php">Client Portal</a>
+                <a href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/hrm/profile.php">Hồ sơ cá
+                    nhân</a>
+                <a href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/payroll/attendance.php">Chấm
+                    công hôm nay</a>
+                <a href="<?php echo htmlspecialchars($viewUrl, ENT_QUOTES, 'UTF-8'); ?>/client-portal/projects.php">Client
+                    Portal</a>
                 <a href="#" class="text-danger" data-logout>Đăng xuất</a>
             </div>
         </div>
@@ -189,7 +168,7 @@ $userAvatarUrl = cah_topbar_avatar_url($userAvatar, $baseUrl);
 
 <?php if ($canUseNotifications): ?>
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', function() {
     const menu = document.querySelector('[data-notification-menu]');
     const trigger = document.querySelector('[data-notification-trigger]');
     const dropdown = document.querySelector('[data-notification-dropdown]');
@@ -202,7 +181,8 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
-    const apiRoot = window.CAH_CONFIG?.apiRoot || '<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/public';
+    const apiRoot = window.CAH_CONFIG?.apiRoot ||
+        '<?php echo htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8'); ?>/public';
 
     function getToken() {
         return localStorage.getItem('cah_auth_token') || localStorage.getItem('cah_token') || '';
@@ -284,7 +264,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        list.innerHTML = items.map(function (item) {
+        list.innerHTML = items.map(function(item) {
             const isUnread = Number(item.is_read || 0) === 0;
 
             return `
@@ -387,7 +367,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    trigger.addEventListener('click', function (event) {
+    trigger.addEventListener('click', function(event) {
         event.preventDefault();
 
         const isOpen = dropdown.style.display === 'block';
@@ -398,17 +378,17 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    refreshButton?.addEventListener('click', function (event) {
+    refreshButton?.addEventListener('click', function(event) {
         event.preventDefault();
         loadNotifications();
     });
 
-    markAllButton?.addEventListener('click', function (event) {
+    markAllButton?.addEventListener('click', function(event) {
         event.preventDefault();
         markAllAsRead();
     });
 
-    list.addEventListener('click', function (event) {
+    list.addEventListener('click', function(event) {
         const item = event.target.closest('[data-notification-item]');
 
         if (!item) {
@@ -418,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function () {
         markAsRead(item.getAttribute('data-notification-item'));
     });
 
-    document.addEventListener('click', function (event) {
+    document.addEventListener('click', function(event) {
         if (!menu.contains(event.target)) {
             dropdown.style.display = 'none';
         }
