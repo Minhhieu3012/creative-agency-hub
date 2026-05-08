@@ -38,9 +38,9 @@ $publicUrl  = $baseUrl    . '/public';
         <div class="sidebar-section">
             <div class="sidebar-section-title">KHÔNG GIAN KHÁC</div>
             <nav class="sidebar-nav sidebar-nav-compact">
-                <a href="<?php echo htmlspecialchars($viewUrl); ?>/client-portal/projects.php" class="sidebar-link">
+                <!-- <a href="<?php echo htmlspecialchars($viewUrl); ?>/client-portal/projects.php" class="sidebar-link">
                     <span class="sidebar-icon">◇</span><span>Client Portal</span>
-                </a>
+                </a> -->
                 <a href="#help" class="sidebar-link">
                     <span class="sidebar-icon">?</span><span>Trợ giúp</span>
                 </a>
@@ -71,15 +71,14 @@ const SidebarController = {
 
     // Danh sách 12 Menu đầy đủ
     allMenus: [
-        { key: 'manager_workspace', label: 'Trung tâm quản lý', href: '/dashboard/manager_workspace.php', icon: '▦', roles: ['admin', 'manager'] },
         { key: 'dashboard', label: 'Bảng điều khiển', href: '/dashboard/index.php', icon: '▤', roles: ['admin', 'manager'] },
         { key: 'departments', label: 'Tổ chức', href: '/hrm/departments.php', icon: '▤', roles: ['admin', 'manager'] },
         { key: 'employees', label: 'Nhân sự', href: '/hrm/employees.php', icon: '◉', roles: ['admin', 'manager'] },
-        { key: 'profile', label: 'Hồ sơ cá nhân', href: '/hrm/profile.php', icon: '◌', roles: ['admin', 'manager', 'employee'] },
+        // { key: 'profile', label: 'Hồ sơ cá nhân', href: '/hrm/profile.php', icon: '◌', roles: ['admin', 'manager', 'employee'] },
         { key: 'projects', label: 'Dự án', href: '/tasks/projects.php', icon: '▣', roles: ['admin', 'manager'] },
-        { key: 'kanban', label: 'Bảng Kanban', href: '/tasks/kanban.php', icon: '☑', roles: ['admin', 'manager', 'employee'] },
+        { key: 'kanban', label: 'Bảng Công việc', href: '/tasks/kanban.php', icon: '☑', roles: ['admin', 'manager', 'employee'] },
         { key: 'gantt', label: 'Gantt Chart', href: '/tasks/gantt.php', icon: '▥', roles: ['admin', 'manager'] },
-        { key: 'attendance', label: 'Chấm công', href: '/payroll/attendance.php', icon: '◴', roles: ['admin', 'manager', 'employee'] },
+        // { key: 'attendance', label: 'Chấm công', href: '/payroll/attendance.php', icon: '◴', roles: ['admin', 'manager', 'employee'] },
         { key: 'leave_request', label: 'Nghỉ phép', href: '/payroll/leave_request.php', icon: '✦', roles: ['admin', 'manager', 'employee'] },
         { key: 'approvals', label: 'Phê duyệt', href: '/payroll/manager_approvals.php', icon: '☷', roles: ['admin', 'manager'] },
         { key: 'payroll_summary', label: 'Bảng lương', href: '/payroll/payroll_summary.php', icon: '▧', roles: ['admin', 'manager'] }

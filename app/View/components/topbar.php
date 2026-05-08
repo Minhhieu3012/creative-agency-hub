@@ -45,10 +45,10 @@ $userInitial = strtoupper(mb_substr($currentUser['name'] ?? 'U', 0, 1, 'UTF-8'))
 
         <div class="user-menu" data-dropdown>
             <button class="user-menu-trigger" type="button" data-dropdown-trigger aria-label="Menu người dùng">
-                <span class="user-meta">
+                <!-- <span class="user-meta">
                     <strong data-user-name>Loading...</strong>
                     <small data-user-role></small>
-                </span>
+                </span> -->
 
                 <?php if (!empty($currentUser['avatar'])): ?>
                     <img
@@ -64,8 +64,8 @@ $userInitial = strtoupper(mb_substr($currentUser['name'] ?? 'U', 0, 1, 'UTF-8'))
             <div class="dropdown-menu user-dropdown" data-dropdown-menu>
                 <a href="<?php echo htmlspecialchars($viewUrl); ?>/hrm/profile.php">Hồ sơ cá nhân</a>
                 <a href="<?php echo htmlspecialchars($viewUrl); ?>/payroll/attendance.php">Chấm công hôm nay</a>
-                <a href="<?php echo htmlspecialchars($viewUrl); ?>/client-portal/projects.php">Client Portal</a>
-                 <a href="#" class="text-danger" data-logout>Đăng xuất</a>
+                <!-- <a href="<?php echo htmlspecialchars($viewUrl); ?>/client-portal/projects.php">Client Portal</a> -->
+                 <!-- <a href="#" class="text-danger" data-logout>Đăng xuất</a> -->
             </div>
         </div>
     </div>

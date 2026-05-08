@@ -3,7 +3,8 @@ $pageTitle = 'Bảng điều khiển | Creative Agency Hub';
 $pageCss = ['dashboard.css'];
 $pageJs = ['dashboard.js'];
 $activeMenu = 'dashboard';
-$topbarTitle = 'Manager Dashboard';
+// $topbarTitle = 'Manager Dashboard';
+$topbarTitle = 'Dashboard';
 $brandName = 'Creative Agency Hub';
 
 $stats = [
@@ -56,7 +57,7 @@ ob_start();
 ?>
 
 <?php
-$pageHeading = 'Chào buổi sáng, Quản lý!';
+$pageHeading = 'Chào buổi sáng!';
 $pageSubtitle = 'Dưới đây là tổng quan tình hình công việc trong ngày hôm nay của Creative Agency Hub.';
 require __DIR__ . '/../components/page-header.php';
 ?>
