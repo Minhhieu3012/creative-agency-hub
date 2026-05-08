@@ -1,22 +1,13 @@
 <?php
-<<<<<<< HEAD
-=======
 /**
  * SIDEBAR COMPONENT
- *
- * Nguyên tắc hiện tại:
- * - Giữ UI cũ.
- * - Render menu theo role bằng JS để tránh nhảy role.
- * - Admin: quản trị hệ thống, duyệt tài khoản, khóa/mở khóa.
- * - Manager: vận hành project/task/employee.
- * - Employee: làm task, chấm công, nghỉ phép.
  */
 
->>>>>>> 437072dc090e07a878a690b52ef685901f0d99cb
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+$userRoleSession = isset($_SESSION['user_role']) ? strtolower((string)$_SESSION['user_role']) : null;
 $activeMenu = $activeMenu ?? 'dashboard';
 $brandName  = $brandName  ?? 'Creative Agency Hub';
 $baseUrl    = $baseUrl    ?? '/creative-agency-hub';
@@ -54,8 +45,6 @@ if ($userRoleSession === 'client') {
                 Đang đồng bộ quyền hạn...
             </div>
         </nav>
-<<<<<<< HEAD
-=======
 
         <div class="sidebar-section" id="otherSpaceSection" style="display: none;">
             <div class="sidebar-section-title">KHÔNG GIAN KHÁC</div>
@@ -72,7 +61,6 @@ if ($userRoleSession === 'client') {
                 </a>
             </nav>
         </div>
->>>>>>> 437072dc090e07a878a690b52ef685901f0d99cb
     </div>
 
     <div class="sidebar-footer">
@@ -124,6 +112,13 @@ const SidebarController = {
             roles: ['admin']
         },
         {
+            key: 'admin-projects',
+            label: 'Danh sách project',
+            href: '/admin/projects/index.php',
+            icon: '▣',
+            roles: ['admin']
+        },
+        {
             key: 'admin-account-security',
             label: 'Khóa / mở khóa',
             href: '/admin/accounts/security.php',
@@ -157,25 +152,7 @@ const SidebarController = {
             label: 'Bảng Kanban',
             href: '/tasks/kanban.php',
             icon: '☑',
-<<<<<<< HEAD
-            roles: ['admin', 'manager', 'employee']
-        },
-        {
-            key: 'gantt',
-            label: 'Gantt Chart',
-            href: '/tasks/gantt.php',
-            icon: '▥',
-            roles: ['admin', 'manager', 'employee'] 
-        },
-        {
-            key: 'activity',
-            label: 'Nhật ký task',
-            href: '/tasks/activity.php',
-            icon: '☷',
-            roles: ['admin', 'manager', 'employee'] 
-=======
             roles: ['manager', 'employee']
->>>>>>> 437072dc090e07a878a690b52ef685901f0d99cb
         },
         {
             key: 'attendance',
@@ -225,6 +202,7 @@ const SidebarController = {
 
     getLocalUser() {
         const rawUser = localStorage.getItem('cah_user') || localStorage.getItem('cah_auth_user') || '{}';
+
         try {
             return JSON.parse(rawUser) || {};
         } catch (error) {
@@ -251,7 +229,9 @@ const SidebarController = {
         const brandLink = document.getElementById('sidebarBrandLink');
         const otherSpaceSection = document.getElementById('otherSpaceSection');
 
-        if (!navContainer || !actionBtnContainer || !sidebar) return;
+        if (!navContainer || !actionBtnContainer || !sidebar) {
+            return;
+        }
 
         if (brandLink) {
             brandLink.href = this.getHomeHref(role);
@@ -260,7 +240,9 @@ const SidebarController = {
         let menuHtml = '';
 
         this.allMenus.forEach((item) => {
-            if (!item.roles.includes(role)) return;
+            if (!item.roles.includes(role)) {
+                return;
+            }
 
             const isActive = this.config.activeMenu === item.key ? 'is-active' : '';
 
@@ -272,10 +254,19 @@ const SidebarController = {
             `;
         });
 
-        navContainer.innerHTML = menuHtml || `<div style="padding: 20px; color: #999; text-align: center;">Chưa có menu.</div>`;
+        navContainer.innerHTML = menuHtml || `
+            <div style="padding: 20px; color: #999; text-align: center;">
+                Chưa có menu.
+            </div>
+        `;
 
         if (role === 'manager') {
-            actionBtnContainer.innerHTML = `<a href="${this.config.viewUrl}/tasks/projects.php" class="btn btn-primary btn-block"><span>＋</span><span>Tạo mới</span></a>`;
+            actionBtnContainer.innerHTML = `
+                <a href="${this.config.viewUrl}/tasks/projects.php" class="btn btn-primary btn-block">
+                    <span>＋</span>
+                    <span>Tạo mới</span>
+                </a>
+            `;
         } else {
             actionBtnContainer.innerHTML = '';
         }
@@ -291,23 +282,35 @@ const SidebarController = {
 
     recoverSession(token) {
         fetch(`${this.config.publicUrl}/api/auth/me`, {
-            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            }
         })
         .then((res) => res.json())
         .then((res) => {
             if (res.status === 'success') {
                 const user = res.data && res.data.user ? res.data.user : res.data;
+
                 localStorage.setItem('cah_user', JSON.stringify(user));
                 localStorage.setItem('cah_auth_user', JSON.stringify(user));
+
                 window.location.reload();
-            } else this.forceLogout();
+            } else {
+                this.forceLogout();
+            }
         })
-        .catch(() => this.forceLogout());
+        .catch(() => {
+            this.forceLogout();
+        });
     },
 
     syncWithServer(token) {
         fetch(`${this.config.publicUrl}/api/auth/me`, {
-            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            }
         }).catch(() => {});
     },
 
@@ -325,6 +328,7 @@ function handleLogout() {
     localStorage.removeItem('cah_auth_user');
 
     document.cookie = "cah_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
     window.location.href = "<?php echo htmlspecialchars($publicUrl, ENT_QUOTES, 'UTF-8'); ?>/auth/logout";
 }
 </script>
