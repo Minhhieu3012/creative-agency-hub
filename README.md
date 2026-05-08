@@ -100,17 +100,24 @@ Create a new MySQL database and import the core schema:
 - Start your local web server (XAMPP).
 - Ensure the document root points to the public/ directory (or the folder containing index.php).
 - Access the web via:
-  - Employee:
 
-    http://localhost/creative-agency-hub/app/View/auth/login.php
+- Employee:
 
-  - Manager:
+```bash
+http://localhost/creative-agency-hub/app/View/auth/login.php
+```
 
-    http://localhost/creative-agency-hub/app/View/site/index.php
+- Manager:
 
-  - Client:
+```bash
+http://localhost/creative-agency-hub/app/View/site/index.php
+```
 
-    http://localhost/creative-agency-hub/app/View/client-portal/login-client.php
+- Client:
+
+```bash
+http://localhost/creative-agency-hub/app/View/client-portal/login-client.php
+```
 
 ---
 
