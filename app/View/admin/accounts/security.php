@@ -33,12 +33,8 @@ require __DIR__ . '/../../components/page-header.php';
             <div class="task-filter-bar" style="margin-bottom: 18px;">
                 <div class="input-with-icon">
                     <span class="input-icon">⌕</span>
-                    <input
-                        class="form-control"
-                        type="search"
-                        placeholder="Tìm tên, email, mã..."
-                        data-admin-security-search
-                    >
+                    <input class="form-control" type="search" placeholder="Tìm tên, email, mã..."
+                        data-admin-security-search>
                 </div>
 
                 <select class="form-select" data-admin-security-status>
@@ -47,10 +43,6 @@ require __DIR__ . '/../../components/page-header.php';
                     <option value="suspended">Suspended</option>
                     <option value="inactive">Chờ duyệt</option>
                 </select>
-
-                <button class="btn btn-soft" type="button" data-admin-security-filter>
-                    Lọc
-                </button>
             </div>
 
             <div class="table-responsive">

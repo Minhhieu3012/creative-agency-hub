@@ -1,543 +1,880 @@
+/* =============================================
+   CREATIVE AGENCY HUB — RESPONSIVE.CSS
+   Breakpoints:
+   1280px | 1180px | 920px | 760px | 560px | 390px
+   ============================================= */
+
+/* =========================
+   1280px — Large desktop → tablet landscape
+   ========================= */
 @media (max-width: 1280px) {
-    .stat-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
-    .project-grid,
-    .client-project-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+  .project-grid,
+  .client-project-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
-    .dashboard-grid,
-    .payroll-grid,
-    .client-detail-layout,
-    .org-grid {
-        grid-template-columns: 1fr;
-    }
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
 
-    .dashboard-side-column {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+  .dashboard-side-column {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .payroll-grid,
+  .client-detail-layout,
+  .org-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
+/* =========================
+   1180px — Tablet landscape
+   ========================= */
 @media (max-width: 1180px) {
-    :root {
-        --sidebar-width: 250px;
-    }
+  :root {
+    --sidebar-width: 250px;
+  }
 
-    .page-header {
-        display: grid;
-        gap: 18px;
-    }
+  /* Page header: stack vertically */
+  .page-header {
+    display: grid;
+    gap: 18px;
+  }
 
-    .page-header-action {
-        justify-content: flex-start;
-    }
+  .page-header-action {
+    justify-content: flex-start;
+  }
 
-    .hrm-profile-hero,
-    .hrm-two-column,
-    .attendance-hero,
-    .client-hero {
-        grid-template-columns: 1fr;
-    }
+  /* Profile / attendance layouts */
+  .hrm-profile-hero,
+  .hrm-two-column,
+  .attendance-hero,
+  .client-hero {
+    grid-template-columns: 1fr;
+  }
 
-    .profile-actions {
-        min-width: 0;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+  .profile-actions {
+    min-width: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
-    .kanban-board {
-        grid-template-columns: repeat(4, minmax(290px, 1fr));
-        overflow-x: auto;
-        scroll-snap-type: x proximity;
-    }
+  /* Kanban: scroll horizontally, keep 4 columns */
+  .kanban-board {
+    grid-template-columns: repeat(4, minmax(290px, 1fr));
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    padding-bottom: 12px;
+  }
 
-    .kanban-column {
-        scroll-snap-align: start;
-    }
+  .kanban-column {
+    scroll-snap-align: start;
+  }
+
+  /* Project grid 2 col */
+  .project-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Dashboard side */
+  .dashboard-side-column {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
+/* =========================
+   920px — Mobile / tablet portrait
+   ========================= */
 @media (max-width: 920px) {
-    .desktop-only {
-        display: none !important;
-    }
+  /* Utility */
+  .desktop-only {
+    display: none !important;
+  }
+  .mobile-only {
+    display: initial;
+  }
 
-    .mobile-only {
-        display: initial;
-    }
+  /* Shell: sidebar becomes overlay */
+  .app-shell,
+  .app-shell.is-sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
 
-    .app-shell {
-        grid-template-columns: 1fr;
-    }
+  .app-sidebar,
+  .app-shell.is-sidebar-collapsed .app-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: min(320px, 86vw);
+    min-width: 0;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(-105%);
+    transition: transform 0.22s ease;
+    box-shadow: var(--shadow-md);
+    border-right: 1px solid var(--line);
+  }
 
-    .app-sidebar {
-        position: fixed;
-        left: 0;
-        top: 0;
-        width: min(320px, 86vw);
-        transform: translateX(-105%);
-        transition: transform 0.22s ease;
-        box-shadow: var(--shadow-md);
-    }
+  .app-sidebar.is-open {
+    transform: translateX(0);
+  }
 
-    .app-sidebar.is-open {
-        transform: translateX(0);
-    }
+  .sidebar-close,
+  .topbar-menu-btn {
+    display: inline-flex;
+  }
 
-    .sidebar-close,
-    .topbar-menu-btn {
-        display: inline-flex;
-    }
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.42);
+    backdrop-filter: blur(4px);
+    z-index: 55;
+  }
 
-    .sidebar-backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 23, 42, 0.42);
-        backdrop-filter: blur(4px);
-        z-index: 55;
-    }
+  .sidebar-backdrop.is-open {
+    display: block;
+  }
 
-    .sidebar-backdrop.is-open {
-        display: block;
-    }
+  /* Topbar */
+  .app-topbar {
+    padding: 0 18px;
+    gap: 12px;
+  }
 
-    .app-topbar {
-        padding: 0 18px;
-    }
+  .topbar-search {
+    width: min(360px, 40vw);
+  }
 
-    .topbar-search {
-        width: min(420px, 44vw);
-    }
+  .user-meta {
+    display: none;
+  }
 
-    .user-meta {
-        display: none;
-    }
+  /* Content */
+  .app-content {
+    padding: 24px 18px;
+  }
 
-    .app-content {
-        padding: 24px 18px;
-    }
+  /* Cards */
+  .card-header,
+  .card-body {
+    padding: 22px;
+  }
 
-    .card-header,
-    .card-body {
-        padding: 22px;
-    }
+  /* Modal */
+  .modal-root {
+    padding: 14px;
+  }
 
-    .modal-root {
-        padding: 14px;
-    }
+  .modal-panel {
+    width: min(560px, 100%);
+  }
 
-    .modal-header {
-        padding: 24px 22px 16px;
-    }
+  .modal-header {
+    padding: 24px 22px 16px;
+  }
 
-    .modal-body {
-        padding: 22px;
-    }
+  .modal-body {
+    padding: 22px;
+  }
 
-    .client-shell {
-        grid-template-rows: auto minmax(0, 1fr);
-    }
+  /* Dashboard side: 2 col stacked */
+  .dashboard-side-column {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
-    .client-topbar {
-        position: relative;
-        display: grid;
-        grid-template-columns: 1fr;
-        justify-items: start;
-        gap: 16px;
-        padding: 22px;
-    }
+  /* Stat grid: 2x2 */
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
-    .client-nav {
-        width: 100%;
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        border-radius: 18px;
-    }
+  /* Client portal */
+  .client-shell {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
 
-    .client-nav-link {
-        justify-content: center;
-        padding: 0 10px;
-    }
+  .client-topbar {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: start;
+    gap: 16px;
+    padding: 22px;
+  }
 
-    .client-user {
-        width: 100%;
-        justify-content: space-between;
-    }
+  .client-nav {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-radius: 18px;
+  }
 
-    .client-content {
-        width: min(100% - 28px, 1240px);
-        padding: 24px 0 42px;
-    }
+  .client-nav-link {
+    justify-content: center;
+    padding: 0 10px;
+  }
 
-    .client-hero {
-        padding: 28px 22px;
-        border-radius: 22px;
-    }
+  .client-user {
+    width: 100%;
+    justify-content: space-between;
+  }
 
-    .client-hero h1 {
-        font-size: 38px;
-    }
+  .client-content {
+    width: min(100% - 28px, 1240px);
+    padding: 24px 0 42px;
+  }
+
+  .client-hero {
+    padding: 28px 22px;
+    border-radius: 22px;
+    grid-template-columns: 1fr;
+  }
+
+  .client-hero h1 {
+    font-size: 38px;
+  }
 }
 
+/* =========================
+   760px — Mobile landscape / small tablet
+   ========================= */
 @media (max-width: 760px) {
-    .stat-grid,
-    .project-grid,
-    .client-project-grid,
-    .dashboard-side-column,
-    .payroll-two-column,
-    .info-grid,
-    .document-grid {
-        grid-template-columns: 1fr;
-    }
+  /* All single-column grids */
+  .stat-grid,
+  .project-grid,
+  .client-project-grid,
+  .dashboard-side-column,
+  .dashboard-grid,
+  .payroll-two-column,
+  .info-grid,
+  .document-grid {
+    grid-template-columns: 1fr;
+  }
 
-    .form-row {
-        grid-template-columns: 1fr;
-    }
+  /* Forms */
+  .form-row {
+    grid-template-columns: 1fr;
+  }
 
-    .topbar-search {
-        display: none;
-    }
+  /* Topbar */
+  .topbar-search {
+    display: none;
+  }
 
-    .topbar-actions {
-        margin-left: auto;
-    }
+  .topbar-title {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-    .topbar-title {
-        max-width: 160px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
+  .topbar-actions {
+    margin-left: auto;
+    gap: 8px;
+  }
 
-    .page-header h1 {
-        font-size: 32px;
-    }
+  .topbar-divider {
+    display: none;
+  }
 
-    .page-header p {
-        font-size: 15px;
-    }
+  /* Page header */
+  .page-header {
+    display: grid;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
 
-    .page-header-action,
-    .task-top-actions,
-    .task-filter-bar,
-    .payroll-filter,
-    .toolbar,
-    .toolbar-filter-group,
-    .client-filter-row,
-    .approval-actions,
-    .attendance-actions {
-        width: 100%;
-        display: grid;
-        grid-template-columns: 1fr;
-        align-items: stretch;
-    }
+  .page-header h1 {
+    font-size: clamp(26px, 7vw, 32px);
+  }
 
-    .page-header-action .btn,
-    .task-top-actions .btn,
-    .task-filter-bar .btn,
-    .task-filter-bar .form-select,
-    .task-filter-bar .form-control,
-    .payroll-filter .btn,
-    .payroll-filter .form-select,
-    .payroll-filter .form-control,
-    .toolbar .btn,
-    .toolbar-filter-group .form-select,
-    .toolbar-search,
-    .client-filter-row .btn,
-    .client-filter-row .form-select,
-    .client-filter-row .form-control,
-    .approval-actions .btn,
-    .attendance-actions .btn {
-        width: 100%;
-    }
+  .page-header p {
+    font-size: 15px;
+  }
 
-    .kanban-view-switch,
-    .approval-tabs {
-        width: 100%;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-    }
+  /* Action bars: full-width stacked */
+  .page-header-action,
+  .task-top-actions,
+  .task-filter-bar,
+  .payroll-filter,
+  .toolbar,
+  .toolbar-filter-group,
+  .client-filter-row,
+  .approval-actions,
+  .attendance-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 10px;
+  }
 
-    .approval-tabs {
-        grid-template-columns: 1fr;
-    }
+  .page-header-action .btn,
+  .task-top-actions .btn,
+  .task-filter-bar .btn,
+  .task-filter-bar .form-select,
+  .task-filter-bar .form-control,
+  .payroll-filter .btn,
+  .payroll-filter .form-select,
+  .payroll-filter .form-control,
+  .toolbar .btn,
+  .toolbar-filter-group .form-select,
+  .toolbar-search,
+  .client-filter-row .btn,
+  .client-filter-row .form-select,
+  .client-filter-row .form-control,
+  .approval-actions .btn,
+  .attendance-actions .btn {
+    width: 100%;
+    min-width: 0;
+  }
 
-    .kanban-view-switch a,
-    .kanban-view-switch button,
-    .approval-tab {
-        justify-content: center;
-        width: 100%;
-    }
+  /* View switch & tabs */
+  .kanban-view-switch {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
 
-    .kanban-board {
-        grid-template-columns: repeat(4, minmax(280px, 280px));
-        gap: 16px;
-        margin-left: -4px;
-        margin-right: -4px;
-        padding: 0 4px 10px;
-    }
+  .kanban-view-switch a,
+  .kanban-view-switch button {
+    justify-content: center;
+    width: 100%;
+  }
 
-    .kanban-column {
-        min-height: 560px;
-    }
+  .approval-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
 
-    .task-card {
-        padding: 16px;
-    }
+  .approval-tab {
+    justify-content: center;
+    width: 100%;
+  }
 
-    .gantt-table,
-    .data-table,
-    .payroll-summary-table {
-        min-width: 860px;
-    }
+  /* Kanban board: horizontal scroll, fixed card width */
+  .kanban-board {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(270px, 270px));
+    gap: 14px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 12px;
+    margin-left: -4px;
+    margin-right: -4px;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
 
-    .table-responsive,
-    .gantt-table-wrap {
-        border-radius: 18px;
-    }
+  .kanban-column {
+    scroll-snap-align: start;
+    min-height: 520px;
+  }
 
-    .profile-actions {
-        grid-template-columns: 1fr;
-    }
+  /* Task card */
+  .task-card {
+    padding: 14px;
+    gap: 12px;
+  }
 
-    .hrm-profile-hero {
-        padding: 26px 22px;
-    }
+  .task-card-title {
+    font-size: 15px;
+  }
 
-    .profile-avatar-large {
-        width: 112px;
-        height: 112px;
-        border-radius: 22px;
-    }
+  /* Tables */
+  .gantt-table,
+  .data-table,
+  .payroll-summary-table {
+    min-width: 860px;
+  }
 
-    .profile-main-info h1 {
-        font-size: 32px;
-    }
+  .table-responsive,
+  .gantt-table-wrap {
+    border-radius: 18px;
+    -webkit-overflow-scrolling: touch;
+  }
 
-    .attendance-hero {
-        padding: 26px 20px;
-        min-height: auto;
-    }
+  /* HRM Profile */
+  .profile-actions {
+    grid-template-columns: 1fr;
+  }
 
-    .attendance-copy h1 {
-        font-size: 38px;
-    }
+  .hrm-profile-hero {
+    padding: 26px 22px;
+  }
 
-    .attendance-clock-card {
-        padding: 22px;
-    }
+  .profile-avatar-large {
+    width: 112px;
+    height: 112px;
+    border-radius: 22px;
+  }
 
-    .attendance-clock strong {
-        font-size: 48px;
-    }
+  .profile-main-info h1 {
+    font-size: 28px;
+  }
 
-    .approval-card {
-        grid-template-columns: 1fr;
-    }
+  /* Attendance */
+  .attendance-hero {
+    padding: 26px 20px;
+    min-height: auto;
+  }
 
-    .client-progress-big {
-        grid-template-columns: 1fr;
-        justify-items: center;
-        text-align: center;
-    }
+  .attendance-copy h1 {
+    font-size: 34px;
+  }
 
-    .client-task-item {
-        grid-template-columns: 1fr;
-    }
+  .attendance-clock-card {
+    padding: 22px;
+  }
 
-    .client-section-header {
-        display: grid;
-    }
+  .attendance-clock strong {
+    font-size: 44px;
+  }
 
-    .client-project-footer {
-        display: grid;
-    }
+  /* Approval */
+  .approval-card {
+    grid-template-columns: 1fr;
+  }
 
-    .client-project-footer .btn {
-        width: 100%;
-    }
+  /* Client portal */
+  .client-progress-big {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
 
-    .auth-social-grid {
-        grid-template-columns: 1fr;
-    }
+  .client-task-item {
+    grid-template-columns: 1fr;
+  }
 
-    .toast-stack {
-        right: 14px;
-        bottom: 14px;
-    }
+  .client-section-header,
+  .client-project-footer {
+    display: grid;
+  }
+
+  .client-project-footer .btn {
+    width: 100%;
+  }
+
+  /* Auth */
+  .auth-social-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Toast */
+  .toast-stack {
+    right: 14px;
+    bottom: 14px;
+    left: 14px;
+  }
+
+  .toast {
+    width: 100%;
+  }
+
+  /* Dashboard resource chart */
+  .resource-chart {
+    gap: 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .resource-bar {
+    min-width: 90px;
+  }
+
+  .project-progress-head {
+    display: grid;
+    gap: 10px;
+  }
+
+  /* Modal full-width on mobile */
+  .modal-panel {
+    width: 100%;
+    border-radius: 20px;
+    max-height: 88vh;
+  }
+
+  .modal-root {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-panel {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
 }
 
+/* =========================
+   560px — Small mobile portrait
+   ========================= */
 @media (max-width: 560px) {
-    .app-content {
-        padding: 18px 14px;
-    }
+  /* Spacing */
+  .app-content {
+    padding: 16px 12px;
+  }
 
-    .app-topbar {
-        gap: 10px;
-        padding: 0 12px;
-    }
+  .app-topbar {
+    gap: 8px;
+    padding: 0 12px;
+  }
 
-    .topbar-title {
-        max-width: 120px;
-        font-size: 13px;
-    }
+  /* Topbar elements */
+  .topbar-title {
+    max-width: 110px;
+    font-size: 13px;
+  }
 
-    .topbar-actions {
-        gap: 6px;
-    }
+  .topbar-actions {
+    gap: 4px;
+  }
 
-    .icon-btn {
-        width: 38px;
-        height: 38px;
-    }
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
 
-    .user-avatar {
-        width: 38px;
-        height: 38px;
-    }
+  .user-avatar {
+    width: 36px;
+    height: 36px;
+  }
 
-    .brand-mark {
-        width: 38px;
-        height: 38px;
-    }
+  /* Brand */
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+  }
 
-    .brand-text strong {
-        font-size: 18px;
-    }
+  .brand-text strong {
+    font-size: 16px;
+  }
 
-    .brand-text small {
-        font-size: 10px;
-    }
+  .brand-text small {
+    font-size: 10px;
+  }
 
-    .sidebar-header {
-        padding: 18px 14px 14px;
-    }
+  /* Sidebar */
+  .sidebar-header {
+    padding: 16px 12px 12px;
+  }
 
-    .sidebar-nav {
-        padding: 14px;
-    }
+  .sidebar-nav {
+    padding: 12px;
+    gap: 4px;
+  }
 
-    .sidebar-footer {
-        padding: 14px;
-    }
+  .sidebar-footer {
+    padding: 12px;
+  }
 
-    .btn {
-        min-height: 42px;
-        padding: 0 14px;
-    }
+  .sidebar-link {
+    min-height: 46px;
+    font-size: 14px;
+  }
 
-    .card {
-        border-radius: 18px;
-    }
+  /* Buttons */
+  .btn {
+    min-height: 40px;
+    padding: 0 14px;
+    font-size: 14px;
+  }
 
-    .card-header,
-    .card-body {
-        padding: 18px;
-    }
+  /* Cards */
+  .card {
+    border-radius: 16px;
+  }
 
-    .stat-card {
-        min-height: 140px;
-        padding: 20px;
-    }
+  .card-header,
+  .card-body {
+    padding: 16px;
+  }
 
-    .stat-card-body strong {
-        font-size: 34px;
-    }
+  /* Stat cards */
+  .stat-card {
+    min-height: 130px;
+    padding: 18px;
+    border-radius: 16px;
+  }
 
-    .section-title {
-        font-size: 22px;
-    }
+  .stat-card-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
 
-    .client-brand {
-        font-size: 18px;
-    }
+  .stat-card-body strong {
+    font-size: 30px;
+  }
 
-    .client-topbar {
-        padding: 18px 14px;
-    }
+  /* Page header */
+  .page-header h1 {
+    font-size: clamp(24px, 6.5vw, 28px);
+  }
 
-    .client-nav {
-        gap: 4px;
-        padding: 4px;
-    }
+  .section-title {
+    font-size: 20px;
+  }
 
-    .client-nav-link {
-        min-height: 38px;
-        font-size: 13px;
-    }
+  /* Kanban: narrower cards */
+  .kanban-board {
+    grid-template-columns: repeat(4, minmax(250px, 250px));
+    gap: 10px;
+  }
 
-    .client-hero {
-        padding: 24px 18px;
-    }
+  .kanban-column {
+    min-height: 480px;
+    padding: 10px;
+  }
 
-    .client-hero h1 {
-        font-size: 32px;
-    }
+  .task-card {
+    padding: 12px;
+    border-radius: 14px;
+  }
 
-    .client-hero p {
-        font-size: 15px;
-    }
+  /* Project cards */
+  .project-card {
+    min-height: auto;
+    padding: 18px;
+    border-radius: 18px;
+  }
 
-    .client-hero-panel {
-        padding: 18px;
-    }
+  .project-stat-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 
-    .client-hero-panel-row {
-        display: grid;
-    }
+  /* Client portal */
+  .client-brand {
+    font-size: 16px;
+  }
 
-    .client-hero-panel-row strong {
-        text-align: left;
-    }
+  .client-topbar {
+    padding: 16px 12px;
+  }
 
-    .client-project-card,
-    .project-card {
-        min-height: auto;
-        padding: 20px;
-        border-radius: 20px;
-    }
+  .client-nav {
+    gap: 4px;
+    padding: 4px;
+  }
 
-    .client-project-stats,
-    .project-stat-row {
-        grid-template-columns: 1fr;
-    }
+  .client-nav-link {
+    min-height: 36px;
+    font-size: 12px;
+  }
 
-    .client-progress-circle {
-        width: 132px;
-        height: 132px;
-    }
+  .client-hero {
+    padding: 22px 16px;
+  }
 
-    .client-progress-circle strong {
-        font-size: 30px;
-    }
+  .client-hero h1 {
+    font-size: 28px;
+  }
 
-    .modal-panel {
-        border-radius: 20px;
-    }
+  .client-hero p {
+    font-size: 14px;
+  }
 
-    .toast {
-        width: calc(100vw - 28px);
-    }
+  .client-hero-panel {
+    padding: 16px;
+  }
+
+  .client-hero-panel-row {
+    display: grid;
+  }
+
+  .client-hero-panel-row strong {
+    text-align: left;
+  }
+
+  .client-project-card {
+    min-height: auto;
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .client-project-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .client-progress-circle {
+    width: 120px;
+    height: 120px;
+  }
+
+  .client-progress-circle strong {
+    font-size: 26px;
+  }
+
+  /* Modal */
+  .modal-header {
+    padding: 20px 18px 14px;
+  }
+
+  .modal-body {
+    padding: 18px;
+  }
+
+  /* Auth */
+  .auth-form-side,
+  .client-login-form {
+    padding: 22px 16px;
+  }
+
+  /* Dashboard quick summary card */
+  .quick-summary-card {
+    padding: 22px;
+  }
+
+  .quick-summary-card strong {
+    font-size: 28px;
+  }
+
+  /* Resource chart */
+  .resource-bar-track {
+    width: 52px;
+    height: 160px;
+  }
 }
 
+/* =========================
+   390px — Very small phones (SE, older Android)
+   ========================= */
 @media (max-width: 390px) {
-    .app-content {
-        padding: 14px 10px;
-    }
+  .app-content {
+    padding: 12px 10px;
+  }
 
-    .page-header h1 {
-        font-size: 28px;
-    }
+  .app-topbar {
+    padding: 0 10px;
+  }
 
-    .client-content {
-        width: min(100% - 20px, 1240px);
-    }
+  .page-header h1 {
+    font-size: 22px;
+  }
 
-    .client-nav-link {
-        font-size: 12px;
-    }
+  .stat-grid {
+    gap: 12px;
+  }
 
-    .auth-form-side,
-    .client-login-form {
-        padding: 24px 16px;
-    }
+  .stat-card {
+    min-height: 110px;
+    padding: 14px;
+  }
+
+  .stat-card-body strong {
+    font-size: 26px;
+  }
+
+  .kanban-board {
+    grid-template-columns: repeat(4, minmax(230px, 230px));
+  }
+
+  .kanban-column {
+    min-height: 440px;
+    padding: 8px;
+  }
+
+  .task-card {
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .client-content {
+    width: min(100% - 20px, 1240px);
+  }
+
+  .client-nav-link {
+    font-size: 11px;
+    padding: 0 6px;
+  }
+
+  .auth-form-side,
+  .client-login-form {
+    padding: 20px 12px;
+  }
+
+  .modal-header {
+    padding: 16px 14px 12px;
+  }
+
+  .modal-body {
+    padding: 14px;
+  }
+
+  .btn {
+    min-height: 38px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+}
+
+/* =========================
+   TOUCH & SCROLL HELPERS
+   ========================= */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger tap targets on touch */
+  .sidebar-link {
+    min-height: 54px;
+  }
+
+  .btn {
+    min-height: 46px;
+  }
+
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Remove hover transforms that feel odd on touch */
+  .project-card:hover,
+  .task-card:hover,
+  .btn:hover {
+    transform: none;
+  }
+
+  /* Smooth scroll on touch */
+  .kanban-board,
+  .table-responsive,
+  .gantt-table-wrap {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+}
+
+/* =========================
+   PRINT
+   ========================= */
+@media print {
+  .app-sidebar,
+  .app-topbar,
+  .sidebar-backdrop,
+  .toast-stack,
+  .modal-root,
+  .btn,
+  .task-add-card,
+  .kanban-column-menu {
+    display: none !important;
+  }
+
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .app-content {
+    padding: 0;
+  }
+
+  .kanban-board {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    overflow: visible;
+  }
 }
