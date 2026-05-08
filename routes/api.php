@@ -10,6 +10,7 @@ return [
     /**
      * AUTH
      */
+    ['POST', '/api/auth/register-manager', 'Auth\\ManagerRegistrationController@store', null],
     ['POST', '/api/auth/login-internal', 'Auth\\AuthController@loginInternal', null],
     ['POST', '/api/auth/login-staff',    'Auth\\AuthController@loginStaff', null],
     ['POST', '/api/auth/login-admin',    'Auth\\AuthController@loginAdmin', null],
@@ -17,7 +18,14 @@ return [
     ['POST', '/api/auth/register-client','Auth\\AuthController@registerClient', null],
     ['GET',  '/api/auth/me',             'Auth\\AuthController@me', ['admin', 'manager', 'employee', 'client']],
     ['GET',  '/auth/logout',             'Auth\\LogoutController@index', null],
-
+    ['POST', '/api/auth/login-internal', 'Auth\\AuthController@loginInternal', null],
+    ['POST', '/api/auth/login-staff',    'Auth\\AuthController@loginStaff', null],
+    ['POST', '/api/auth/login-admin',    'Auth\\AuthController@loginAdmin', null],
+    ['POST', '/api/auth/login-client',   'Auth\\AuthController@loginClient', null],
+    ['POST', '/api/auth/register-client','Auth\\AuthController@registerClient', null],
+    ['POST', '/api/auth/register-manager', 'Auth\\ManagerRegistrationController@store', null],
+    ['GET',  '/api/auth/me',             'Auth\\AuthController@me', ['admin', 'manager', 'employee', 'client']],
+    
     /**
      * DASHBOARD
      */
